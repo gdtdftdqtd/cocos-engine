@@ -941,6 +941,8 @@ var BaseNode = cc.Class(/** @lends cc.Node# */{
      * cc.log("Node Position: " + node.getPosition());
      */
     getPosition: function () {
+        var curSGPos = this._sgNode.getPosition();
+        this._position = cc.p(curSGPos.x,curSGPos.y);
         return cc.p(this._position);
     },
 
@@ -2001,6 +2003,10 @@ var BaseNode = cc.Class(/** @lends cc.Node# */{
         sgNode.setOpacityModifyRGB(self._opacityModifyRGB);
         sgNode.setCascadeOpacityEnabled(self._cascadeOpacityEnabled);
         sgNode.setTag(self._tag);
+    },
+
+    getSGNode: function () {
+        return this._sgNode;
     },
 
     _updateSgNode: function () {

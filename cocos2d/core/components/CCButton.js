@@ -53,7 +53,13 @@ var Transition = cc.Enum({
      * !#zh 缩放过渡
      * @property {Number} SCALE
      */
-    SCALE: 3
+    SCALE: 3,
+    /**
+     * !#en The scale type
+     * !#zh 缩放过渡+颜色过渡
+     * @property {Number} SCALE
+     */
+    SCALE_COLOR: 4,
 });
 
 /**
@@ -80,6 +86,7 @@ var Transition = cc.Enum({
  *   -Button.Transition.COLOR  // 进行颜色之间过渡</br>
  *   -Button.Transition.SPRITE // 进行精灵之间过渡</br>
  *   -Button.Transition.SCALE // 进行缩放过渡</br>
+ *   -Button.Transition.SCALE_COLOR // 进行缩放过渡各进行颜色之间过渡</br>
  *
  * 按钮可以绑定事件（但是必须要在按钮的 Node 上才能绑定事件）：</br>
  *   // 以下事件可以在全平台上都触发</br>
@@ -417,7 +424,7 @@ var Button = cc.Class({
     update: function (dt) {
         var target = this.target;
         if(this._transitionFinished) return;
-        if (this.transition !== Transition.COLOR && this.transition !== Transition.SCALE) return;
+        if (this.transition !== Transition.COLOR && this.transition !== Transition.SCALE && this.transition !== Transition.SCALE_COLOR) return;
 
         this.time += dt;
         var ratio = 1.0;
@@ -434,6 +441,12 @@ var Button = cc.Class({
             target.color = this._fromColor.lerp(this._toColor, ratio);
         } else if (this.transition === Transition.SCALE) {
             target.scale = cc.lerp(this._fromScale, this._toScale, ratio);
+        }else if (this.transition === Transition.SCALE_COLOR) {
+            if (!this._fromColor || !this._toColor || !this._fromScale) {
+                return;
+            }
+            target.scale = cc.lerp(this._fromScale, this._toScale, ratio);
+            target.color = this._fromColor.lerp(this._toColor, ratio);
         }
 
     },
@@ -489,7 +502,27 @@ var Button = cc.Class({
                 this._transitionFinished = true;
                 this.target.scale = this._originalScale;
             }
-        } else {
+        } 
+        else if (this.transition === Transition.SCALE_COLOR && this.target){
+            if(hit) {
+                this._fromScale = this._originalScale;
+                this._toScale = this._originalScale * this.zoomScale;
+                this._transitionFinished = false;
+            } else {
+                this.time = 0;
+                this._transitionFinished = true;
+                this.target.scale = this._originalScale;
+            }
+
+            var state;
+            if (hit) {
+                state = 'pressed';
+            } else {
+                state = 'normal';
+            }
+            this._applyTransition(state);
+        }
+        else {
             var state;
             if (hit) {
                 state = 'pressed';
@@ -632,6 +665,9 @@ var Button = cc.Class({
             this._updateSpriteTransition(state);
         } else if(transition === Transition.SCALE) {
             this._updateScaleTransition(state);
+        }else if(transition === Transition.SCALE_COLOR) {
+            this._updateScaleTransition(state);
+            this._updateColorTransition(state);
         }
     },
 
