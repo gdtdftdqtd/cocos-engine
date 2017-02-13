@@ -545,6 +545,42 @@ var TiledLayer = cc.Class({
             this._sgNode.setProperties(properties);
         }
     },
+    /**
+    * setup tiles beyond pos
+    *   初始化某座标周围的格子
+    *   pos中的x y 是指地图中的x, y指第几个格子 
+    *   distance pos周边的多少格内会被显示
+    */
+    setupTilesBeyondPos:function(pos, distance){
+        // cc.log("setupTilesBeyondPos", pos, distance)
+        if (!this._sgNode) return;
+        // cc.log("setupTilesBeyondPos", pos, distance)
+        this._sgNode.showTilesBeyond(pos, distance);        
+    },
+    /**
+    *   移除跟离超过pos distance的格子
+    */
+    removeTilesAwayPos:function(pos, distance){
+        // cc.log("removeTilesAwayPos", pos, distance)
+        // cc.log(this._sgNode)
+        if (!this._sgNode) return;
+    },
+
+    inArray:function(val, array){
+        for (var _k in array) {
+            var _v = array[_k]
+            if (_v == val) return true;
+        }
+        return false;
+    },
+    /**
+    *   设置层展示
+    */
+    insertTileForGID:function(gid, pos, y){
+        if (this._sgNode) {
+            this._sgNode._insertTileForGID(gid, pos, y);
+        }
+    },
 
     // The method will remove self component from the node,
     // and try to remove the node from scene graph.

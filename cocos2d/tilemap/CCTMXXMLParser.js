@@ -616,6 +616,8 @@ cc.TMXMapInfo = cc.SAXParser.extend(/** @lends cc.TMXMapInfo# */{
                 this.orientation = cc.TiledMap.Orientation.ISO;
             else if (orientationStr === "hexagonal")
                 this.orientation = cc.TiledMap.Orientation.HEX;
+            else if (orientationStr === "staggered")
+                this.orientation = cc.TiledMap.Orientation.STAGGERED;
             else if (orientationStr !== null)
                 cc.log("cocos2d: TMXFomat: Unsupported orientation:" + orientationStr);
 

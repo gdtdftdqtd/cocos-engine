@@ -87,6 +87,8 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
     _staggerAxis: null,
     _staggerIndex: null,
     _hexSideLength: 0,
+    _currentShowPoint : cc.p(0, 0),//当前展示的格子
+    _currentShowDistance : 11,//当前展示的距离
 
     _className:"TMXLayer",
 
@@ -188,6 +190,8 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
         // layerInfo
         this.layerName = layerInfo.name;
         this.tiles = layerInfo._tiles;
+        this.tiles = {}
+        this.baseTiles = layerInfo._tiles;
         this.properties = layerInfo.properties;
         this._layerSize = size;
         this._minGID = layerInfo._minGID;
@@ -237,7 +241,20 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
                 height = (mapInfo._tileSize.height + this._hexSideLength) * Math.floor(this._layerSize.height / 2) + mapInfo._tileSize.height * (this._layerSize.height % 2);
             }
             this.setContentSize(width, height);
-        } else {
+        }
+        else if (this.layerOrientation === cc.TiledMap.Orientation.STAGGERED)
+        {
+            var width = 0, height = 0;
+            if (this._staggerAxis === cc.TiledMap.StaggerAxis.STAGGERAXIS_X) {
+                height = mapInfo._tileSize.height * (this._layerSize.height + 0.5);
+                width = (mapInfo._tileSize.width / 2) * (this._layerSize.width + 1);
+            } else {
+                width = mapInfo._tileSize.width * (this._layerSize.width + 0.5);
+                height = (mapInfo._tileSize.height / 2) * (mapInfo._tileSize.height + 1);
+            }
+            this.setContentSize(width, height);
+        }
+        else {
             this.setContentSize(this._layerSize.width * this._mapTileSize.width,
                 this._layerSize.height * this._mapTileSize.height);
         }
@@ -625,14 +642,16 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
         if (gid !== 0) {
             var z = Math.floor(pos.x) + Math.floor(pos.y) * this._layerSize.width;
             // remove tile from GID map
-            this.tiles[z] = 0;
+            //不移除格子防止移除格子后再创建无内容
+            this.tiles[z] = 0; 
 
             // remove it from sprites and/or texture atlas
-            var sprite = this._spriteTiles[z];
-            if (sprite) {
-                this.removeChild(sprite, true);
-            }
         }
+        var sprite = this._spriteTiles[z];
+        if (sprite) {
+            this.removeChild(sprite, true);
+        }
+        
     },
 
     /**
@@ -656,12 +675,158 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
                 break;
             case cc.TiledMap.Orientation.HEX:
                 ret = this._positionForHexAt(pos);
+            case cc.TiledMap.Orientation.STAGGERED:
+                ret = this._positionForStaggeredAt(pos);
                 break;
         }
         return ret;
     },
     // XXX: Deprecated. For backward compatibility only
     // positionAt:getPositionAt,
+
+
+    /**
+     * Return the value for the specific property name
+     * @param {String} propertyName
+     * @return {*}
+     */
+    getProperty:function (propertyName) {
+        return this.properties[propertyName];
+    },
+
+    /**
+     * Creates the tiles
+     */
+    setupTiles:function () {
+        // Optimization: quick hack that sets the image size on the tileset
+        this._renderCmd.initImageSize();
+
+        // Parse cocos2d properties
+        this._parseInternalProperties();
+        if (cc._renderType === cc.game.RENDER_TYPE_CANVAS)
+            this._setNodeDirtyForCache();
+        //add by yangzhu start
+        var locLayerHeight = this._layerSize.height, locLayerWidth = this._layerSize.width;
+        if(locLayerHeight > 125 || locLayerWidth > 125){
+            cc.log("地图过大,使用layer.setupTilesBeyondPos 和 layer.removeTilesAwayPos处理tiles显隐")
+            return
+        }
+        //end
+        for (var y = 0; y < locLayerHeight; y++) {
+            for (var x = 0; x < locLayerWidth; x++) {
+                var pos = x + locLayerWidth * y;
+                var gid = this.tiles[pos];
+
+                // XXX: gid == 0 -. empty tile
+                if (gid !== 0) {
+                    this._appendTileForGID(gid, cc.p(x, y));
+                    // Optimization: update min and max GID rendered by the layer
+                    this._minGID = Math.min(gid, this._minGID);
+                    this._maxGID = Math.max(gid, this._maxGID);
+                }
+            }
+        }
+        
+        if (!((this._maxGID >= this.tileset.firstGid) && (this._minGID >= this.tileset.firstGid))) {
+            cc.log("cocos2d:TMX: Only 1 tileset per layer is supported");
+        }
+    },
+
+    /**
+     * _ccsg.TMXLayer doesn't support adding a _ccsg.Sprite manually.
+     * @warning addChild(child); is not supported on _ccsg.TMXLayer. Instead of setTileGID.
+     * @param {_ccsg.Node} child
+     * @param {number} zOrder
+     * @param {number} tag
+     */
+    addChild:function (child, zOrder, tag) {
+        cc.log("addChild: is not supported on _ccsg.TMXLayer. Instead use setTileGID or tileAt.");
+    },
+
+    /**
+     * Remove child
+     * @param  {_ccsg.Sprite} sprite
+     * @param  {Boolean} cleanup
+     */
+    removeChild:function (sprite, cleanup) {
+        // allows removing nil objects
+        if (!sprite)
+            return;
+
+        if(this._children.indexOf(sprite) === -1){
+            cc.log("_ccsg.TMXLayer.removeChild(): Tile does not belong to TMXLayer");
+            return;
+        }
+
+        if (cc._renderType === cc.game.RENDER_TYPE_CANVAS)
+            this._setNodeDirtyForCache();
+        var atlasIndex = sprite.atlasIndex;
+        var zz = this._atlasIndexArray[atlasIndex];
+        this.tiles[zz] = 0;
+        this._atlasIndexArray.splice(atlasIndex, 1);
+        cc.SpriteBatchNode.prototype.removeChild.call(this, sprite, cleanup);
+        cc.renderer.childrenOrderDirty = true;
+    },
+
+    setBaseTiles:function(baseTiles){
+        this.baseTiles = baseTiles
+    },
+
+    showTilesBeyond:function(pos, distance){
+        this._currentShowPoint = pos;//当前展示的格子
+        this._currentShowDistance = distance;//当前展示的距离
+
+        var layerSize = this.getLayerSize()
+        var _minX = pos.x - distance;
+        var _maxX = pos.x + distance;
+        var _minY = pos.y - distance;
+        var _maxY = pos.y + distance;
+        _minX = _minX < 0 ? 0 : _minX;
+        _maxX = _maxX > layerSize.width - 1 ? layerSize.width - 1 : _maxX;
+        _minY = _minY < 0 ? 0 : _minY;
+        _maxY = _maxY > layerSize.height - 1 ? layerSize.height - 1 : _maxY;
+        for (var _y = _minY; _y <= _maxY; _y++) {
+            for (var _x = _minX; _x <= _maxX; _x++) {
+                var z = _x + layerSize.width * _y;
+                // var gid = this.getTileBaseGIDAt(cc.p(_x, _y))
+                var gid = this.baseTiles[z] || 0;
+                if (gid !== 0) {
+                    if (this.tiles[z]) continue;
+                    this.setTileGID(gid, cc.p(_x, _y));
+                    // Optimization: update min and max GID rendered by the layer
+                    this._minGID = Math.min(gid, this._minGID);
+                    this._maxGID = Math.max(gid, this._maxGID);
+                }
+            }
+        }
+        this.removeTilesAwayPos(pos, distance)
+    },
+    removeTilesAwayPos:function(pos, distance){
+        // cc.log("removeTilesAwayPos", pos, distance)
+        for (var z in this.tiles) {
+            var _x = parseInt(z % this._layerSize.width)
+            var _y = parseInt(z / this._layerSize.width)
+             if (Math.abs(_x - pos.x) > distance || Math.abs(_y - pos.y) > distance) {
+                this.removeTileAt(cc.p(_x, _y))
+            }
+        }
+    },
+    /**
+     * Gets the layer name
+     * @return {String}
+     */
+    getLayerName:function () {
+        return this.layerName;
+    },
+
+    /**
+     * Set the layer name
+     * @param {String} layerName
+     */
+    setLayerName:function (layerName) {
+        this.layerName = layerName;
+    },
+
 
     _positionForIsoAt:function (pos) {
         return cc.p(this._mapTileSize.width / 2 * ( this._layerSize.width + pos.x - pos.y - 1),
@@ -707,6 +872,15 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
         return xy;
     },
 
+    _positionForStaggeredAt:function (pos) {
+        var diffX = 0;
+        if (parseInt(pos.y) % 2 == 1)
+        {
+            diffX = this._mapTileSize.width/2;
+        }
+        return cc.p(pos.x * this._mapTileSize.width + diffX, (this._layerSize.height - pos.y - 1) * this._mapTileSize.height/2);
+    },
+
     _calculateLayerOffset:function (pos) {
         var ret = cc.p(0,0);
         switch (this.layerOrientation) {
@@ -731,6 +905,14 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
                                -pos.y * this._mapTileSize.height + diffY);
                 }
                 break;
+            case cc.TiledMap.Orientation.STAGGERED:
+                var diffX = 0;
+                if (parseInt(pos.y) % 2 == 1)
+                {
+                    diffX = this._mapTileSize.width/2;
+                }
+                ret = cc.p(pos.x * this._mapTileSize.width + diffX, (this._layerSize.height - pos.y - 1) * this._mapTileSize.height/2);
+                break;
         }
         return ret;
     },
@@ -741,9 +923,9 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
         }
 
         var idx = 0 | (pos.x + pos.y * this._layerSize.width);
-        if (idx < this.tiles.length) {
+        // if (idx < this.tiles.length) {
             this.tiles[idx] = gid;
-        }
+        // }
     },
 
     //The layer recognizes some special properties, like cc_vertez
@@ -827,6 +1009,9 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
                     break;
                 case cc.TiledMap.Orientation.HEX:
                     cc.log("TMX Hexa zOrder not supported");
+                    break;
+                case cc.TiledMap.Orientation.STAGGERED:
+                    ret = -(this._layerSize.height - y);
                     break;
                 default:
                     cc.log("TMX invalid value");

@@ -55,7 +55,15 @@ var Orientation = cc.Enum({
      * @type {Number}
      * @static
      */
-    ISO: 2
+    ISO: 2,
+    /**
+     * Isometric orientation.
+     * 交错 45度
+     * @property STAGGERED
+     * @type {Number}
+     * @static
+     */
+    STAGGERED: 3,
 });
 
 /*

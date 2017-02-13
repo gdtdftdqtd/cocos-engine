@@ -133,7 +133,16 @@ proto.uploadData = function (f32buffer, ui32buffer, vertexDataOffset) {
         diffX1 = (axis === StaggerAxis.STAGGERAXIS_X) ? ((maptw - hexSideLength)/2) : 0;
         diffY1 = (axis === StaggerAxis.STAGGERAXIS_Y) ? ((mapth - hexSideLength)/2) : 0;
     }
-
+    //edit by yangzhu 修正只渲染可视区域
+    var startRow = node._currentShowPoint.y - node._currentShowDistance,
+        maxRow = node._currentShowPoint.y + node._currentShowDistance,
+        startCol = node._currentShowPoint.x - node._currentShowDistance,
+        maxCol = node._currentShowPoint.x + node._currentShowDistance;
+        if (startCol < 0) startCol = 0;
+        if (startRow < 0) startRow = 0;
+        if (maxCol > cols) maxCol = cols;
+        if (maxRow > rows) maxRow = rows;
+        
     for (row = startRow; row < maxRow; ++row) {
         for (col = startCol; col < maxCol; ++col) {
             // No more buffer
@@ -145,10 +154,11 @@ proto.uploadData = function (f32buffer, ui32buffer, vertexDataOffset) {
             }
 
             z = colOffset + col;
+            z = col + row * cols;
             // Skip sprite tiles
-            if (spTiles[z]) {
-                continue;
-            }
+            // if (spTiles[z]) {
+            //     continue;
+            // }
 
             gid = node.tiles[z];
             grid = grids[(gid & FLIPPED_MASK) >>> 0];

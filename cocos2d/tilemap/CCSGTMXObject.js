@@ -187,6 +187,7 @@ _ccsg.TMXObjectImage = _ccsg.Sprite.extend(/** @lends cc.TMXObjectImage# */{
     _initPosWithMapInfo: function (mapInfo) {
         var mapOri = mapInfo.getOrientation();
         switch(mapOri) {
+        case cc.TiledMap.Orientation.STAGGERED:
         case cc.TiledMap.Orientation.ORTHO:
         case cc.TiledMap.Orientation.HEX:
             this.setAnchorPoint(cc.p(0, 0));
