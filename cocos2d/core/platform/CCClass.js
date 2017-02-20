@@ -267,6 +267,14 @@ function getDefault (defaultVal) {
 }
 
 function doDefine (className, baseClass, mixins, constructor, options) {
+    var shouldAddProtoCtor;
+    if (CC_EDITOR && constructor && baseClass) {
+        if (/\bprototype.ctor\b/.test(constructor)) {
+            cc.warnID(3600, className || "");
+            shouldAddProtoCtor = true;
+        }
+    }
+
     var fireClass = _createCtor(constructor, baseClass, mixins, className, options);
 
     // extend - (NON-INHERITED) Create a new Class that inherits from this Class
@@ -281,6 +289,9 @@ function doDefine (className, baseClass, mixins, constructor, options) {
 
     if (baseClass) {
         JS.extend(fireClass, baseClass);    // 这里会把父类的 __props__ 复制给子类
+        if (CC_EDITOR && shouldAddProtoCtor) {
+            fireClass.prototype.ctor = function () {};
+        }
         fireClass.$super = baseClass;
     }
 
@@ -493,7 +504,6 @@ function compileProps (actualClass) {
 
 function _createCtor (ctor, baseClass, mixins, className, options) {
     var useTryCatch = ! (className && className.startsWith('cc.'));
-    var shouldAddProtoCtor;
     if (CC_EDITOR && ctor && baseClass) {
         // check super call in constructor
         var originCtor = ctor;
@@ -507,10 +517,6 @@ function _createCtor (ctor, baseClass, mixins, className, options) {
                 return ret;
             };
         }
-        if (/\bprototype.ctor\b/.test(originCtor)) {
-            cc.warnID(3600, className);
-            shouldAddProtoCtor = true;
-        }
     }
     var superCallBounded = options && baseClass && boundSuperCalls(baseClass, options, className);
 
@@ -522,7 +528,7 @@ function _createCtor (ctor, baseClass, mixins, className, options) {
         if (typeof ctor !== 'function') {
             cc.errorID(3619, className);
         }
-        if (ctor.length > 0 && !className.startsWith('cc.')) {
+        if (ctor.length > 0 && (!className || !className.startsWith('cc.'))) {
             // fireball-x/dev#138: To make a unified CCClass serialization process,
             // we don't allow parameters for constructor when creating instances of CCClass.
             // For advance user, construct arguments can still get from 'arguments'.
@@ -607,9 +613,6 @@ function _createCtor (ctor, baseClass, mixins, className, options) {
         // enumerable should be false
     });
 
-    if (CC_EDITOR && shouldAddProtoCtor) {
-        fireClass.prototype.ctor = function () {};
-    }
     return fireClass;
 }
 
