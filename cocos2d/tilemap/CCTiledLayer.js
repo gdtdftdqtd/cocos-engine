@@ -161,6 +161,16 @@ var TiledLayer = cc.Class({
         return null;
     },
 
+    getTileCoords:function (pos, y) {
+        if (this._sgNode) {
+            if (y !== undefined)
+                pos = cc.p(pos, y);
+            return this._sgNode.getTileCoords(pos);
+        }
+
+        return null;
+    },
+
     /**
      * !#en Removes a tile at given tile coordinate.
      * !#zh 删除指定坐标上的 tile。
