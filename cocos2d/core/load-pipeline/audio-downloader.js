@@ -55,7 +55,9 @@ function loadDomAudio (item, callback) {
     };
     var failure = function () {
         clearEvent();
-        cc.log('load audio failure - ' + item.url);
+        var message = 'load audio failure - ' + item.url;
+        cc.log(message);
+        callback(message, item.url);
     };
     dom.addEventListener("canplaythrough", success, false);
     dom.addEventListener("error", failure, false);
@@ -96,28 +98,12 @@ function downloadAudio (item, callback) {
 
     item.content = item.url;
 
-    if (!__audioSupport.WEB_AUDIO) {
-        // If WebAudio is not supported, load using DOM mode
+    // If WebAudio is not supported, load using DOM mode
+    if (!__audioSupport.WEB_AUDIO || (item.urlParam && item.urlParam['useDom'])) {
         return loadDomAudio(item, callback);
     }
 
-    // Get a header
-    // check audio size
-    var request = cc.loader.getXMLHttpRequest();
-    request.open("HEAD", item.url, true);
-    // Our asynchronous callback
-    request.onload = function () {
-        var bit = this.getResponseHeader('Content-Length');
-        if (bit > audioEngine._maxWebAudioSize) {
-            return loadDomAudio(item, callback);
-        }
-        return loadWebAudio(item, callback);
-    };
-    request.onerror = function () {
-        var ERRSTR = 'can not found the resource of audio! Last match url is : ' + item.url;
-        return callback({status: 520, errorMessage: ERRSTR}, null);
-    };
-    request.send();
+    return loadWebAudio(item, callback);
 }
 
 module.exports = downloadAudio;

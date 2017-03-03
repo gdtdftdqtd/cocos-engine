@@ -198,7 +198,7 @@ sp.Skeleton = cc.Class({
                     skinsEnum = this.skeletonData.getSkinsEnum();
                 }
                 if ( !skinsEnum ) {
-                    return cc.error('Failed to set _defaultSkinIndex for "%s" because its skeletonData is invalid.',
+                    return cc.errorID('',
                         this.name);
                 }
                 var skinName = skinsEnum[value];
@@ -209,7 +209,7 @@ sp.Skeleton = cc.Class({
                     }
                 }
                 else {
-                    cc.error('Failed to set _defaultSkinIndex for "%s" because the index is out of range.', this.name);
+                    cc.errorID(7501, this.name);
                 }
             },
             type: DefaultSkinsEnum,
@@ -243,14 +243,14 @@ sp.Skeleton = cc.Class({
                     animsEnum = this.skeletonData.getAnimsEnum();
                 }
                 if ( !animsEnum ) {
-                    return cc.error('Failed to set _animationIndex for "%s" because its skeletonData is invalid.', this.name);
+                    return cc.errorID(7502, this.name);
                 }
                 var animName = animsEnum[value];
                 if (animName !== undefined) {
                     this.animation = animName;
                 }
                 else {
-                    cc.error('Failed to set _animationIndex for "%s" because the index is out of range.', this.name);
+                    cc.errorID(7503, this.name);
                 }
 
             },
@@ -378,23 +378,33 @@ sp.Skeleton = cc.Class({
             if (CC_JSB) {
                 var uuid = this.skeletonData._uuid;
                 if ( !uuid ) {
-                    cc.error('Can not render dynamic created SkeletonData');
+                    cc.errorID(7504);
                     return null;
                 }
                 var jsonFile = this.skeletonData.rawUrl;
                 var atlasFile = this.skeletonData.atlasUrl;
                 if (atlasFile) {
                     if (typeof atlasFile !== 'string') {
-                        cc.error('Invalid type of atlasFile, atlas should be registered as raw asset.');
+                        cc.errorID(7505);
                         return null;
                     }
-                    return new sp._SGSkeletonAnimation(jsonFile, atlasFile, this.skeletonData.scale);
+                    try {
+                        return new sp._SGSkeletonAnimation(jsonFile, atlasFile, this.skeletonData.scale);
+                    }
+                    catch (e) {
+                        cc._throw(e);
+                    }
                 }
             }
             else {
                 var data = this.skeletonData.getRuntimeData();
                 if (data) {
-                    return new sp._SGSkeletonAnimation(data, null, this.skeletonData.scale);
+                    try {
+                        return new sp._SGSkeletonAnimation(data, null, this.skeletonData.scale);
+                    }
+                    catch (e) {
+                        cc._throw(e);
+                    }
                 }
             }
         }
@@ -744,6 +754,20 @@ sp.Skeleton = cc.Class({
     },
 
     /**
+     * !#en Find animation with specified name.
+     * !#zh 查找指定名称的动画
+     * @method findAnimation
+     * @param {String} name
+     * @returns {sp.spine.Animation}
+     */
+    findAnimation: function (name) {
+        if (this._sgNode) {
+            return this._sgNode.findAnimation(name);
+        }
+        return null;
+    },
+
+    /**
      * !#en Returns track entry by trackIndex.<br>
      * Returns a {{#crossLinkModule "sp.spine"}}sp.spine{{/crossLinkModule}}.TrackEntry object.
      * !#zh 通过 track 索引获取 TrackEntry。<br>
@@ -817,6 +841,18 @@ sp.Skeleton = cc.Class({
     },
 
     /**
+     * !#en Set the interrupt event listener.
+     * !#zh 用来设置动画被打断的事件监听。
+     * @method setInterruptListener
+     * @param {function} listener
+     */
+    setInterruptListener: function (listener) {
+        if (this._sgNode) {
+            this._sgNode.setInterruptListener(listener);
+        }
+    },
+
+    /**
      * !#en Set the end event listener.
      * !#zh 用来设置动画播放完后的事件监听。
      * @method setEndListener
@@ -828,36 +864,114 @@ sp.Skeleton = cc.Class({
         }
     },
 
+    /**
+     * !#en Set the dispose event listener.
+     * !#zh 用来设置动画将被销毁的事件监听。
+     * @method setDisposeListener
+     * @param {function} listener
+     */
+    setDisposeListener: function (listener) {
+        if (this._sgNode) {
+            this._sgNode.setDisposeListener(listener);
+        }
+    },
+
+    /**
+     * !#en Set the complete event listener.
+     * !#zh 用来设置动画播放一次循环结束后的事件监听。
+     * @method setCompleteListener
+     * @param {function} listener
+     */
     setCompleteListener: function (listener) {
         if (this._sgNode) {
             this._sgNode.setCompleteListener(listener);
         }
     },
 
+    /**
+     * !#en Set the animation event listener.
+     * !#zh 用来设置动画播放过程中帧事件的监听。
+     * @method setEventListener
+     * @param {function} listener
+     */
     setEventListener: function (listener) {
         if (this._sgNode) {
             this._sgNode.setEventListener(listener);
         }
     },
 
+    /**
+     * !#en Set the start event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画开始播放的事件监听。（只支持 Web 平台）
+     * @method setTrackStartListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
     setTrackStartListener: function (entry, listener) {
         if (this._sgNode) {
             this._sgNode.setTrackStartListener(entry, listener);
         }
     },
 
+    /**
+     * !#en Set the interrupt event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画被打断的事件监听。（只支持 Web 平台）
+     * @method setTrackInterruptListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
+    setTrackInterruptListener: function (entry, listener) {
+        if (this._sgNode) {
+            this._sgNode.setTrackInterruptListener(entry, listener);
+        }
+    },
+
+    /**
+     * !#en Set the end event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画播放结束的事件监听。（只支持 Web 平台）
+     * @method setTrackEndListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
     setTrackEndListener: function (entry, listener) {
         if (this._sgNode) {
             this._sgNode.setTrackEndListener(entry, listener);
         }
     },
 
+    /**
+     * !#en Set the dispose event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画即将被销毁的事件监听。（只支持 Web 平台）
+     * @method setTrackDisposeListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
+    setTrackDisposeListener: function(entry, listener){
+        if (this._sgNode) {
+            this._sgNode.setTrackDisposeListener(entry, listener);
+        }
+    },
+
+    /**
+     * !#en Set the complete event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画一次循环播放结束的事件监听。（只支持 Web 平台）
+     * @method setTrackCompleteListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
     setTrackCompleteListener: function (entry, listener) {
         if (this._sgNode) {
             this._sgNode.setTrackCompleteListener(entry, listener);
         }
     },
 
+    /**
+     * !#en Set the event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画帧事件的监听。（只支持 Web 平台）
+     * @method setTrackEventListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
     setTrackEventListener: function (entry, listener) {
         if (this._sgNode) {
             this._sgNode.setTrackEventListener(entry, listener);

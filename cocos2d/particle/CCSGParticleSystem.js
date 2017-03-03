@@ -67,10 +67,10 @@ var tiffReader = require('../cocos2d/particle/CCTIFFReader');
  * @param {cc.Particle.ModeA} [modeB=]
  */
 cc.Particle = function (pos, startPos, color, deltaColor, size, deltaSize, rotation, deltaRotation, timeToLive, atlasIndex, modeA, modeB) {
-    this.pos = pos ? pos : cc.p(0,0);
-    this.startPos = startPos ? startPos : cc.p(0,0);
-    this.color = color ? color : {r:0, g: 0, b:0, a:255};
-    this.deltaColor = deltaColor ? deltaColor : {r:0, g: 0, b:0, a:255} ;
+    this.pos = pos || cc.v2(0, 0);
+    this.startPos = startPos || cc.v2(0, 0);
+    this.color = color || cc.color(0, 0, 0, 255);
+    this.deltaColor = deltaColor || {r:0, g: 0, b:0, a:255};
     this.size = size || 0;
     this.deltaSize = deltaSize || 0;
     this.rotation = rotation || 0;
@@ -114,8 +114,8 @@ cc.Particle.ModeB = function (angle, degreesPerSecond, radius, deltaRadius) {
 };
 
 /**
-  * Array of Point instances used to optimize particle updates
-  */
+ * Array of Point instances used to optimize particle updates
+ */
 cc.Particle.TemporaryPoints = [
     cc.p(),
     cc.p(),
@@ -127,7 +127,7 @@ cc.Particle.TemporaryPoints = [
  * <p>
  *     Particle System base class. <br/>
  *     Attributes of a Particle System:<br/>
- *     - emmision rate of the particles<br/>
+ *     - emission rate of the particles<br/>
  *     - Gravity Mode (Mode A): <br/>
  *     - gravity <br/>
  *     - direction <br/>
@@ -214,7 +214,7 @@ cc.Particle.TemporaryPoints = [
  *  emitter.startSpin = 0;
  */
 _ccsg.ParticleSystem = _ccsg.Node.extend({
-    _className:"ParticleSystem",
+    _className: "ParticleSystem",
     //***********variables*************
     _plistFile: "",
     //! time elapsed since the start of the system (in seconds)
@@ -344,7 +344,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
             var ton = plistFile || 100;
             this.setDrawMode(_ccsg.ParticleSystem.TEXTURE_MODE);
             this.initWithTotalParticles(ton);
-        } else if (cc.js.isString(plistFile)) {
+        } else if (typeof plistFile === 'string') {
             this.initWithFile(plistFile);
         } else if (typeof plistFile === 'object') {
             this.initWithDictionary(plistFile, "");
@@ -493,8 +493,9 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
      * sourcePosition of the emitter setter
      * @param sourcePosition
      */
-    setSourcePosition:function (sourcePosition) {
-        this._sourcePosition = sourcePosition;
+    setSourcePosition: function (sourcePosition) {
+        this._sourcePosition.x = sourcePosition.x;
+        this._sourcePosition.y = sourcePosition.y;
     },
 
     /**
@@ -509,8 +510,9 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
      * Position variance of the emitter setter
      * @param {cc.Vec2} posVar
      */
-    setPosVar:function (posVar) {
-        this._posVar = posVar;
+    setPosVar: function (posVar) {
+        this._posVar.x = posVar.x;
+        this._posVar.y = posVar.y;
     },
 
     /**
@@ -902,8 +904,8 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
      * get start color of each particle
      * @param {cc.Color} startColor
      */
-    setStartColor:function (startColor) {
-        this._startColor = cc.color(startColor);
+    setStartColor: function (startColor) {
+        this._startColor.fromColor(startColor);
     },
 
     /**
@@ -919,7 +921,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
      * @param {cc.Color} startColorVar
      */
     setStartColorVar:function (startColorVar) {
-        this._startColorVar = cc.color(startColorVar);
+        this._startColorVar.fromColor(startColorVar);
     },
 
     /**
@@ -935,7 +937,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
      * @param {cc.Color} endColor
      */
     setEndColor:function (endColor) {
-        this._endColor = cc.color(endColor);
+        this._endColor.fromColor(endColor);
     },
 
     /**
@@ -951,7 +953,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
      * @param {cc.Color} endColorVar
      */
     setEndColorVar:function (endColorVar) {
-        this._endColorVar = cc.color(endColorVar);
+        this._endColorVar.fromColor(endColorVar);
     },
 
     /**
@@ -1226,7 +1228,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
         this._plistFile = plistFile;
         var dict = cc.loader.getRes(plistFile);
         if(!dict){
-            cc.log("_ccsg.ParticleSystem.initWithFile(): Particles: file not found");
+            cc.logID(6008);
             return false;
         }
 
@@ -1340,9 +1342,13 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
 
                 // rotation is dir
                 var locRotationIsDir = locValueForKey("rotationIsDir", dictionary);
-                locRotationIsDir = ("" + locRotationIsDir).toLowerCase();
-                locModeA.rotationIsDir = (locRotationIsDir === "true" || locRotationIsDir === "1");
-
+                if (locRotationIsDir !== null) {
+                    locRotationIsDir = locRotationIsDir.toString().toLowerCase();
+                    locModeA.rotationIsDir = (locRotationIsDir === "true" || locRotationIsDir === "1");
+                }
+                else {
+                    locModeA.rotationIsDir = false;
+                }
             } else if (this.emitterMode === _ccsg.ParticleSystem.Mode.RADIUS) {
                 // or Mode B: radius movement
                 var locModeB = this.modeB;
@@ -1353,7 +1359,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
                 locModeB.rotatePerSecond = parseFloat(locValueForKey("rotatePerSecond", dictionary));
                 locModeB.rotatePerSecondVar = parseFloat(locValueForKey("rotatePerSecondVariance", dictionary));
             } else {
-                cc.log("_ccsg.ParticleSystem.initWithDictionary(): Invalid emitterType in config file");
+                cc.logID(6009);
                 return false;
             }
 
@@ -1388,14 +1394,14 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
                     } else {
                         buffer = cc.Codec.unzipBase64AsArray(textureData, 1);
                         if (!buffer) {
-                            cc.log("_ccsg.ParticleSystem: error decoding or ungzipping textureImageData");
+                            cc.logID(6010);
                             return false;
                         }
 
                         var imageFormat = cc.getImageFormatByData(buffer);
 
                         if(imageFormat !== cc.ImageFormat.TIFF && imageFormat !== cc.ImageFormat.PNG){
-                            cc.log("_ccsg.ParticleSystem: unknown image format with Data");
+                            cc.logID(6011);
                             return false;
                         }
 
@@ -1411,7 +1417,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
 
                         var addTexture = cc.textureCache.getTextureForKey(imgPath);
                         if(!addTexture)
-                            cc.log("_ccsg.ParticleSystem.initWithDictionary() : error loading the texture");
+                            cc.logID(6012);
                         this.setTexture(addTexture);
                     }
                 }
@@ -1436,7 +1442,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
         }
 
         if (!locParticles) {
-            cc.log("Particle system: not enough memory");
+            cc.logID(6013);
             return false;
         }
         this._allocatedParticles = numberOfParticles;
@@ -1830,7 +1836,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
 
     _updateBlendFunc:function () {
         if(this._batchNode){
-            cc.log("Can't change blending functions when the particle is being batched");
+            cc.logID(6014);
             return;
         }
 
@@ -1963,7 +1969,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
 
         var locOffset = spriteFrame.getOffset();
         if (locOffset.x !== 0 || locOffset.y !== 0)
-            cc.log("_ccsg.ParticleSystem.setDisplayFrame(): QuadParticle only supports SpriteFrames with no offsets");
+            cc.logID(6015);
 
         // update texture before updating texture rect
         var texture = spriteFrame.getTexture(), locTexture = this._texture;
@@ -1972,7 +1978,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
     },
 
     /**
-     *  Sets a new texture with a rect. The rect is in Points.
+     * Sets a new texture with a rect. The rect is in Points.
      * @param {Texture2D} texture
      * @param {Rect} rect
      */

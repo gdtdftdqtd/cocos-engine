@@ -149,11 +149,11 @@ jsbLabel.prototype.setContentSize = function (size, height) {
 };
 
 
-jsbLabel.prototype.setFontFileOrFamily = function (fontHandle) {
+jsbLabel.prototype.setFontFileOrFamily = function (fontHandle, spriteFrame) {
     fontHandle = fontHandle || '';
     var extName = cc.path.extname(fontHandle);
     //specify font family name directly
-    if (!extName) {
+    if (!extName && !spriteFrame) {
         this._labelType = _ccsg.Label.Type.SystemFont;
         this.setSystemFontName(fontHandle);
         this._isSystemFontUsed = true;
@@ -163,7 +163,7 @@ jsbLabel.prototype.setFontFileOrFamily = function (fontHandle) {
             if(!this._ttfConfig) {
                 this._ttfConfig = {
                     fontFilePath: fontHandle,
-                    fontSize: 40,
+                    fontSize: this._fontSize,
                     outlineSize: 0,
                     glyphs: 0,
                     customGlyphs: "",
@@ -173,9 +173,9 @@ jsbLabel.prototype.setFontFileOrFamily = function (fontHandle) {
             this._labelType = _ccsg.Label.Type.TTF;
             this._ttfConfig.fontFilePath = fontHandle;
             this.setTTFConfig(this._ttfConfig);
-        } else if (extName === '.fnt') {
+        } else if (spriteFrame) {
             this._labelType = _ccsg.Label.Type.BMFont;
-            this.setBMFontFilePath(fontHandle);
+            this.setBMFontFilePath(fontHandle, spriteFrame);
             this.setFontSize(this.getFontSize());
         }
     }
@@ -224,31 +224,32 @@ jsbLabel.prototype.getOutlineColor = function() {
 };
 
 
-cc.Label = function (string, fontHandle) {
+cc.Label = function (string, fontHandle, spriteFrame) {
     fontHandle = fontHandle || "Arial";
     var extName = cc.path.extname(fontHandle);
 
     var type = _ccsg.Label.Type.TTF;
+    this._fontSize = 40;
 
     var label;
     if (extName === ".ttf") {
         var ttfConfig = {
             fontFilePath: fontHandle,
-            fontSize: 40,
+            fontSize: this._fontSize,
             outlineSize: 0,
             glyphs: 0,
             customGlyphs: "",
             distanceFieldEnable: false
         };
-        label = jsbLabel.createWithTTF(ttfConfig, string, 40);
+        label = jsbLabel.createWithTTF(ttfConfig, string, this._fontSize);
         label._ttfConfig = ttfConfig;
     }
-    else if (extName === ".fnt") {
-        label = jsbLabel.createWithBMFont(fontHandle, string);
+    else if (spriteFrame) {
+        label = jsbLabel.createWithBMFont(fontHandle, string, spriteFrame);
         type = _ccsg.Label.Type.BMFont;
     }
     else {
-        label = jsbLabel.createWithSystemFont(string || '', fontHandle, 40);
+        label = jsbLabel.createWithSystemFont(string || '', fontHandle, this._fontSize);
         type = _ccsg.Label.Type.SystemFont;
         label._isSystemFontUsed = true;
     }

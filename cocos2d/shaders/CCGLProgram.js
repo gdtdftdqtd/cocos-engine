@@ -42,6 +42,7 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
     _uniforms: null,
     _hashForUniforms: null,
     _usesTime: false,
+    _projectionUpdated: -1,
 
     // Uniform cache
     _updateUniformLocation: function (location) {
@@ -85,22 +86,22 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
 
         var preStr = cc.GLProgram._isHighpSupported() ? "precision highp float;\n" : "precision mediump float;\n";
         source = preStr
-            + "uniform mat4 CC_PMatrix;         \n"
-            + "uniform mat4 CC_MVMatrix;        \n"
-            + "uniform mat4 CC_MVPMatrix;       \n"
-            + "uniform vec4 CC_Time;            \n"
-            + "uniform vec4 CC_SinTime;         \n"
-            + "uniform vec4 CC_CosTime;         \n"
-            + "uniform vec4 CC_Random01;        \n"
-            + "uniform sampler2D CC_Texture0;   \n"
-            + "//CC INCLUDES END                \n" + source;
+            + "uniform mat4 CC_PMatrix;\n"
+            + "uniform mat4 CC_MVMatrix;\n"
+            + "uniform mat4 CC_MVPMatrix;\n"
+            + "uniform vec4 CC_Time;\n"
+            + "uniform vec4 CC_SinTime;\n"
+            + "uniform vec4 CC_CosTime;\n"
+            + "uniform vec4 CC_Random01;\n"
+            + "uniform sampler2D CC_Texture0;\n"
+            + "//CC INCLUDES END\n" + source;
 
         this._glContext.shaderSource(shader, source);
         this._glContext.compileShader(shader);
         var status = this._glContext.getShaderParameter(shader, this._glContext.COMPILE_STATUS);
 
         if (!status) {
-            cc.log("cocos2d: ERROR: Failed to compile shader:\n" + this._glContext.getShaderSource(shader));
+            cc.logID(8100, this._glContext.getShaderSource(shader));
             if (type === this._glContext.VERTEX_SHADER)
                 cc.log("cocos2d: \n" + this.vertexShaderLog());
             else
@@ -109,18 +110,18 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
         return ( status === true );
     },
 
-	/**
-	 * Create a cc.GLProgram object
-	 * @param {String} vShaderFileName
-	 * @param {String} fShaderFileName
-	 * @returns {cc.GLProgram}
-	 */
+    /**
+     * Create a cc.GLProgram object
+     * @param {String} vShaderFileName
+     * @param {String} fShaderFileName
+     * @returns {cc.GLProgram}
+     */
     ctor: function (vShaderFileName, fShaderFileName, glContext) {
         this._uniforms = {};
         this._hashForUniforms = {};
         this._glContext = glContext || cc._renderContext;
 
-		vShaderFileName && fShaderFileName && this.init(vShaderFileName, fShaderFileName);
+        vShaderFileName && fShaderFileName && this.init(vShaderFileName, fShaderFileName);
     },
 
     /**
@@ -144,6 +145,7 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
     initWithVertexShaderByteArray: function (vertShaderStr, fragShaderStr) {
         var locGL = this._glContext;
         this._programObj = locGL.createProgram();
+        this._projectionUpdated = -1;
         //cc.checkGLErrorDebug();
 
         this._vertShader = null;
@@ -152,7 +154,7 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
         if (vertShaderStr) {
             this._vertShader = locGL.createShader(locGL.VERTEX_SHADER);
             if (!this._compileShader(this._vertShader, locGL.VERTEX_SHADER, vertShaderStr)) {
-                cc.log("cocos2d: ERROR: Failed to compile vertex shader");
+                cc.logID(8101);
             }
         }
 
@@ -160,7 +162,7 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
         if (fragShaderStr) {
             this._fragShader = locGL.createShader(locGL.FRAGMENT_SHADER);
             if (!this._compileShader(this._fragShader, locGL.FRAGMENT_SHADER, fragShaderStr)) {
-                cc.log("cocos2d: ERROR: Failed to compile fragment shader");
+                cc.logID(8102);
             }
         }
 
@@ -197,9 +199,9 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
      */
     initWithVertexShaderFilename: function (vShaderFilename, fShaderFileName) {
         var vertexSource = cc.loader.getRes(vShaderFilename);
-        if(!vertexSource) throw new Error("Please load the resource firset : " + vShaderFilename);
+        if (!vertexSource) throw new Error("Please load the resource firset : " + vShaderFilename);
         var fragmentSource = cc.loader.getRes(fShaderFileName);
-        if(!fragmentSource) throw new Error("Please load the resource firset : " + fShaderFileName);
+        if (!fragmentSource) throw new Error("Please load the resource firset : " + fShaderFileName);
         return this.initWithVertexShaderByteArray(vertexSource, fragmentSource);
     },
 
@@ -228,7 +230,7 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
      */
     link: function () {
         if(!this._programObj) {
-            cc.log("cc.GLProgram.link(): Cannot link invalid program");
+            cc.logID(8103);
             return false;
         }
 
@@ -245,7 +247,7 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
         if (cc.game.config[cc.game.CONFIG_KEY.debugMode]) {
             var status = this._glContext.getProgramParameter(this._programObj, this._glContext.LINK_STATUS);
             if (!status) {
-                cc.log("cocos2d: ERROR: Failed to link program: " + this._glContext.getProgramInfoLog(this._programObj));
+                cc.logID(8104, this._glContext.getProgramInfoLog(this._programObj));
                 cc.gl.deleteProgram(this._programObj);
                 this._programObj = null;
                 return false;
@@ -559,6 +561,16 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
     },
 
     /**
+     * calls glUniformMatrix3fv only if the values are different than the previous call for this same shader
+     * @param {WebGLUniformLocation} location
+     * @param {Float32Array} matrixArray
+     */
+    setUniformLocationWithMatrix3fv: function (location, matrixArray) {
+        var locObj = typeof location === 'string' ? this.getUniformLocationForName(location) : location;
+        this._glContext.uniformMatrix3fv(locObj, false, matrixArray);
+    },
+
+    /**
      * calls glUniformMatrix4fv only if the values are different than the previous call for this same shader program.
      * @param {WebGLUniformLocation} location
      * @param {Float32Array} matrixArray
@@ -679,8 +691,13 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
         this._glContext.uniformMatrix4fv(this._uniforms[macro.UNIFORM_PMATRIX], false, math.projection_matrix_stack.top.mat);
     },
 
-    _updateProjectionUniform: function(){
-        this._glContext.uniformMatrix4fv(this._uniforms[macro.UNIFORM_PMATRIX], false, math.projection_matrix_stack.top.mat);  
+    _updateProjectionUniform: function () {
+        var stack = math.projection_matrix_stack;
+
+        if (stack.lastUpdated !== this._projectionUpdated) {
+            this._glContext.uniformMatrix4fv(this._uniforms[macro.UNIFORM_PMATRIX], false, stack.top.mat);
+            this._projectionUpdated = stack.lastUpdated;
+        }
     },
 
     /**
@@ -773,9 +790,9 @@ cc.GLProgram = cc._Class.extend(/** @lends cc.GLProgram# */{
 
 cc.GLProgram._highpSupported = null;
 
-cc.GLProgram._isHighpSupported = function(){
-    if(cc.GLProgram._highpSupported == null){
-        var ctx = cc._renderContext;
+cc.GLProgram._isHighpSupported = function () {
+    var ctx = cc._renderContext;
+    if (ctx.getShaderPrecisionFormat && cc.GLProgram._highpSupported == null) {
         var highp = ctx.getShaderPrecisionFormat(ctx.FRAGMENT_SHADER, ctx.HIGH_FLOAT);
         cc.GLProgram._highpSupported = highp.precision !== 0;
     }

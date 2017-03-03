@@ -30,25 +30,24 @@
 var SCROLLY = 40;
 var TIMER_NAME = 400;
 var LEFT_PADDING = 2;
+var Utils = require('../cocos2d/core/platform/utils');
 
-function scrollWindowUp(editBox) {
-    if (cc.sys.os === cc.sys.OS_IOS && cc.sys.osMainVersion === 9) {
-        var worldPos = editBox.convertToWorldSpace(cc.p(0,0));
-        var windowHeight = cc.visibleRect.height;
-        var windowWidth = cc.visibleRect.width;
-        var factor = 0.5;
-        if(windowWidth > windowHeight) {
-            factor = 0.7;
-        }
-        setTimeout(function() {
-            if(window.scrollY < SCROLLY && worldPos.y < windowHeight * factor) {
-                var scrollOffset = windowHeight * factor - worldPos.y - window.scrollY;
-                if (scrollOffset < 35) scrollOffset = 35;
-                if (scrollOffset > 320) scrollOffset = 320;
-                window.scrollTo(0, scrollOffset);
-            }
-        }, TIMER_NAME);
+function adjustEditBoxPosition (editBox) {
+    var worldPos = editBox.convertToWorldSpace(cc.p(0,0));
+    var windowHeight = cc.visibleRect.height;
+    var windowWidth = cc.visibleRect.width;
+    var factor = 0.5;
+    if(windowWidth > windowHeight) {
+        factor = 0.7;
     }
+    setTimeout(function() {
+        if(window.scrollY < SCROLLY && worldPos.y < windowHeight * factor) {
+            var scrollOffset = windowHeight * factor - worldPos.y - window.scrollY;
+            if (scrollOffset < 35) scrollOffset = 35;
+            if (scrollOffset > 320) scrollOffset = 320;
+            window.scrollTo(scrollOffset, scrollOffset);
+        }
+    }, TIMER_NAME);
 }
 
 var capitalize = function(string) {
@@ -284,7 +283,7 @@ _ccsg.EditBox = _ccsg.Node.extend({
 
     createDomElementIfNeeded: function () {
         if(!this._renderCmd._edTxt) {
-            this._renderCmd.createNativeControl();
+            this._renderCmd._createDomTextArea();
         }
     },
 
@@ -298,7 +297,7 @@ _ccsg.EditBox = _ccsg.Node.extend({
         if(this._renderCmd._edTxt) {
             return this._renderCmd._edTxt.tabIndex;
         }
-        cc.warn('The dom control is not created!');
+        cc.warnID(4700);
         return -1;
     },
 
@@ -312,7 +311,7 @@ _ccsg.EditBox = _ccsg.Node.extend({
         if(this._renderCmd._edTxt) {
             return document.activeElement === this._renderCmd._edTxt;
         }
-        cc.warn('The dom control is not created!');
+        cc.warnID(4700);
         return false;
     },
 
@@ -326,7 +325,7 @@ _ccsg.EditBox = _ccsg.Node.extend({
     cleanup: function () {
         this._super();
 
-        this._renderCmd._removeDomInputControl();
+        this._renderCmd._removeDomFromGameContainer();
     },
 
     _onTouchBegan: function (touch) {
@@ -337,13 +336,13 @@ _ccsg.EditBox = _ccsg.Node.extend({
             return true;
         }
         else {
-            this._renderCmd.hidden();
+            this._renderCmd._endEditing();
             return false;
         }
     },
 
     _onTouchEnded: function () {
-        this._renderCmd.show();
+        this._renderCmd._beginEditing();
     },
 
     _updateBackgroundSpriteSize: function (width, height) {
@@ -502,6 +501,7 @@ _ccsg.EditBox = _ccsg.Node.extend({
 
     setReturnType: function (returnType) {
         this._keyboardReturnType = returnType;
+        this._renderCmd._updateDomInputType();
     },
 
     initWithBackgroundColor: function (size, bgColor) {
@@ -589,21 +589,10 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
     proto.updateVisibility = function () {
         if (!this._edTxt) return;
 
-        var node = this._node;
-        var editBox = this._edTxt;
-        if (node.visible) {
-            editBox.style.visibility = 'visible';
-            cc.game.container.appendChild(editBox);
+        if (this._node.visible) {
+            this._edTxt.style.visibility = 'visible';
         } else {
-            editBox.style.visibility = 'hidden';
-            var hasChild = false;
-            if('contains' in cc.game.container) {
-                hasChild = cc.game.container.contains(editBox);
-            }else {
-                hasChild = cc.game.container.compareDocumentPosition(editBox) % 16;
-            }
-            if(hasChild)
-                cc.game.container.removeChild(editBox);
+            this._edTxt.style.visibility = 'hidden';
         }
     };
 
@@ -614,14 +603,74 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         } else {
             this._createLabels();
             this._edTxt.style.display = 'none';
-            this._updateLabelString();
+            this._showLabels();
+        }
+    };
+
+    proto._beginEditingOnMobile = function (editBox) {
+        if (cc.view._isRotated) {
+            cc.container.style['-webkit-transform'] = 'rotate(0deg)';
+            cc.container.style.transform = 'rotate(0deg)';
+            cc.view._isRotated = false;
+            var policy = cc.view.getResolutionPolicy();
+            policy.apply(cc.view, cc.view.getDesignResolutionSize());
+            cc.view._isRotated = true;
+            //use window scrollTo to adjust the input area
+            window.scrollTo(35, 35);
+            this.__rotateScreen = true;
+        } else {
+            this.__rotateScreen = false;
+        }
+
+        this.__orientationChanged = function () {
+            adjustEditBoxPosition(editBox);
+        };
+
+        window.addEventListener('orientationchange', this.__orientationChanged);
+
+        if(cc.view.isAutoFullScreenEnabled()) {
+            this.__fullscreen = true;
+            cc.view.enableAutoFullScreen(false);
+            cc.screen.exitFullScreen();
+        } else {
+            this.__fullscreen = false;
+        }
+        this.__autoResize = cc.view.__resizeWithBrowserSize;
+        cc.view.resizeWithBrowserSize(false);
+
+        adjustEditBoxPosition(editBox);
+    };
+
+    proto._endEditingOnMobile = function () {
+        if (this.__rotateScreen) {
+            cc.container.style['-webkit-transform'] = 'rotate(90deg)';
+            cc.container.style.transform = 'rotate(90deg)';
+
+            var view = cc.view;
+            var width = view._originalDesignResolutionSize.width;
+            var height = view._originalDesignResolutionSize.height;
+            if (width > 0) {
+                view.setDesignResolutionSize(width, height, view._resolutionPolicy);
+            }
+            this.__rotateScreen = false;
+        }
+
+        window.removeEventListener('orientationchange', this.__orientationChanged);
+
+        window.scrollY = 0;
+        if(this.__fullscreen) {
+            cc.view.enableAutoFullScreen(true);
+        }
+        if (this.__autoResize) {
+            cc.view.resizeWithBrowserSize(true);
         }
     };
 
 
 
     proto._createDomInput = function () {
-        this._removeDomInputControl();
+        this._removeDomFromGameContainer();
+
         var thisPointer = this;
         var tmpEdTxt = this._edTxt = document.createElement('input');
         tmpEdTxt.type = 'text';
@@ -652,7 +701,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
             if (editBox._delegate && editBox._delegate.editBoxTextChanged) {
                 if (editBox._text.toLowerCase() !== this.value.toLowerCase()) {
                     editBox._text = this.value;
-                    thisPointer._updateEditBoxContentStyle();
+                    thisPointer._updateDomTextCases();
                     editBox._delegate.editBoxTextChanged(editBox, editBox._text);
                 }
             }
@@ -669,8 +718,9 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
                 }
 
                 editBox._text = this.value;
-                thisPointer._updateEditBoxContentStyle();
-                thisPointer.hidden();
+                thisPointer._updateDomTextCases();
+
+                thisPointer._endEditing();
                 if (editBox._delegate && editBox._delegate.editBoxEditingReturn) {
                     editBox._delegate.editBoxEditingReturn(editBox);
                 }
@@ -684,17 +734,10 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
             this.style.color = cc.colorToHex(editBox._textColor);
             thisPointer._hiddenLabels();
 
-            if(cc.view.isAutoFullScreenEnabled()) {
-                thisPointer.__fullscreen = true;
-                cc.view.enableAutoFullScreen(false);
-                cc.screen.exitFullScreen();
-            } else {
-                thisPointer.__fullscreen = false;
+            if (cc.sys.isMobile) {
+                thisPointer._beginEditingOnMobile(editBox);
             }
-            thisPointer.__autoResize = cc.view.__resizeWithBrowserSize;
-            cc.view.resizeWithBrowserSize(false);
 
-            scrollWindowUp(editBox);
 
             if (editBox._delegate && editBox._delegate.editBoxEditingDidBegan) {
                 editBox._delegate.editBoxEditingDidBegan(editBox);
@@ -703,14 +746,13 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         tmpEdTxt.addEventListener('blur', function () {
             var editBox = thisPointer._editBox;
             editBox._text = this.value;
-            thisPointer._updateEditBoxContentStyle();
-            if(thisPointer.__fullscreen) {
-                cc.view.enableAutoFullScreen(true);
+            thisPointer._updateDomTextCases();
+
+            if (cc.sys.isMobile) {
+                thisPointer._endEditingOnMobile();
             }
-            if (thisPointer.__autoResize) {
-                cc.view.resizeWithBrowserSize(true);
-            }
-            window.scrollY = 0;
+
+
             if (editBox._delegate && editBox._delegate.editBoxEditingDidEnded) {
                 editBox._delegate.editBoxEditingDidEnded(editBox);
             }
@@ -719,13 +761,17 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
                 this.style.fontSize = editBox._placeholderFontSize + 'px';
                 this.style.color = cc.colorToHex(editBox._placeholderColor);
             }
-            thisPointer.hidden();
+            thisPointer._endEditing();
         });
+
+        this._addDomToGameContainer();
+
         return tmpEdTxt;
     };
 
     proto._createDomTextArea = function () {
-        this._removeDomInputControl();
+        this._removeDomFromGameContainer();
+
         var thisPointer = this;
         var tmpEdTxt = this._edTxt = document.createElement('textarea');
         tmpEdTxt.type = 'text';
@@ -756,7 +802,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
             if (editBox._delegate && editBox._delegate.editBoxTextChanged) {
                 if(editBox._text.toLowerCase() !== this.value.toLowerCase()) {
                     editBox._text = this.value;
-                    thisPointer._updateEditBoxContentStyle();
+                    thisPointer._updateDomTextCases();
                     editBox._delegate.editBoxTextChanged(editBox, editBox._text);
                 }
             }
@@ -768,17 +814,10 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
 
             this.style.fontSize = thisPointer._edFontSize + 'px';
             this.style.color = cc.colorToHex(editBox._textColor);
-            if(cc.view.isAutoFullScreenEnabled()) {
-                thisPointer.__fullscreen = true;
-                cc.view.enableAutoFullScreen(false);
-                cc.screen.exitFullScreen();
-            } else {
-                thisPointer.__fullscreen = false;
-            }
-            thisPointer.__autoResize = cc.view.__resizeWithBrowserSize;
-            cc.view.resizeWithBrowserSize(false);
 
-            scrollWindowUp(editBox);
+            if (cc.sys.isMobile) {
+                thisPointer._beginEditingOnMobile(editBox);
+            }
 
             if (editBox._delegate && editBox._delegate.editBoxEditingDidBegan) {
                 editBox._delegate.editBoxEditingDidBegan(editBox);
@@ -799,13 +838,10 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         tmpEdTxt.addEventListener('blur', function () {
             var editBox = thisPointer._editBox;
             editBox._text = this.value;
-            thisPointer._updateEditBoxContentStyle();
-            window.scrollY = 0;
-            if(thisPointer.__fullscreen) {
-                cc.view.enableAutoFullScreen(true);
-            }
-            if (thisPointer.__autoResize) {
-                cc.view.resizeWithBrowserSize(true);
+            thisPointer._updateDomTextCases();
+
+            if (cc.sys.isMobile) {
+                thisPointer._endEditingOnMobile();
             }
 
             if (editBox._delegate && editBox._delegate.editBoxEditingDidEnded) {
@@ -817,9 +853,10 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
                 this.style.color = cc.colorToHex(editBox._placeholderColor);
             }
 
-            thisPointer.hidden();
+            thisPointer._endEditing();
         });
 
+        this._addDomToGameContainer();
         return tmpEdTxt;
     };
 
@@ -827,7 +864,6 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         var editBoxSize = this._editBox.getContentSize();
         if(!this._textLabel) {
             this._textLabel = new _ccsg.Label();
-            this._textLabel.setVisible(false);
             this._textLabel.setAnchorPoint(cc.p(0, 1));
             this._textLabel.setOverflow(_ccsg.Label.Overflow.CLAMP);
             this._editBox.addChild(this._textLabel, 100);
@@ -891,7 +927,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         }
     };
 
-    proto._updateEditBoxContentStyle = function() {
+    proto._updateDomTextCases = function() {
         var inputFlag = this._editBox._editBoxInputFlag;
         if (inputFlag === InputFlag.INITIAL_CAPS_ALL_CHARACTERS) {
             this._editBox._text = this._editBox._text.toUpperCase();
@@ -904,14 +940,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         }
     };
 
-    proto._updateLabelString = function() {
-        this._updateInputType();
-
-        if(this._textLabel) {
-            this._textLabel.setVisible(true);
-            this._textLabel.setString(this._editBox._text);
-        }
-
+    proto._updateLabelStringStyle = function() {
         if (this._edTxt.type === 'password') {
             var passwordString = '';
             var len = this._editBox._text.length;
@@ -922,7 +951,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
                 this._textLabel.setString(passwordString);
             }
         } else {
-            this._updateEditBoxContentStyle();
+            this._updateDomTextCases();
             if(this._textLabel) {
                 this._textLabel.setString(this._editBox._text);
             }
@@ -938,25 +967,30 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
             }
         }
         else {
-            this._updateLabelString();
+            if(this._textLabel) {
+                this._textLabel.setVisible(true);
+                this._textLabel.setString(this._editBox._text);
+            }
         }
+        this._updateLabelStringStyle();
     };
 
-    proto.show = function() {
+    proto._beginEditing = function() {
         if(!this._editBox._alwaysOnTop) {
             if (this._edTxt.style.display === 'none') {
                 this._edTxt.style.display = '';
                 this._edTxt.focus();
             }
         }
-        this._hiddenLabels();
+        this._editingMode = true;
     };
 
-    proto.hidden = function() {
+    proto._endEditing = function() {
         if(!this._editBox._alwaysOnTop) {
             this._edTxt.style.display = 'none';
         }
         this._showLabels();
+        this._editingMode = false;
     };
 
     proto._setFont = function (fontStyle) {
@@ -1013,11 +1047,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         this._placeholderLabel.setColor(color);
     };
 
-    proto._updateInputType = function () {
-        if(this._editBox._keyboardReturnType === KeyboardReturnType.SEARCH) {
-            this._edTxt.type = 'search';
-        }
-
+    proto._updateDomInputType = function () {
         var inputMode = this._editBox._editBoxInputMode;
         if(inputMode === InputMode.EMAIL_ADDR) {
             this._edTxt.type = 'email';
@@ -1031,6 +1061,10 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
             this._edTxt.type = 'url';
         } else {
             this._edTxt.type = 'text';
+
+            if(this._editBox._keyboardReturnType === KeyboardReturnType.SEARCH) {
+                this._edTxt.type = 'search';
+            }
         }
 
 
@@ -1042,7 +1076,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
     proto.setInputFlag = function (inputFlag) {
         if(!this._edTxt) return;
 
-        this._updateInputType();
+        this._updateDomInputType();
 
         this._edTxt.style.textTransform = 'none';
 
@@ -1052,20 +1086,18 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         else if (inputFlag === InputFlag.INITIAL_CAPS_WORD) {
             this._edTxt.style.textTransform = 'capitalize';
         }
-        this._updateLabelString();
+        this._updateLabelStringStyle();
     };
 
     proto.setInputMode = function (inputMode) {
-        this._removeDomInputControl();
         if (inputMode === InputMode.ANY) {
             this._createDomTextArea();
         }
         else {
             this._createDomInput();
         }
-        this._addDomInputControl();
 
-        this._updateInputType();
+        this._updateDomInputType();
         var contentSize = this._node.getContentSize();
         this.updateSize(contentSize.width, contentSize.height);
     };
@@ -1080,11 +1112,14 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
                 if(this._placeholderLabel) {
                     this._placeholderLabel.setString(this._editBox._placeholderText);
                     this._placeholderLabel.setColor(this._editBox._placeholderColor);
-                    this._placeholderLabel.setVisible(true);
                 }
-
-                if(this._textLabel) {
-                    this._textLabel.setVisible(false);
+                if(!this._editingMode) {
+                    if (this._placeholderLabel) {
+                        this._placeholderLabel.setVisible(true);
+                    }
+                    if (this._textLabel) {
+                        this._textLabel.setVisible(false);
+                    }
                 }
             }
             else {
@@ -1092,11 +1127,16 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
                 if(this._textLabel) {
                     this._textLabel.setColor(this._editBox._textColor);
                 }
-                if(this._placeholderLabel) {
-                    this._placeholderLabel.setVisible(false);
+                if (!this._editingMode) {
+                    if(this._placeholderLabel) {
+                        this._placeholderLabel.setVisible(false);
+                    }
+                    if(this._textLabel) {
+                        this._textLabel.setVisible(true);
+                    }
                 }
 
-                this._updateLabelString();
+                this._updateLabelStringStyle();
             }
         }
     };
@@ -1125,44 +1165,32 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         this._updateLabelPosition(cc.size(newWidth, newHeight));
     };
 
-    proto.createNativeControl = function() {
-        this._createDomTextArea();
-        this._addDomInputControl();
-    };
-
-    proto._addDomInputControl = function () {
+    proto._addDomToGameContainer = function () {
         cc.game.container.appendChild(this._edTxt);
     };
 
-    proto._removeDomInputControl = function () {
+    proto._removeDomFromGameContainer = function () {
         var editBox = this._edTxt;
         if(editBox){
-            var hasChild = false;
-            if('contains' in cc.game.container) {
-                hasChild = cc.game.container.contains(editBox);
-            }else {
-                hasChild = cc.game.container.compareDocumentPosition(editBox) % 16;
-            }
-            if(hasChild)
+            var hasChild = Utils.contains(cc.game.container, editBox);
+            if(hasChild) {
                 cc.game.container.removeChild(editBox);
+            }
         }
         this._edTxt = null;
     };
 
-    proto.initializeRenderCmd = function (node) {
-        this._editBox = node;
-
-        //it's a dom node, may be assigned with Input or TextArea.
-        this._edFontSize = 14;
-        this._edFontName = 'Arial';
-        this._textLabel = null;
-        this._placeholderLabel = null;
-    };
+    //it's a dom node, may be assigned with Input or TextArea.
+    proto._edFontSize = 14;
+    proto._edFontName = 'Arial';
+    proto._textLabel = null;
+    proto._placeholderLabel = null;
+    proto._editingMode = false;
 
     //define the canvas render command
     _ccsg.EditBox.CanvasRenderCmd = function (node) {
-        _ccsg.Node.CanvasRenderCmd.call(this, node);
-        this.initializeRenderCmd(node);
+        this._rootCtor(node);
+        this._editBox = node;
     };
 
     var canvasRenderCmdProto = _ccsg.EditBox.CanvasRenderCmd.prototype = Object.create(_ccsg.Node.CanvasRenderCmd.prototype);
@@ -1174,11 +1202,10 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         this.updateMatrix();
     };
 
-
     //define the webgl render command
     _ccsg.EditBox.WebGLRenderCmd = function (node) {
-        _ccsg.Node.WebGLRenderCmd.call(this, node);
-        this.initializeRenderCmd(node);
+        this._rootCtor(node);
+        this._editBox = node;
     };
 
     var webGLRenderCmdProto = _ccsg.EditBox.WebGLRenderCmd.prototype = Object.create(_ccsg.Node.WebGLRenderCmd.prototype);

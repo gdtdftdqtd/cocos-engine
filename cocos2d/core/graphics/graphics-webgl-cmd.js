@@ -106,7 +106,7 @@ Path.prototype.reset = function () {
 
 // webgl render command
 function WebGLRenderCmd (renderable) {
-    _ccsg.Node.WebGLRenderCmd.call(this, renderable);
+    this._rootCtor(renderable);
     this._needDraw = true;
 
     var gl = cc._renderContext;
@@ -135,7 +135,7 @@ function WebGLRenderCmd (renderable) {
     this._shader = new cc.GLProgram();
     this._shader.initWithVertexShaderByteArray(Shader.vert, Shader.frag);
     this._shader.retain();
-    this._shader.addAttribute(cc.ATTRIBUTE_NAME_POSITION, cc.macro.VERTEX_ATTRIB_POSITION);
+    this._shader.addAttribute(cc.macro.ATTRIBUTE_NAME_POSITION, cc.macro.VERTEX_ATTRIB_POSITION);
     this._shader.link();
     this._shader.updateUniforms();
 
@@ -326,7 +326,7 @@ Js.mixin(_p, {
         }
 
         if (this._vertsOffset > 65536) {
-            cc.warn('Too many graphics vertices generated, only 65536 vertices support.');
+            cc.warnID(2401);
         }
 
         gl.enableVertexAttribArray(cc.macro.VERTEX_ATTRIB_POSITION);

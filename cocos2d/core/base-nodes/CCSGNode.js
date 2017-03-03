@@ -122,9 +122,14 @@ _ccsg.Node = cc.Class({
     name: 'ccsg.Node',
 
     properties: {
+        _running: false,
+
         _localZOrder: 0,    ///< Local order (relative to its siblings) used to sort the node
         _globalZOrder: 0,   ///< Global order used to sort the node
+        _arrivalOrder: 0,
+        _reorderChildDirty: false,
         _vertexZ: 0.0,
+        _customZ: undefined,
 
         _rotationX: 0,
         _rotationY: 0.0,
@@ -150,28 +155,17 @@ _ccsg.Node = cc.Class({
         _realOpacity: 255,
         _realColor: cc.Color.WHITE,
         _cascadeColorEnabled: false,
-        _cascadeOpacityEnabled: false
+        _cascadeOpacityEnabled: false,
+        _isTransitionFinished: false,
+
+        _actionManager: null,
+        _scheduler: null,
+        _renderCmd: null
     },
 
     ctor: function() {
-        var name = arguments[0];
-
         this.__instanceId = cc.ClassManager.getNewInstanceId();
-
-        this._running = false;
-        this._reorderChildDirty = false;
-        this._shaderProgram = null;
-        this._arrivalOrder = 0;
-
-        this._additionalTransformDirty = false;
-        this._isTransitionFinished = false;
-
-        var director = cc.director;
-        this._actionManager = director.getActionManager();
-        this._scheduler = director.getScheduler();
-        this._additionalTransform = cc.affineTransformMakeIdentity();
-
-        this._initRendererCmd();
+        this._renderCmd = this._createRenderCmd();
     },
 
     /**
@@ -180,70 +174,7 @@ _ccsg.Node = cc.Class({
      * @returns {boolean} Whether the initialization was successful.
      */
     init: function () {
-        //this._initNode();   //this has been called in ctor.
         return true;
-    },
-
-    _arrayMakeObjectsPerformSelector: function (array, callbackType) {
-        if (!array || array.length === 0)
-            return;
-
-        var i, len = array.length, node;
-        var nodeCallbackType = _ccsg.Node._stateCallbackType;
-        switch (callbackType) {
-            case nodeCallbackType.onEnter:
-                for (i = 0; i < len; i++) {
-                    node = array[i];
-                    if (node)
-                        node.onEnter();
-                }
-                break;
-            case nodeCallbackType.onExit:
-                for (i = 0; i < len; i++) {
-                    node = array[i];
-                    if (node)
-                        node.onExit();
-                }
-                break;
-            case nodeCallbackType.onEnterTransitionDidFinish:
-                for (i = 0; i < len; i++) {
-                    node = array[i];
-                    if (node)
-                        node.onEnterTransitionDidFinish();
-                }
-                break;
-            case nodeCallbackType.cleanup:
-                for (i = 0; i < len; i++) {
-                    node = array[i];
-                    if (node)
-                        node.cleanup();
-                }
-                break;
-            case nodeCallbackType.updateTransform:
-                for (i = 0; i < len; i++) {
-                    node = array[i];
-                    if (node)
-                        node.updateTransform();
-                }
-                break;
-            case nodeCallbackType.onExitTransitionDidStart:
-                for (i = 0; i < len; i++) {
-                    node = array[i];
-                    if (node)
-                        node.onExitTransitionDidStart();
-                }
-                break;
-            case nodeCallbackType.sortAllChildren:
-                for (i = 0; i < len; i++) {
-                    node = array[i];
-                    if (node)
-                        node.sortAllChildren();
-                }
-                break;
-            default :
-                cc.assert(0, cc._LogInfos.Node._arrayMakeObjectsPerformSelector);
-                break;
-        }
     },
 
     /**
@@ -336,9 +267,10 @@ _ccsg.Node = cc.Class({
      * @param {Number} localZOrder
      */
     setLocalZOrder: function (localZOrder) {
-        this._localZOrder = localZOrder;
         if (this._parent)
             this._parent.reorderChild(this, localZOrder);
+        else
+            this._localZOrder = localZOrder;
         cc.eventManager._setDirtyForNode(this);
     },
 
@@ -363,7 +295,7 @@ _ccsg.Node = cc.Class({
      * @deprecated since 3.0, please use getLocalZOrder instead
      */
     getZOrder: function () {
-        cc.log(cc._LogInfos.Node.getZOrder);
+        cc.logID(1600);
         return this.getLocalZOrder();
     },
 
@@ -381,7 +313,7 @@ _ccsg.Node = cc.Class({
      * @deprecated since 3.0, please use setLocalZOrder instead
      */
     setZOrder: function (z) {
-        cc.log(cc._LogInfos.Node.setZOrder);
+        cc.logID(1601);
         this.setLocalZOrder(z);
     },
 
@@ -441,7 +373,7 @@ _ccsg.Node = cc.Class({
      * @param {Number} Var
      */
     setVertexZ: function (Var) {
-        this._vertexZ = Var;
+        this._customZ = this._vertexZ = Var;
     },
 
     /**
@@ -451,7 +383,7 @@ _ccsg.Node = cc.Class({
      */
     getRotation: function () {
         if (this._rotationX !== this._rotationY)
-            cc.log(cc._LogInfos.Node.getRotation);
+            cc.logID(1602);
         return this._rotationX;
     },
 
@@ -528,7 +460,7 @@ _ccsg.Node = cc.Class({
      */
     getScale: function () {
         if (this._scaleX !== this._scaleY)
-            cc.log(cc._LogInfos.Node.getScale);
+            cc.logID(1603);
         return this._scaleX;
     },
 
@@ -980,9 +912,7 @@ _ccsg.Node = cc.Class({
      * @return {cc.ActionManager} A CCActionManager object.
      */
     getActionManager: function () {
-        if (!this._actionManager)
-            this._actionManager = cc.director.getActionManager();
-        return this._actionManager;
+        return this._actionManager || cc.director.getActionManager();
     },
 
     /**
@@ -1006,9 +936,7 @@ _ccsg.Node = cc.Class({
      * @return {cc.Scheduler} A CCScheduler object.
      */
     getScheduler: function () {
-        if (!this._scheduler)
-            this._scheduler = cc.director.getScheduler();
-        return this._scheduler;
+        return this._scheduler || cc.director.getScheduler();
     },
 
     /**
@@ -1033,7 +961,7 @@ _ccsg.Node = cc.Class({
      * @return {Rect}
      */
     boundingBox: function(){
-        cc.log(cc._LogInfos.Node.boundingBox);
+        cc.logID(1608);
         return this.getBoundingBox();
     },
 
@@ -1059,9 +987,6 @@ _ccsg.Node = cc.Class({
 
         // event
         cc.eventManager.removeListeners(this);
-
-        // timers
-        this._arrayMakeObjectsPerformSelector(this._children, _ccsg.Node._stateCallbackType.cleanup);
     },
 
     // composition: GET
@@ -1089,16 +1014,16 @@ _ccsg.Node = cc.Class({
      * @param {String} name A name to find the child node.
      * @return {_ccsg.Node} a CCNode object whose name equals to the input parameter
      */
-    getChildByName: function(name){
-        if(!name){
+    getChildByName: function (name) {
+        if (!name) {
             cc.log("Invalid name");
             return null;
         }
 
         var locChildren = this._children;
-        for(var i = 0, len = locChildren.length; i < len; i++){
-           if(locChildren[i]._name === name)
-            return locChildren[i];
+        for (var i = 0, len = locChildren.length; i < len; i++) {
+            if (locChildren[i]._name === name)
+                return locChildren[i];
         }
         return null;
     },
@@ -1116,19 +1041,18 @@ _ccsg.Node = cc.Class({
     addChild: function (child, localZOrder, tag) {
         localZOrder = localZOrder === undefined ? child._localZOrder : localZOrder;
         var name, setTag = false;
-        if(typeof tag === 'undefined'){
-            tag = undefined;
+        if (tag === undefined) {
             name = child._name;
-        } else if(cc.js.isString(tag)){
+        } else if (typeof tag === 'string') {
             name = tag;
             tag = undefined;
-        } else if(cc.js.isNumber(tag)){
+        } else if (typeof tag === 'number') {
             setTag = true;
             name = "";
         }
 
-        cc.assert(child, cc._LogInfos.Node.addChild_3);
-        cc.assert(child._parent === null, "child already added. It can't be added again");
+        cc.assertID(child, 1606);
+        cc.assertID(child._parent === null, 1605);
 
         this._addChildHelper(child, localZOrder, tag, name, setTag);
     },
@@ -1146,11 +1070,11 @@ _ccsg.Node = cc.Class({
         child.setParent(this);
         child.updateOrderOfArrival();
 
-        if( this._running ){
-            child.onEnter();
+        if (this._running) {
+            child.performRecursive(_ccsg.Node.performType.onEnter);
             // prevent onEnterTransitionDidFinish to be called twice when a node is added in onEnter
             if (this._isTransitionFinished)
-                child.onEnterTransitionDidFinish();
+                child.performRecursive(_ccsg.Node.performType.onEnterTransitionDidFinish);
         }
         child._renderCmd.setDirtyFlag(_ccsg.Node._dirtyFlags.transformDirty);
         if (this._cascadeColorEnabled)
@@ -1183,7 +1107,7 @@ _ccsg.Node = cc.Class({
      * @param {Boolean} [cleanup=true] true if all actions and callbacks on this node should be removed, false otherwise.
      */
     removeFromParentAndCleanup: function (cleanup) {
-        cc.log(cc._LogInfos.Node.removeFromParentAndCleanup);
+        cc.logID(1607);
         this.removeFromParent(cleanup);
     },
 
@@ -1220,11 +1144,11 @@ _ccsg.Node = cc.Class({
      */
     removeChildByTag: function (tag, cleanup) {
         if (tag === cc.macro.NODE_TAG_INVALID)
-            cc.log(cc._LogInfos.Node.removeChildByTag);
+            cc.logID(1609);
 
         var child = this.getChildByTag(tag);
         if (!child)
-            cc.log(cc._LogInfos.Node.removeChildByTag_2, tag);
+            cc.logID(1610, tag);
         else
             this.removeChild(child, cleanup);
     },
@@ -1253,13 +1177,13 @@ _ccsg.Node = cc.Class({
                 var node = __children[i];
                 if (node) {
                     if (this._running) {
-                        node.onExitTransitionDidStart();
-                        node.onExit();
+                        node.performRecursive(_ccsg.Node.performType.onExitTransitionDidStart);
+                        node.performRecursive(_ccsg.Node.performType.onExit);
                     }
 
                     // If you don't do cleanup, the node's actions will not get removed and the
                     if (cleanup)
-                        node.cleanup();
+                        node.performRecursive(_ccsg.Node.performType.cleanup);
 
                     // set parent nil at the end
                     node.parent = null;
@@ -1276,13 +1200,13 @@ _ccsg.Node = cc.Class({
         //  -1st do onExit
         //  -2nd cleanup
         if (this._running) {
-            child.onExitTransitionDidStart();
-            child.onExit();
+            child.performRecursive(_ccsg.Node.performType.onExitTransitionDidStart);
+            child.performRecursive(_ccsg.Node.performType.onExit);
         }
 
         // If you don't do cleanup, the child's actions will not get removed and the
         if (doCleanup)
-            child.cleanup();
+            child.performRecursive(_ccsg.Node.performType.cleanup);
 
         // set parent nil at the end
         child.parent = null;
@@ -1296,7 +1220,7 @@ _ccsg.Node = cc.Class({
         child._setLocalZOrder(z);
     },
 
-    setNodeDirty: function(){
+    setNodeDirty: function () {
         this._renderCmd.setDirtyFlag(_ccsg.Node._dirtyFlags.transformDirty);
     },
 
@@ -1307,7 +1231,14 @@ _ccsg.Node = cc.Class({
      * @param {Number} zOrder Z order for drawing priority. Please refer to setZOrder(int)
      */
     reorderChild: function (child, zOrder) {
-        cc.assert(child, cc._LogInfos.Node.reorderChild);
+        cc.assertID(child, 1617);
+        if (this._children.indexOf(child) === -1) {
+            cc.logID(1635);
+            return;
+        }
+        if (zOrder === child.zIndex) {
+            return;
+        }
         cc.renderer.childrenOrderDirty = this._reorderChildDirty = true;
         child.updateOrderOfArrival();
         child._setLocalZOrder(zOrder);
@@ -1328,22 +1259,22 @@ _ccsg.Node = cc.Class({
 
             // insertion sort
             var len = _children.length, i, j, tmp;
-            for(i=1; i<len; i++){
+            for (i = 1; i < len; i++) {
                 tmp = _children[i];
                 j = i - 1;
 
                 //continue moving element downwards while zOrder is smaller or when zOrder is the same but mutatedIndex is smaller
-                while(j >= 0){
-                    if(tmp._localZOrder < _children[j]._localZOrder){
-                        _children[j+1] = _children[j];
-                    }else if(tmp._localZOrder === _children[j]._localZOrder && tmp._arrivalOrder < _children[j]._arrivalOrder){
-                        _children[j+1] = _children[j];
-                    }else{
+                while (j >= 0) {
+                    if (tmp._localZOrder < _children[j]._localZOrder) {
+                        _children[j + 1] = _children[j];
+                    } else if (tmp._localZOrder === _children[j]._localZOrder && tmp._arrivalOrder < _children[j]._arrivalOrder) {
+                        _children[j + 1] = _children[j];
+                    } else {
                         break;
                     }
                     j--;
                 }
-                _children[j+1] = tmp;
+                _children[j + 1] = tmp;
             }
 
             //don't need to check children recursively, that's done in visit of each child
@@ -1370,7 +1301,7 @@ _ccsg.Node = cc.Class({
         }
     },
 
-    //scene managment
+    //scene management
     /**
      * <p>
      *     Event callback that is invoked every time when CCNode enters the 'stage'.                                   <br/>
@@ -1383,8 +1314,83 @@ _ccsg.Node = cc.Class({
     onEnter: function () {
         this._isTransitionFinished = false;
         this._running = true;//should be running before resumeSchedule
-        this._arrayMakeObjectsPerformSelector(this._children, _ccsg.Node._stateCallbackType.onEnter);
         this.resume();
+    },
+
+    performRecursive: function (callbackType) {
+        var nodeCallbackType = _ccsg.Node.performType;
+        if (callbackType >= nodeCallbackType.max) {
+            return;
+        }
+
+        var index = 0;
+        var children, child, curr, i, len;
+        var stack = _ccsg.Node._performStacks[_ccsg.Node._performing];
+        if (!stack) {
+            stack = [];
+            _ccsg.Node._performStacks.push(stack);
+        }
+        stack.length = 0;
+        _ccsg.Node._performing++;
+        curr = stack[0] = this;
+        while (curr) {
+            // Walk through children
+            children = curr._children;
+            if (children && children.length > 0) {
+                for (i = 0, len = children.length; i < len; ++i) {
+                    child = children[i];
+                    stack.push(child);
+                }
+            }
+
+            index++;
+            curr = stack[index];
+        }
+        // Perform actual action
+        switch (callbackType) {
+        case nodeCallbackType.onEnter:
+            for (i = stack.length - 1; i >= 0; --i) {
+                curr = stack[i];
+                stack[i] = null;
+                if (!curr) continue;
+                curr.onEnter();
+            }
+            break;
+        case nodeCallbackType.onExit:
+            for (i = stack.length - 1; i >= 0; --i) {
+                curr = stack[i];
+                stack[i] = null;
+                if (!curr) continue;
+                curr.onExit();
+            }
+            break;
+        case nodeCallbackType.onEnterTransitionDidFinish:
+            for (i = stack.length - 1; i >= 0; --i) {
+                curr = stack[i];
+                stack[i] = null;
+                if (!curr) continue;
+                curr.onEnterTransitionDidFinish();
+            }
+            break;
+        case nodeCallbackType.cleanup:
+            for (i = stack.length - 1; i >= 0; --i) {
+                curr = stack[i];
+                stack[i] = null;
+                if (!curr) continue;
+                curr.cleanup();
+            }
+            break;
+        case nodeCallbackType.onExitTransitionDidStart:
+            for (i = stack.length - 1; i >= 0; --i) {
+                curr = stack[i];
+                stack[i] = null;
+                if (!curr) continue;
+                curr.onExitTransitionDidStart();
+            }
+            break;
+        }
+        
+        _ccsg.Node._performing--;
     },
 
     /**
@@ -1397,7 +1403,6 @@ _ccsg.Node = cc.Class({
      */
     onEnterTransitionDidFinish: function () {
         this._isTransitionFinished = true;
-        this._arrayMakeObjectsPerformSelector(this._children, _ccsg.Node._stateCallbackType.onEnterTransitionDidFinish);
     },
 
     /**
@@ -1407,7 +1412,6 @@ _ccsg.Node = cc.Class({
      * @function
      */
     onExitTransitionDidStart: function () {
-        this._arrayMakeObjectsPerformSelector(this._children, _ccsg.Node._stateCallbackType.onExitTransitionDidStart);
     },
 
     /**
@@ -1422,7 +1426,6 @@ _ccsg.Node = cc.Class({
     onExit: function () {
         this._running = false;
         this.pause();
-        this._arrayMakeObjectsPerformSelector(this._children, _ccsg.Node._stateCallbackType.onExit);
     },
 
     // actions
@@ -1435,7 +1438,7 @@ _ccsg.Node = cc.Class({
      * @return {cc.Action} An Action pointer
      */
     runAction: function (action) {
-        cc.assert(action, cc._LogInfos.Node.runAction);
+        cc.assertID(action, 1618);
 
         this.actionManager.addAction(action, this, !this._running);
         return action;
@@ -1465,7 +1468,7 @@ _ccsg.Node = cc.Class({
      */
     stopActionByTag: function (tag) {
         if (tag === cc.Action.TAG_INVALID) {
-            cc.log(cc._LogInfos.Node.stopActionByTag);
+            cc.logID(1612);
             return;
         }
         this.actionManager.removeActionByTag(tag, this);
@@ -1480,7 +1483,7 @@ _ccsg.Node = cc.Class({
      */
     getActionByTag: function (tag) {
         if (tag === cc.Action.TAG_INVALID) {
-            cc.log(cc._LogInfos.Node.getActionByTag);
+            cc.logID(1613);
             return null;
         }
         return this.actionManager.getActionByTag(tag, this);
@@ -1545,59 +1548,59 @@ _ccsg.Node = cc.Class({
      */
     schedule: function (callback, interval, repeat, delay, key) {
         var len = arguments.length;
-        if(typeof callback === "function"){
+        if (typeof callback === "function") {
             //callback, interval, repeat, delay, key
-            if(len === 1){
+            if (len === 1) {
                 //callback
                 interval = 0;
                 repeat = cc.macro.REPEAT_FOREVER;
                 delay = 0;
                 key = this.__instanceId;
-            }else if(len === 2){
-                if(typeof interval === "number"){
+            } else if (len === 2) {
+                if (typeof interval === "number") {
                     //callback, interval
                     repeat = cc.macro.REPEAT_FOREVER;
                     delay = 0;
                     key = this.__instanceId;
-                }else{
+                } else {
                     //callback, key
                     key = interval;
                     interval = 0;
                     repeat = cc.macro.REPEAT_FOREVER;
                     delay = 0;
                 }
-            }else if(len === 3){
-                if(typeof repeat === "string"){
+            } else if (len === 3) {
+                if (typeof repeat === "string") {
                     //callback, interval, key
                     key = repeat;
                     repeat = cc.macro.REPEAT_FOREVER;
-                }else{
+                } else {
                     //callback, interval, repeat
                     key = this.__instanceId;
                 }
                 delay = 0;
-            }else if(len === 4){
+            } else if (len === 4) {
                 key = this.__instanceId;
             }
-        }else{
+        } else {
             //selector
             //selector, interval
             //selector, interval, repeat, delay
-            if(len === 1){
+            if (len === 1) {
                 interval = 0;
                 repeat = cc.macro.REPEAT_FOREVER;
                 delay = 0;
-            }else if(len === 2){
+            } else if (len === 2) {
                 repeat = cc.macro.REPEAT_FOREVER;
                 delay = 0;
             }
         }
 
-        cc.assert(callback, cc._LogInfos.Node.schedule);
-        cc.assert(interval >= 0, cc._LogInfos.Node.schedule_2);
+        cc.assertID(callback, 1619);
+        cc.assertID(interval >= 0, 1620);
 
         interval = interval || 0;
-        repeat = (repeat == null) ? cc.macro.REPEAT_FOREVER : repeat;
+        repeat = isNaN(repeat) ? cc.macro.REPEAT_FOREVER : repeat;
         delay = delay || 0;
 
         this.scheduler.schedule(callback, this, interval, repeat, delay, !this._running, key);
@@ -1614,7 +1617,7 @@ _ccsg.Node = cc.Class({
     scheduleOnce: function (callback, delay, key) {
         //selector, delay
         //callback, delay, key
-        if(key === undefined)
+        if (key === undefined)
             key = this.__instanceId;
         this.schedule(callback, 0, 0, delay, key);
     },
@@ -1650,7 +1653,7 @@ _ccsg.Node = cc.Class({
      * @deprecated since v3.0, please use resume() instead
      */
     resumeSchedulerAndActions: function () {
-        cc.log(cc._LogInfos.Node.resumeSchedulerAndActions);
+        cc.logID(1614);
         this.resume();
     },
 
@@ -1671,7 +1674,7 @@ _ccsg.Node = cc.Class({
      * @function
      */
     pauseSchedulerAndActions: function () {
-        cc.log(cc._LogInfos.Node.pauseSchedulerAndActions);
+        cc.logID(1615);
         this.pause();
     },
 
@@ -1687,70 +1690,13 @@ _ccsg.Node = cc.Class({
     },
 
     /**
-     *<p>Sets the additional transform.<br/>
-     *  The additional transform will be concatenated at the end of getNodeToParentTransform.<br/>
-     *  It could be used to simulate `parent-child` relationship between two nodes (e.g. one is in BatchNode, another isn't).<br/>
-     *  </p>
-     *  @function
-     *  @param {cc.AffineTransform} additionalTransform  The additional transform
-     *  @example
-     * // create a batchNode
-     * var batch = new cc.SpriteBatchNode("Icon-114.png");
-     * this.addChild(batch);
-     *
-     * // create two sprites, spriteA will be added to batchNode, they are using different textures.
-     * var spriteA = new _ccsg.Sprite(batch->getTexture());
-     * var spriteB = new _ccsg.Sprite("Icon-72.png");
-     *
-     * batch.addChild(spriteA);
-     *
-     * // We can't make spriteB as spriteA's child since they use different textures. So just add it to layer.
-     * // But we want to simulate `parent-child` relationship for these two node.
-     * this.addChild(spriteB);
-     *
-     * //position
-     * spriteA.setPosition(ccp(200, 200));
-     *
-     * // Gets the spriteA's transform.
-     * var t = spriteA.getNodeToParentTransform();
-     *
-     * // Sets the additional transform to spriteB, spriteB's position will based on its pseudo parent i.e. spriteA.
-     * spriteB.setAdditionalTransform(t);
-     *
-     * //scale
-     * spriteA.setScale(2);
-     *
-     * // Gets the spriteA's transform.
-     * t = spriteA.getNodeToParentTransform();
-     *
-     * // Sets the additional transform to spriteB, spriteB's scale will based on its pseudo parent i.e. spriteA.
-     * spriteB.setAdditionalTransform(t);
-     *
-     * //rotation
-     * spriteA.setRotation(20);
-     *
-     * // Gets the spriteA's transform.
-     * t = spriteA.getNodeToParentTransform();
-     *
-     * // Sets the additional transform to spriteB, spriteB's rotation will based on its pseudo parent i.e. spriteA.
-     * spriteB.setAdditionalTransform(t);
-     */
-    setAdditionalTransform: function (additionalTransform) {
-        if(additionalTransform === undefined)
-            return this._additionalTransformDirty = false;
-        this._additionalTransform = additionalTransform;
-        this._renderCmd.setDirtyFlag(_ccsg.Node._dirtyFlags.transformDirty);
-        this._additionalTransformDirty = true;
-    },
-
-    /**
      * Returns the matrix that transform parent's space coordinates to the node's (local) space coordinates.<br/>
      * The matrix is in Pixels.
      * @function
      * @return {cc.AffineTransform}
      */
     getParentToNodeTransform: function () {
-       return this._renderCmd.getParentToNodeTransform();
+        return this._renderCmd.getParentToNodeTransform();
     },
 
     /**
@@ -1777,7 +1723,7 @@ _ccsg.Node = cc.Class({
      * @function
      * @deprecated since v3.0, please use getNodeToWorldTransform instead
      */
-    nodeToWorldTransform: function(){
+    nodeToWorldTransform: function () {
         return this.getNodeToWorldTransform();
     },
 
@@ -1880,8 +1826,12 @@ _ccsg.Node = cc.Class({
      * @function
      */
     updateTransform: function () {
-        // Recursively iterate over children
-        this._arrayMakeObjectsPerformSelector(this._children, _ccsg.Node._stateCallbackType.updateTransform);
+        var children = this._children, node;
+        for (var i = 0; i < children.length; i++) {
+            var node = children[i];
+            if (node)
+                node.updateTransform();
+        }
     },
 
     /**
@@ -1920,8 +1870,38 @@ _ccsg.Node = cc.Class({
      * @function
      * @param {_ccsg.Node.RenderCmd} parentCmd
      */
-    visit: function(parentCmd){
-        this._renderCmd.visit(parentCmd);
+    visit: function (parent) {
+        // quick return if not visible
+        if (!this._visible)
+            return;
+
+        var renderer = cc.renderer, cmd = this._renderCmd;
+        cmd.visit(parent && parent._renderCmd);
+
+        var i, children = this._children, len = children.length, child;
+        if (len > 0) {
+            if (this._reorderChildDirty) {
+                this.sortAllChildren();
+            }
+            // draw children zOrder < 0
+            for (i = 0; i < len; i++) {
+                child = children[i];
+                if (child._localZOrder < 0) {
+                    child.visit(this);
+                }
+                else {
+                    break;
+                }
+            }
+
+            renderer.pushRenderCommand(cmd);
+            for (; i < len; i++) {
+                children[i].visit(this);
+            }
+        } else {
+            renderer.pushRenderCommand(cmd);
+        }
+        cmd._dirtyFlag = 0;
     },
 
     /**
@@ -2202,27 +2182,30 @@ _ccsg.Node = cc.Class({
         return false;
     },
 
-    _initRendererCmd: function(){
-        this._renderCmd = cc.renderer.getRenderCmd(this);
-    },
-
-    _createRenderCmd: function(){
-        if(cc._renderType === cc.game.RENDER_TYPE_CANVAS)
+    _createRenderCmd: function () {
+        if (cc._renderType === cc.game.RENDER_TYPE_CANVAS)
             return new _ccsg.Node.CanvasRenderCmd(this);
         else
             return new _ccsg.Node.WebGLRenderCmd(this);
     }
 });
 
-_ccsg.Node.extend = function (options) {
-    return cc._Class.extend.call(_ccsg.Node, options);
-};
+_ccsg.Node.extend = cc._Class.extend;
 
 // to support calling this._super in sub class
 _ccsg.Node.prototype.ctor = _ccsg.Node;
 
-_ccsg.Node._stateCallbackType = {onEnter: 1, onExit: 2, cleanup: 3, onEnterTransitionDidFinish: 4, updateTransform: 5, onExitTransitionDidStart: 6, sortAllChildren: 7};
+_ccsg.Node.performType = {
+    onEnter: 1,
+    onExit: 2,
+    cleanup: 3,
+    onEnterTransitionDidFinish: 4,
+    onExitTransitionDidStart: 5,
+    max: 6
+};
+_ccsg.Node._performStacks = [[]];
+_ccsg.Node._performing = 0;
 
-cc.assert(typeof cc._tmp.PrototypeCCNode === 'function', cc._LogInfos.MissingFile, "BaseNodesPropertyDefine.js");
+cc.assertID(typeof cc._tmp.PrototypeCCNode === 'function', 3200, "BaseNodesPropertyDefine.js");
 cc._tmp.PrototypeCCNode();
 delete cc._tmp.PrototypeCCNode;

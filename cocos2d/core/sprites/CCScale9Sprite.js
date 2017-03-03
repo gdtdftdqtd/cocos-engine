@@ -116,14 +116,17 @@ var simpleQuadGenerator = {
         }
         // bl, br, tl, tr
         if (webgl) {
-            vertices[0] = l * wt.a + b * wt.c + wt.tx;
-            vertices[1] = l * wt.b + b * wt.d + wt.ty;
-            vertices[2] = r * wt.a + b * wt.c + wt.tx;
-            vertices[3] = r * wt.b + b * wt.d + wt.ty;
-            vertices[4] = l * wt.a + t * wt.c + wt.tx;
-            vertices[5] = l * wt.b + t * wt.d + wt.ty;
-            vertices[6] = r * wt.a + t * wt.c + wt.tx;
-            vertices[7] = r * wt.b + t * wt.d + wt.ty;
+            var la = l * wt.a, lb = l * wt.b, ra = r * wt.a, rb = r * wt.b,
+                tcx = t * wt.c + wt.tx, tdy = t * wt.d + wt.ty, 
+                bcx = b * wt.c + wt.tx, bdy = b * wt.d + wt.ty;
+            vertices[0] = la + bcx;
+            vertices[1] = lb + bdy;
+            vertices[2] = ra + bcx;
+            vertices[3] = rb + bdy;
+            vertices[4] = la + tcx;
+            vertices[5] = lb + tdy;
+            vertices[6] = ra + tcx;
+            vertices[7] = rb + tdy;
         }
         else {
             vertices[0] = l;
@@ -136,10 +139,10 @@ var simpleQuadGenerator = {
             vertices[7] = t;
         }
 
-        cornerId[0] = 0;
-        cornerId[1] = 2;
-        cornerId[2] = 4;
-        cornerId[3] = 6;
+        cornerId[0] = 0; // bl
+        cornerId[1] = 2; // br
+        cornerId[2] = 4; // tl
+        cornerId[3] = 6; // tr
 
         //build uvs
         if (sprite._uvsDirty) {
@@ -251,10 +254,10 @@ var scale9QuadGenerator = {
             }
         }
 
-        cornerId[0] = 0;
-        cornerId[1] = 6;
-        cornerId[2] = 24;
-        cornerId[3] = 30;
+        cornerId[0] = 0;  // bl
+        cornerId[1] = 6;  // br
+        cornerId[2] = 24; // tl
+        cornerId[3] = 30; // tr
 
         //build uvs
         if (sprite._uvsDirty) {
@@ -367,7 +370,7 @@ var tiledQuadGenerator = {
         var row = Math.ceil(vRepeat), col = Math.ceil(hRepeat);
 
         if (row * col > (65536 / 4)) {
-            cc.error('too many tiles, only 16384 tiles will be show');
+            cc.errorID(2625);
         }
         var dataLength = row * col * 4 * 2;
         if (vertices.length < dataLength) {
@@ -391,14 +394,17 @@ var tiledQuadGenerator = {
                 t = rectHeight * Math.min(vindex + 1, vRepeat);
                 // bl.x, bl.y, br.x, br.y, tl.x, tl.y, tr.x, tr.y
                 if (webgl) {
-                    vertices[offset] = l * wt.a + b * wt.c + wt.tx;
-                    vertices[offset + 1] = l * wt.b + b * wt.d + wt.ty;
-                    vertices[offset + 2] = r * wt.a + b * wt.c + wt.tx;
-                    vertices[offset + 3] = r * wt.b + b * wt.d + wt.ty;
-                    vertices[offset + 4] = l * wt.a + t * wt.c + wt.tx;
-                    vertices[offset + 5] = l * wt.b + t * wt.d + wt.ty;
-                    vertices[offset + 6] = r * wt.a + t * wt.c + wt.tx;
-                    vertices[offset + 7] = r * wt.b + t * wt.d + wt.ty;
+                    var la = l * wt.a, lb = l * wt.b, ra = r * wt.a, rb = r * wt.b,
+                        tcx = t * wt.c + wt.tx, tdy = t * wt.d + wt.ty, 
+                        bcx = b * wt.c + wt.tx, bdy = b * wt.d + wt.ty;
+                    vertices[offset] = la + bcx;
+                    vertices[offset + 1] = lb + bdy;
+                    vertices[offset + 2] = ra + bcx;
+                    vertices[offset + 3] = rb + bdy;
+                    vertices[offset + 4] = la + tcx;
+                    vertices[offset + 5] = lb + tdy;
+                    vertices[offset + 6] = ra + tcx;
+                    vertices[offset + 7] = rb + tdy;
                 }
                 else {
                     vertices[offset] = l;
@@ -436,10 +442,10 @@ var tiledQuadGenerator = {
             }
         }
 
-        cornerId[0] = 0;
-        cornerId[1] = col * 8 + 2;
-        cornerId[2] = dataLength - col * 8 + 4;
-        cornerId[3] = dataLength - 2;
+        cornerId[0] = 0; // bl
+        cornerId[1] = (col-1) * 8 + 2; // br
+        cornerId[2] = (row-1) * col * 8 + 4; // tl
+        cornerId[3] = dataLength - 2; // tr
     }
 };
 
@@ -543,20 +549,23 @@ var fillQuadGeneratorBar = {
                 uvs[7] = quadUV[3] + (quadUV[7] - quadUV[3]) * fillEnd;
                 break;
             default:
-                cc.error('Unrecognized fill type in bar fill');
+                cc.errorID(2626);
                 break;
         }
 
         //build vertices
         if (webgl) {
-            vertices[0] = l * wt.a + b * wt.c + wt.tx;
-            vertices[1] = l * wt.b + b * wt.d + wt.ty;
-            vertices[2] = r * wt.a + b * wt.c + wt.tx;
-            vertices[3] = r * wt.b + b * wt.d + wt.ty;
-            vertices[4] = l * wt.a + t * wt.c + wt.tx;
-            vertices[5] = l * wt.b + t * wt.d + wt.ty;
-            vertices[6] = r * wt.a + t * wt.c + wt.tx;
-            vertices[7] = r * wt.b + t * wt.d + wt.ty;
+            var la = l * wt.a, lb = l * wt.b, ra = r * wt.a, rb = r * wt.b,
+                tcx = t * wt.c + wt.tx, tdy = t * wt.d + wt.ty, 
+                bcx = b * wt.c + wt.tx, bdy = b * wt.d + wt.ty;
+            vertices[0] = la + bcx;
+            vertices[1] = lb + bdy;
+            vertices[2] = ra + bcx;
+            vertices[3] = rb + bdy;
+            vertices[4] = la + tcx;
+            vertices[5] = lb + tdy;
+            vertices[6] = ra + tcx;
+            vertices[7] = rb + tdy;
         } else{
             vertices[0] = l;
             vertices[1] = b;
@@ -570,10 +579,10 @@ var fillQuadGeneratorBar = {
 
         sprite._vertCount = 4;
 
-        cornerId[0] = 0;
-        cornerId[1] = 2;
-        cornerId[2] = 4;
-        cornerId[3] = 6;
+        cornerId[0] = 0; // bl
+        cornerId[1] = 2; // br
+        cornerId[2] = 4; // tl
+        cornerId[3] = 6; // tr
     }
 };
 
@@ -740,10 +749,10 @@ var fillQuadGeneratorRadial = {
         }
         sprite._vertCount = count;
 
-        cornerId[0] = 0;
-        cornerId[1] = 2;
-        cornerId[2] = 4;
-        cornerId[3] = 6;
+        cornerId[0] = 0; // bl
+        cornerId[1] = 2; // br
+        cornerId[2] = 4; // tl
+        cornerId[3] = 6; // tr
     },
 
     _generateTriangle: function(wt, offset, vert0, vert1, vert2) {
@@ -921,6 +930,69 @@ var fillQuadGeneratorRadial = {
     }
 };
 
+var meshQuadGenerator = {
+    _rebuildQuads_base: function (sprite, spriteFrame, polygonInfo) {
+        if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
+            return;
+        }
+
+        if (!polygonInfo) {
+            return;
+        }
+
+        var wt = sprite._renderCmd._worldTransform;
+        var srcVerts = polygonInfo.triangles.verts;
+        var vertices = sprite._vertices;
+        var uvs = sprite._uvs;
+        var count = srcVerts.length;
+
+        var dataLength = count * 2;
+        if (vertices.length < dataLength) {
+            dataPool.put(vertices);
+            vertices = dataPool.get(dataLength) || new Float32Array(dataLength);
+            sprite._vertices = vertices;
+        }
+        if (uvs.length < dataLength) {
+            dataPool.put(uvs);
+            uvs = dataPool.get(dataLength) || new Float32Array(dataLength);
+            sprite._uvs = uvs;
+        }
+
+        var l = Infinity, b = Infinity,
+            r = -Infinity, t = -Infinity;
+        for (var i = 0; i < count; i++) {
+            var x = srcVerts[i].x * wt.a + srcVerts[i].y * wt.c + wt.tx;
+            var y = srcVerts[i].x * wt.b + srcVerts[i].y * wt.d + wt.ty;
+            vertices[i * 2] = x;
+            vertices[i * 2 + 1] = y;
+            uvs[i * 2] = srcVerts[i].u;
+            uvs[i * 2 + 1] = srcVerts[i].v;
+
+            if (x < l) {
+                l = x;
+                cornerId[0] = i * 2; // left
+            }
+
+            if (x > r) {
+                r = x;
+                cornerId[1] = i * 2; // right
+            }
+
+            if (y < b) {
+                b = y;
+                cornerId[2] = i * 2; // bottom
+            }
+
+            if (y > t) {
+                t = y;
+                cornerId[3] = i * 2; // top
+            }
+        }
+
+        sprite._vertCount = count;
+    }
+};
+
 cc.Scale9Sprite = _ccsg.Node.extend({
     //resource data, could be async loaded.
     _spriteFrame: null,
@@ -955,6 +1027,7 @@ cc.Scale9Sprite = _ccsg.Node.extend({
     _fillRange: Math.PI * 2,
     _distortionOffset: null,
     _distortionTiling: null,
+    _meshPolygonInfo: null,
 
     ctor: function (textureOrSpriteFrame) {
         _ccsg.Node.prototype.ctor.call(this);
@@ -968,18 +1041,11 @@ cc.Scale9Sprite = _ccsg.Node.extend({
         this._vertices = dataPool.get(8) || new Float32Array(8);
         this._uvs = dataPool.get(8) || new Float32Array(8);
         // Init sprite frame
-        if (typeof textureOrSpriteFrame === 'string') {
-            var frame = cc.spriteFrameCache.getSpriteFrame(textureOrSpriteFrame);
-            if (frame) {
-                this.initWithSpriteFrame(frame);
-            } else {
-                this.initWithTexture(textureOrSpriteFrame);
-            }
-        } else if (textureOrSpriteFrame instanceof cc.SpriteFrame) {
-            this.initWithSpriteFrame(textureOrSpriteFrame);
-        }
-        else if (textureOrSpriteFrame instanceof cc.Texture2D) {
+        if (typeof textureOrSpriteFrame === 'string' || textureOrSpriteFrame instanceof cc.Texture2D) {
             this.initWithTexture(textureOrSpriteFrame);
+        }
+        else if (textureOrSpriteFrame instanceof cc.SpriteFrame) {
+            this.initWithSpriteFrame(textureOrSpriteFrame);
         }
 
         if (webgl === undefined) {
@@ -1029,17 +1095,9 @@ cc.Scale9Sprite = _ccsg.Node.extend({
     /**
      * Change the sprite frame of 9 slice sprite
      *
-     * @param spriteFrameOrSFFileName The name of the texture file.
+     * @param spriteFrame The SpriteFrame object.
      */
-    setSpriteFrame: function (spriteFrameOrSFName) {
-        var spriteFrame;
-        if (spriteFrameOrSFName instanceof cc.SpriteFrame) {
-            spriteFrame = spriteFrameOrSFName;
-        }
-        else {
-            spriteFrame = cc.spriteFrameCache.getSpriteFrame(spriteFrameOrSFName);
-        }
-
+    setSpriteFrame: function (spriteFrame) {
         if (spriteFrame) {
             this._spriteFrame = spriteFrame;
             this._quadsDirty = true;
@@ -1338,19 +1396,26 @@ cc.Scale9Sprite = _ccsg.Node.extend({
                 fillQuadGeneratorRadial._rebuildQuads_base(this, this._spriteFrame, this._contentSize, this._fillCenter,fillstart, fillRange);
             }
             break;
+        case RenderingType.MESH:
+            meshQuadGenerator._rebuildQuads_base(this, this._spriteFrame, this._meshPolygonInfo);
+            break;
         default:
             this._quadsDirty = false;
             this._uvsDirty = false;
             this._renderCmd._needDraw = false;
-            cc.error('Can not generate quad');
+            cc.errorID(2627);
             return;
         }
 
         // Culling
         if (webgl) {
+            // x1, y1  leftBottom
+            // x2, y2  rightBottom
+            // x3, y3  leftTop
+            // x4, y4  rightTop
             var vert = this._isTriangle ? this._rawVerts : this._vertices,
                 x0 = vert[cornerId[0]], x1 = vert[cornerId[1]], x2 = vert[cornerId[2]], x3 = vert[cornerId[3]],
-                y0 = vert[cornerId[0]+1], y1 = vert[cornerId[1]+1], y2 = vert[cornerId[2]+1], y3 = vert[cornerId[3]+1];
+                y0 = vert[cornerId[0] + 1], y1 = vert[cornerId[1] + 1], y2 = vert[cornerId[2] + 1], y3 = vert[cornerId[3] + 1];
             if (((x0-vl.x) & (x1-vl.x) & (x2-vl.x) & (x3-vl.x)) >> 31 || // All outside left
                 ((vr.x-x0) & (vr.x-x1) & (vr.x-x2) & (vr.x-x3)) >> 31 || // All outside right
                 ((y0-vb.y) & (y1-vb.y) & (y2-vb.y) & (y3-vb.y)) >> 31 || // All outside bottom
@@ -1381,8 +1446,28 @@ cc.Scale9Sprite = _ccsg.Node.extend({
             return new cc.Scale9Sprite.CanvasRenderCmd(this);
         else
             return new cc.Scale9Sprite.WebGLRenderCmd(this);
-    }
+    },
 
+    setMeshPolygonInfo: function (polygonInfo) {
+        /**
+         * polygonInfo in format:
+         * {
+         *     triangles: {
+         *         verts: displayVertices,
+         *         indices: vertexIndices
+         *     },
+         *     rect: boundsRect
+         * }
+         */
+        this.setRenderingType(RenderingType.MESH);
+        this._meshPolygonInfo = polygonInfo;
+        this._quadsDirty = true;
+        this._uvsDirty = true;
+    },
+
+    getMeshPolygonInfo: function () {
+        return this._meshPolygonInfo;
+    }
 });
 
 var _p = cc.Scale9Sprite.prototype;
@@ -1415,7 +1500,11 @@ var RenderingType = cc.Scale9Sprite.RenderingType = cc.Enum({
     /*
      * @property {Number} FILLED
      */
-    FILLED: 3
+    FILLED: 3,
+    /*
+     * @property {Number} MESH
+     */
+    MESH: 4
 });
 
 var FillType = cc.Scale9Sprite.FillType = cc.Enum({

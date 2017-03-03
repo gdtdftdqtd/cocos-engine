@@ -31,7 +31,7 @@
  ****************************************************************************/
 
 _ccsg.Label.WebGLRenderCmd = function(renderableObject){
-    _ccsg.Node.WebGLRenderCmd.call(this, renderableObject);
+    this._rootCtor(renderableObject);
     this._needDraw = true;
 
     this._texture = new cc.Texture2D();
@@ -53,18 +53,13 @@ _ccsg.Label.WebGLRenderCmd = function(renderableObject){
     this._color = new Uint32Array(1);
     this._dirty = false;
 
-    this._shaderProgram = cc.shaderCache.programForKey(cc.macro.SHADER_SPRITE_POSITION_TEXTURECOLORALPHATEST);
+    this._shaderProgram = cc.shaderCache.programForKey(cc.macro.SHADER_SPRITE_POSITION_TEXTURECOLOR);
 };
 
 var proto = _ccsg.Label.WebGLRenderCmd.prototype = Object.create(_ccsg.Node.WebGLRenderCmd.prototype);
 cc.js.mixin(proto, _ccsg.Label.TTFLabelBaker.prototype);
 
 proto.constructor = _ccsg.Label.WebGLRenderCmd;
-
-proto._updateDisplayOpacity = function (parentOpacity) {
-    _ccsg.Node.WebGLRenderCmd.prototype._updateDisplayOpacity.call(this, parentOpacity);
-    this._rebuildLabelSkin();
-};
 
 proto.transform = function (parentCmd, recursive) {
     this.originTransform(parentCmd, recursive);

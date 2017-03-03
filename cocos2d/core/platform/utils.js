@@ -23,7 +23,27 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+// TODO - merge with misc.js
+
 module.exports = {
+    contains: function (refNode, otherNode) {
+        if(typeof refNode.contains == 'function'){
+            return refNode.contains(otherNode);
+        }else if(typeof refNode.compareDocumentPosition == 'function' ) {
+            return !!(refNode.compareDocumentPosition(otherNode) & 16);
+        }else {
+            var node = otherNode.parentNode;
+            do {
+                if(node === refNode){
+                    return true;
+                }else{
+                    node = node.parentNode;
+                }
+            }while(node !==null);
+            return false;
+        }
+    },
+
     isDomNode: typeof window === 'object' && (typeof Node === 'function' ?
         function (obj) {
             // If "TypeError: Right-hand side of 'instanceof' is not callback" is thrown,
@@ -47,13 +67,24 @@ module.exports = {
             }
         }
         :
-        function (callback, p1, p2) {
-            if (callback) {
-                setTimeout(function () {
-                    callback(p1, p2);
-                }, 0);
-            }
-        }
+        (
+            CC_JSB ?
+                function (callback, p1, p2) {
+                    if (callback) {
+                        cc.director.once(cc.Director._EVENT_NEXT_TICK, function () {
+                            callback(p1, p2);
+                        });
+                    }
+                }
+                :
+                function (callback, p1, p2) {
+                    if (callback) {
+                        setTimeout(function () {
+                            callback(p1, p2);
+                        }, 0);
+                    }
+                }
+        )
 };
 
 if (CC_DEV) {

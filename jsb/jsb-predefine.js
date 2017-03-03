@@ -23,9 +23,6 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-// Run jsb.js before all polyfills
-cc.initEngine();
-
 if (!cc.ClassManager) {
     cc.ClassManager = window.ClassManager || {
         id : (0|(Math.random()*998)),
@@ -57,4 +54,14 @@ require('../cocos2d/core/event');
 require('../cocos2d/core/event-manager/CCSystemEvent');
 require('../CCDebugger');
 
-cc._initDebugSetting(cc.game.DEBUG_MODE_INFO);
+if (CC_DEV) {
+    //Debug Info ID map
+    require('../DebugInfos');
+}
+
+// Mark memory model
+var macro = require('../cocos2d/core/platform/CCMacro');
+
+if (window.__ENABLE_GC_FOR_NATIVE_OBJECTS__ !== undefined) {
+    macro.ENABLE_GC_FOR_NATIVE_OBJECTS = window.__ENABLE_GC_FOR_NATIVE_OBJECTS__;
+}

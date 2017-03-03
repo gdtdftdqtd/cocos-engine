@@ -216,6 +216,7 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
             for (i = 0; i < len; ++i) {
                 tileset = tilesets[i];
                 tex = cc.textureCache.addImage(tileset.sourceImage);
+                tex.setAliasTexParameters();
                 this._textures[i] = tex;
                 this._fillTextureGrids(tileset, i);
                 if (tileset === tilesetInfo) {
@@ -261,6 +262,52 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
         this._useAutomaticVertexZ = false;
         this._vertexZvalue = 0;
         return true;
+    },
+
+    visit: function (parent) {
+        // quick return if not visible
+        if (!this._visible)
+            return;
+
+        var renderer = cc.renderer, cmd = this._renderCmd;
+        cmd.visit(parent && parent._renderCmd);
+
+        var i, children = this._children, len = children.length, child,
+            isCanvas = cc._renderType === cc.game.RENDER_TYPE_CANVAS, spTiles = this._spriteTiles;
+        if (len > 0) {
+            if (this._reorderChildDirty) {
+                this.sortAllChildren();
+            }
+            // draw children zOrder < 0
+            for (i = 0; i < len; i++) {
+                child = children[i];
+                if (child._localZOrder < 0) {
+                    child.visit(this);
+                }
+                else {
+                    break;
+                }
+            }
+
+            renderer.pushRenderCommand(cmd);
+            for (; i < len; i++) {
+                child = children[i];
+                if (isCanvas &&
+                    child._localZOrder === 0 && 
+                    spTiles[child.tag]) {
+                    if (isNaN(child._customZ)) {
+                        child._vertexZ = renderer.assignedZ;
+                        renderer.assignedZ += renderer.assignedZStep;
+                    }
+                    child._renderCmd.updateStatus();
+                    continue;
+                }
+                child.visit(this);
+            }
+        } else {
+            renderer.pushRenderCommand(cmd);
+        }
+        cmd._dirtyFlag = 0;
     },
 
     /**
@@ -445,7 +492,7 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
             throw new Error("_ccsg.TMXLayer.getTileAt(): invalid position");
         }
         if (!this.tiles) {
-            cc.log("_ccsg.TMXLayer.getTileAt(): TMXLayer: the tiles map has been released");
+            cc.logID(7204);
             return null;
         }
 
@@ -495,7 +542,7 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
             throw new Error("_ccsg.TMXLayer.getTileGIDAt(): invalid position");
         }
         if (!this.tiles) {
-            cc.log("_ccsg.TMXLayer.getTileGIDAt(): TMXLayer: the tiles map has been released");
+            cc.logID(7205);
             return null;
         }
 
@@ -536,11 +583,11 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
             throw new Error("_ccsg.TMXLayer.setTileGID(): invalid position");
         }
         if (!this.tiles) {
-            cc.log("_ccsg.TMXLayer.setTileGID(): TMXLayer: the tiles map has been released");
+            cc.logID(7206);
             return;
         }
         if (gid !== 0 && gid < this.tileset.firstGid) {
-            cc.log( "_ccsg.TMXLayer.setTileGID(): invalid gid:" + gid);
+            cc.logID(7207, gid);
             return;
         }
 
@@ -605,7 +652,7 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
         if(pos.x >= this._layerSize.width || pos.y >= this._layerSize.height || pos.x < 0 || pos.y < 0)
             throw new Error("_ccsg.TMXLayer.getTileFlagsAt(): invalid position");
         if(!this.tiles){
-            cc.log("_ccsg.TMXLayer.getTileFlagsAt(): TMXLayer: the tiles map has been released");
+            cc.logID(7208);
             return null;
         }
 
@@ -634,7 +681,7 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
             throw new Error("_ccsg.TMXLayer.removeTileAt(): invalid position");
         }
         if (!this.tiles) {
-            cc.log("_ccsg.TMXLayer.removeTileAt(): TMXLayer: the tiles map has been released");
+            cc.logID(7209);
             return;
         }
 
@@ -1008,13 +1055,13 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
                     ret = -(this._layerSize.height - y);
                     break;
                 case cc.TiledMap.Orientation.HEX:
-                    cc.log("TMX Hexa zOrder not supported");
+                    cc.logID(7210);
                     break;
                 case cc.TiledMap.Orientation.STAGGERED:
                     ret = -(this._layerSize.height - y);
                     break;
                 default:
-                    cc.log("TMX invalid value");
+                    cc.logID(7211);
                     break;
             }
         } else {

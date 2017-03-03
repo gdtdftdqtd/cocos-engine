@@ -182,7 +182,7 @@ cc.ActionInterval = cc.FiniteTimeAction.extend({
     },
 
     reverse:function () {
-        cc.log("cc.IntervalAction: reverse not implemented.");
+        cc.logID(1010);
         return null;
     },
 
@@ -193,7 +193,7 @@ cc.ActionInterval = cc.FiniteTimeAction.extend({
      */
     setAmplitudeRate:function (amp) {
         // Abstract class needs implementation
-        cc.log("cc.ActionInterval.setAmplitudeRate(): it should be overridden in subclass.");
+        cc.logID(1011);
     },
 
     /*
@@ -203,7 +203,7 @@ cc.ActionInterval = cc.FiniteTimeAction.extend({
      */
     getAmplitudeRate:function () {
         // Abstract class needs implementation
-        cc.log("cc.ActionInterval.getAmplitudeRate(): it should be overridden in subclass.");
+        cc.logID(1012);
         return 0;
     },
 
@@ -220,7 +220,7 @@ cc.ActionInterval = cc.FiniteTimeAction.extend({
      */
     speed: function(speed){
         if(speed <= 0){
-            cc.log("The speed parameter error");
+            cc.logID(1013);
             return this;
         }
 
@@ -259,7 +259,7 @@ cc.ActionInterval = cc.FiniteTimeAction.extend({
     repeat: function(times){
         times = Math.round(times);
         if(isNaN(times) || times < 1){
-            cc.log("The repeat parameter error");
+            cc.logID(1014);
             return this;
         }
         this._repeatMethod = true;//Compatible with repeat class, Discard after can be deleted
@@ -312,10 +312,10 @@ cc.Sequence = cc.ActionInterval.extend({
         cc.ActionInterval.prototype.ctor.call(this);
         this._actions = [];
 
-		var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
-		var last = paramArray.length - 1;
-		if ((last >= 0) && (paramArray[last] == null))
-			cc.log("parameters should not be ending with null in Javascript");
+        var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
+        var last = paramArray.length - 1;
+        if ((last >= 0) && (paramArray[last] == null))
+            cc.logID(1015);
 
         if (last >= 0) {
             var prev = paramArray[0], action1;
@@ -443,24 +443,17 @@ cc.Sequence = cc.ActionInterval.extend({
 // todo: It should be use new
 cc.sequence = function (/*Multiple Arguments*/tempArray) {
     var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
-    if ((paramArray.length > 0) && (paramArray[paramArray.length - 1] == null))
-        cc.log("parameters should not be ending with null in Javascript");
+    var last = paramArray.length - 1;
+    if ((last >= 0) && (paramArray[last] == null))
+        cc.logID(1015);
 
-    var result, current, i, repeat;
-    while(paramArray && paramArray.length > 0){
-        current = Array.prototype.shift.call(paramArray);
-        repeat = current._timesForRepeat || 1;
-        current._repeatMethod = false;
-        current._timesForRepeat = 1;
-
-        i = 0;
-        if(!result){
-            result = current;
-            i = 1;
-        }
-
-        for(i; i<repeat; i++){
-            result = cc.Sequence._actionOneTwo(result, current);
+    var result = null;
+    if (last >= 0) {
+        result = paramArray[0];
+        for (var i = 1; i <= last; i++) {
+            if (paramArray[i]) {
+                result = cc.Sequence._actionOneTwo(result, paramArray[i]);
+            }
         }
     }
 
@@ -739,7 +732,7 @@ cc.Spawn = cc.ActionInterval.extend({
 		var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
 		var last = paramArray.length - 1;
 		if ((last >= 0) && (paramArray[last] == null))
-			cc.log("parameters should not be ending with null in Javascript");
+			cc.logID(1015);
 
         if (last >= 0) {
             var prev = paramArray[0], action1;
@@ -831,7 +824,7 @@ cc.Spawn = cc.ActionInterval.extend({
 cc.spawn = function (/*Multiple Arguments*/tempArray) {
     var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
     if ((paramArray.length > 0) && (paramArray[paramArray.length - 1] == null))
-        cc.log("parameters should not be ending with null in Javascript");
+        cc.logID(1015);
 
     var prev = paramArray[0];
     for (var i = 1; i < paramArray.length; i++) {
@@ -921,7 +914,7 @@ cc.RotateTo = cc.ActionInterval.extend({
     },
 
     reverse:function () {
-        cc.log("cc.RotateTo.reverse(): it should be overridden in subclass.");
+        cc.logID(1016);
     },
 
     update:function (dt) {
@@ -2606,7 +2599,7 @@ cc.Animate = cc.ActionInterval.extend({
     startWithTarget:function (target) {
         cc.ActionInterval.prototype.startWithTarget.call(this, target);
         if (this._animation.getRestoreOriginalFrame())
-            this._origFrame = target.displayFrame();
+            this._origFrame = target.getSpriteFrame();
         this._nextFrame = 0;
         this._executedLoops = 0;
     },

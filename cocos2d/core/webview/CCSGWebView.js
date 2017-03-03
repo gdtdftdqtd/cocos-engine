@@ -49,7 +49,7 @@ _ccsg.WebView = _ccsg.Node.extend(/** @lends _ccsg.WebView# */{
      * Stop loading
      */
     stopLoading: function(){
-        cc.log("Web does not support loading");
+        cc.logID(7800);
     },
 
     /**
@@ -68,7 +68,7 @@ _ccsg.WebView = _ccsg.Node.extend(/** @lends _ccsg.WebView# */{
      * Determine whether to go back
      */
     canGoBack: function(){
-        cc.log("Web does not support query history");
+        cc.logID(7801);
         return true;
     },
 
@@ -76,7 +76,7 @@ _ccsg.WebView = _ccsg.Node.extend(/** @lends _ccsg.WebView# */{
      * Determine whether to go forward
      */
     canGoForward: function(){
-        cc.log("Web does not support query history");
+        cc.logID(7802);
         return true;
     },
 
@@ -86,7 +86,7 @@ _ccsg.WebView = _ccsg.Node.extend(/** @lends _ccsg.WebView# */{
     goBack: function(){
         try{
             if(_ccsg.WebView._polyfill.closeHistory)
-                return cc.log("The current browser does not support the GoBack");
+                return cc.logID(7803);
             var iframe = this._renderCmd._iframe;
             if(iframe){
                 var win = iframe.contentWindow;
@@ -104,7 +104,7 @@ _ccsg.WebView = _ccsg.Node.extend(/** @lends _ccsg.WebView# */{
     goForward: function(){
         try{
             if(_ccsg.WebView._polyfill.closeHistory)
-                return cc.log("The current browser does not support the GoForward");
+                return cc.logID(7804);
             var iframe = this._renderCmd._iframe;
             if(iframe){
                 var win = iframe.contentWindow;
@@ -137,7 +137,7 @@ _ccsg.WebView = _ccsg.Node.extend(/** @lends _ccsg.WebView# */{
      * Limited scale
      */
     setScalesPageToFit: function(){
-        cc.log("Web does not support zoom");
+        cc.logID(7805);
     },
 
     /**
@@ -236,7 +236,7 @@ _ccsg.WebView.EventType = {
     }
 
     _ccsg.WebView.RenderCmd = function(node){
-        RenderCmd.call(this, node);
+        this._rootCtor(node);
 
         this._parent = null;
         this._div = null;
@@ -259,7 +259,7 @@ _ccsg.WebView.EventType = {
             //update the transform
             this.transform(this.getParentRenderCmd(), true);
             this.updateMatrix();
-            this._dirtyFlag = this._dirtyFlag & _ccsg.Node._dirtyFlags.transformDirty ^ this._dirtyFlag;
+            this._dirtyFlag &= ~_ccsg.Node._dirtyFlags.transformDirty;
         }
     };
 
@@ -359,6 +359,7 @@ _ccsg.WebView.EventType = {
         this._div.style.overflow = "scroll";
         this._div.style.border = "none";
         cc.game.container.appendChild(this._div);
+        this.updateVisibility();
     };
 
     proto.createNativeControl = function () {
