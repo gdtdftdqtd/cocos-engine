@@ -438,7 +438,7 @@ var Label = cc.Class({
                 if (value) {
                     this.font = null;
                     if (this._sgNode) {
-                        this._sgNode.setFontFileOrFamily('Arial');
+                        this._sgNode.setFontFileOrFamily('Helvetica');
                     }
                 }
 
