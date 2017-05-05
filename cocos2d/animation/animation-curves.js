@@ -391,6 +391,12 @@ var EventAnimCurve = cc.Class({
         var eventInfo = this.events[index];
         var events = eventInfo.events;
         var components = this.target._components;
+        
+        //add by chl
+        if (!components) {
+            return;
+        }
+        //end
 
         for (var i = 0;  i < events.length; i++) {
             var event = events[i];
