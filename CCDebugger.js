@@ -24,7 +24,6 @@
  ****************************************************************************/
 
 
-//+++++++++++++++++++++++++something about log start++++++++++++++++++++++++++++
 cc._logToWebPage = function (msg) {
     if (!cc._canvas)
         return;
@@ -68,7 +67,7 @@ cc._logToWebPage = function (msg) {
 };
 
 //to make sure the cc.log, cc.warn, cc.error and cc.assert would not throw error before init by debugger mode.
-function _formatString (arg) {
+function _formatString(arg) {
     if (typeof arg === 'object') {
         try {
             return JSON.stringify(arg);
@@ -159,38 +158,38 @@ var jsbLog = cc.log || console.log;
  */
 cc._initDebugSetting = function (mode) {
     // reset
-    cc.log = cc.warn = cc.error = cc._throw = cc.assert = function () {};
+    cc.log = cc.logID = cc.warn = cc.warnID = cc.error = cc.errorID = cc._throw = cc.assert = cc.assertID = function () { };
 
-    if(mode === cc.DebugMode.NONE)
+    if (mode === cc.DebugMode.NONE)
         return;
 
     var locLog;
     if (!CC_JSB && mode > cc.DebugMode.ERROR) {
         //log to web page
         locLog = cc._logToWebPage.bind(cc);
-        cc.error = function(){
+        cc.error = function () {
             locLog("ERROR :  " + cc.js.formatStr.apply(cc, arguments));
         };
-        cc.assert = function(cond, msg) {
+        cc.assert = function (cond, msg) {
             'use strict';
             if (!cond && msg) {
                 for (var i = 2; i < arguments.length; i++)
                     msg = msg.replace(/(%s)|(%d)/, _formatString(arguments[i]));
-                locLog("Assert: " + msg);
+                locLog("ASSERT: " + msg);
             }
         };
-        if(mode !== cc.DebugMode.ERROR_FOR_WEB_PAGE){
-            cc.warn = function(){
+        if (mode !== cc.DebugMode.ERROR_FOR_WEB_PAGE) {
+            cc.warn = function () {
                 locLog("WARN :  " + cc.js.formatStr.apply(cc, arguments));
             };
         }
-        if(mode === cc.DebugMode.INFO_FOR_WEB_PAGE){
-            cc.log = cc.info = function(){
+        if (mode === cc.DebugMode.INFO_FOR_WEB_PAGE) {
+            cc.log = cc.info = function () {
                 locLog(cc.js.formatStr.apply(cc, arguments));
             };
         }
     }
-    else if(console && console.log.apply){//console is null when user doesn't open dev tool on IE9
+    else if (console && console.log.apply) {//console is null when user doesn't open dev tool on IE9
         //log to console
 
         // For JSB
@@ -219,154 +218,184 @@ cc._initDebugSetting = function (mode) {
             cc.error = console.error.bind(console);
         }
         else {
-            cc.error = function () {
+            cc.error = CC_JSB ? console.error : function () {
                 return console.error.apply(console, arguments);
             };
         }
-        cc.assert = function (cond, msg) {
+        cc.assert = CC_JSB ? function (cond, msg, ...args) {
             if (!cond && msg) {
-                for (var i = 2; i < arguments.length; i++)
-                    msg = msg.replace(/(%s)|(%d)/, _formatString(arguments[i]));
+                for (var i = 0; i < args.length; i++)
+                    msg = msg.replace(/(%s)|(%d)/, _formatString(args[i]));
                 throw new Error(msg);
             }
-        };
-        if (mode !== cc.DebugMode.ERROR) {
-            /**
-             * !#en
-             * Outputs a warning message to the Cocos Creator Console (editor) or Web Console (runtime).
-             * - In Cocos Creator, warning is yellow.
-             * - In Chrome, warning have a yellow warning icon with the message text.
-             * !#zh
-             * 输出警告消息到 Cocos Creator 编辑器的 Console 或运行时 Web 端的 Console 中。<br/>
-             * - 在 Cocos Creator 中，警告信息显示是黄色的。<br/>
-             * - 在 Chrome 中，警告信息有着黄色的图标以及黄色的消息文本。<br/>
-             * @method warn
-             * @param {any} obj - A JavaScript string containing zero or more substitution strings.
-             * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
-             */
-            if (CC_EDITOR) {
-                cc.warn = Editor.warn;
-            }
-            else if (console.warn.bind) {
-                // use bind to avoid pollute call stacks
-                cc.warn = console.warn.bind(console);
-            }
-            else {
-                cc.warn = function () {
-                    return console.warn.apply(console, arguments);
-                };
+        } : function (cond, msg) {
+            if (!cond) {
+                if (msg) {
+                    for (var i = 2; i < arguments.length; i++) {
+                        msg = msg.replace(/(%s)|(%d)/, _formatString(arguments[i]));
+                    }
+                }
+                if (CC_DEV) {
+                    debugger;
+                }
+                if (CC_TEST) {
+                    ok(false, msg);
+                }
+                else {
+                    throw new Error(msg);
+                }
             }
         }
+    }
+    if (mode !== cc.DebugMode.ERROR) {
+        /**
+         * !#en
+         * Outputs a warning message to the Cocos Creator Console (editor) or Web Console (runtime).
+         * - In Cocos Creator, warning is yellow.
+         * - In Chrome, warning have a yellow warning icon with the message text.
+         * !#zh
+         * 输出警告消息到 Cocos Creator 编辑器的 Console 或运行时 Web 端的 Console 中。<br/>
+         * - 在 Cocos Creator 中，警告信息显示是黄色的。<br/>
+         * - 在 Chrome 中，警告信息有着黄色的图标以及黄色的消息文本。<br/>
+         * @method warn
+         * @param {any} obj - A JavaScript string containing zero or more substitution strings.
+         * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
+         */
         if (CC_EDITOR) {
-            cc.log = Editor.log;
-            cc.info = Editor.info;
+            cc.warn = Editor.warn;
         }
-        else if (mode === cc.DebugMode.INFO) {
-            /**
-             * !#en Outputs a message to the Cocos Creator Console (editor) or Web Console (runtime).
-             * !#zh 输出一条消息到 Cocos Creator 编辑器的 Console 或运行时 Web 端的 Console 中。
-             * @method log
-             * @param {any} obj - A JavaScript string containing zero or more substitution strings.
-             * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
-             */
-            if (CC_JSB) {
-                cc.log = jsbLog;
-            }
-            else if (console.log.bind) {
-                // use bind to avoid pollute call stacks
-                cc.log = console.log.bind(console);
-            }
-            else {
-                cc.log = function () {
-                    return console.log.apply(console, arguments);
-                };
-            }
-            /**
-             * !#en
-             * Outputs an informational message to the Cocos Creator Console (editor) or Web Console (runtime).
-             * - In Cocos Creator, info is blue.
-             * - In Firefox and Chrome, a small "i" icon is displayed next to these items in the Web Console's log.
-             * !#zh
-             * 输出一条信息消息到 Cocos Creator 编辑器的 Console 或运行时 Web 端的 Console 中。
-             * - 在 Cocos Creator 中，Info 信息显示是蓝色的。<br/>
-             * - 在 Firefox 和  Chrome 中，Info 信息有着小 “i” 图标。
-             * @method info
-             * @param {any} obj - A JavaScript string containing zero or more substitution strings.
-             * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
-             */
-            cc.info = function () {
-                (console.info || console.log).apply(console, arguments);
+        else if (console.warn.bind) {
+            // use bind to avoid pollute call stacks
+            cc.warn = console.warn.bind(console);
+        }
+        else {
+            cc.warn = CC_JSB ? console.warn : function () {
+                return console.warn.apply(console, arguments);
             };
         }
     }
-    cc._throw = CC_EDITOR ? Editor.error : function (error) {
-        var stack = error.stack;
-        if (stack) {
-            cc.error(CC_JSB ? (error + '\n' + stack) : stack);
+    if (CC_EDITOR) {
+        cc.log = Editor.log;
+        cc.info = Editor.info;
+    }
+    else if (mode === cc.DebugMode.INFO) {
+        /**
+         * !#en Outputs a message to the Cocos Creator Console (editor) or Web Console (runtime).
+         * !#zh 输出一条消息到 Cocos Creator 编辑器的 Console 或运行时 Web 端的 Console 中。
+         * @method log
+         * @param {String|any} obj - A JavaScript string containing zero or more substitution strings.
+         * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
+         */
+        if (CC_JSB) {
+            cc.log = jsbLog;
+        }
+        else if (console.log.bind) {
+            // use bind to avoid pollute call stacks
+            cc.log = console.log.bind(console);
         }
         else {
-            cc.error(error);
+            cc.log = function () {
+                return console.log.apply(console, arguments);
+            };
         }
-    };
+        /**
+         * !#en
+         * Outputs an informational message to the Cocos Creator Console (editor) or Web Console (runtime).
+         * - In Cocos Creator, info is blue.
+         * - In Firefox and Chrome, a small "i" icon is displayed next to these items in the Web Console's log.
+         * !#zh
+         * 输出一条信息消息到 Cocos Creator 编辑器的 Console 或运行时 Web 端的 Console 中。
+         * - 在 Cocos Creator 中，Info 信息显示是蓝色的。<br/>
+         * - 在 Firefox 和  Chrome 中，Info 信息有着小 “i” 图标。
+         * @method info
+         * @param {any} obj - A JavaScript string containing zero or more substitution strings.
+         * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
+         */
+        cc.info = CC_JSB ? jsbLog : function () {
+            (console.info || console.log).apply(console, arguments);
+        };
+    }
 
-    var errorMapUrl = 'https://github.com/cocos-creator/engine/blob/master/EngineErrorMap.md';
-
-    cc.warnID = function (id) { // id in number
-        if (CC_DEV) {
-            arguments[0] = cc._LogInfos[id];
-            cc.warn.apply(cc, arguments);
-        } else {
-            var args = '';
-            if (arguments.length === 2) {
-                args = 'Arguments: ' + arguments[1];
-            } else if (arguments.length > 2) {
-                args = 'Arguments: ' + Array.apply(null, arguments).slice(1).join(', ');
-            }            
-            cc.warn('Warning ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details. ' + args);
+    cc.warnID = genLogFunc(cc.warn, 'Warning');
+    cc.errorID = genLogFunc(cc.error, 'Error');
+    cc.logID = genLogFunc(cc.log, 'Log');
+    var assertFailed = genLogFunc(function () {
+        // actually no need to protect arguments leak here in case of an error...
+        var argsArr = [false];
+        for (var i = 0; i < arguments.length; ++i) {
+            argsArr.push(arguments[i]);
         }
-    };
-
-    cc.errorID = function (id) {
-        if (CC_DEV) {
-            arguments[0] = cc._LogInfos[id];
-            cc.error.apply(cc, arguments);            
-        } else {
-            var args = '';
-            if (arguments.length === 2) {
-                args = 'Arguments: ' + arguments[1];
-            } else if (arguments.length > 2) {
-                args = 'Arguments: ' + Array.apply(null, arguments).slice(1).join(', ');
-            }
-            cc.error('Error ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details. ' + args);
-        }        
-    };
-    cc.logID = function (id) {
-        if (CC_DEV) {
-            arguments[0] = cc._LogInfos[id];
-            cc.log.apply(cc, arguments);
-        } else {
-            var args = '';
-            if (arguments.length === 2) {
-                args = 'Arguments: ' + arguments[1];
-            } else if (arguments.length > 2) {
-                args = 'Arguments: ' + Array.apply(null, arguments).slice(1).join(', ');
-            }
-            cc.log('Log ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details. ' + args);
-        }        
-    };
-    cc.assertID = function (cond, id) {
-        if (CC_DEV) {
-            arguments[1] = cc._LogInfos[id];
-            cc.assert(cond, cc._LogInfos[id], arguments);
-        } else {
-            var args = '';
-            if (arguments.length === 3) {
-                args = 'Arguments: ' + arguments[2];
-            } else if (arguments.length > 3) {
-                args = 'Arguments: ' + Array.apply(null, arguments).slice(2).join(', ');
-            }
-            cc.assert(cond, 'Assert ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details. ' + args);
+        cc.assert.apply(null, argsArr);
+    }, 'Assert');
+    cc.assertID = CC_JSB ? function (cond, ...args) {
+        if (cond) {
+            return;
         }
+        assertFailed.apply(null, args);
+    } : function (cond) {
+        'use strict';
+        if (cond) {
+            return;
+        }
+        var argsArr = new Array(arguments.length - 1);
+        for (var i = 0; i < argsArr.length; ++i) {
+            argsArr[i] = arguments[i + 1];
+        }
+        assertFailed.apply(null, argsArr);
     };
 };
-//+++++++++++++++++++++++++something about log end+++++++++++++++++++++++++++++
+cc._throw = CC_EDITOR ? Editor.error : function (error) {
+    var stack = error.stack;
+    if (stack) {
+        cc.error(CC_JSB ? (error + '\n' + stack) : stack);
+    }
+    else {
+        cc.error(error);
+    }
+};
+
+var errorMapUrl = 'https://github.com/cocos-creator/engine/blob/master/EngineErrorMap.md';
+
+function genLogFunc(func, type) {
+    return CC_JSB ? function (...args) {
+        var id = args[0];
+        if (args.length === 1) {
+            CC_DEV ? func(cc._LogInfos[id]) : func(type + ' ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details.');
+            return;
+        }
+        if (CC_DEV) {
+            args[0] = cc._LogInfos[id];
+            func.apply(cc, args);
+        } else {
+            var msg = '';
+            if (args.length === 2) {
+                msg = 'Arguments: ' + args[1];
+            } else if (args.length > 2) {
+                msg = 'Arguments: ' + args.slice(1).join(', ');
+            }
+            func(type + ' ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details. ' + msg);
+        }
+    } : function (id) {
+        'use strict';
+        if (arguments.length === 1) {
+            CC_DEV ? func(cc._LogInfos[id]) : func(type + ' ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details.');
+            return;
+        }
+        var argsArr = new Array(arguments.length);
+        for (var i = 0; i < argsArr.length; ++i) {
+            argsArr[i] = arguments[i];
+        }
+        if (CC_DEV) {
+            argsArr[0] = cc._LogInfos[id];
+            func.apply(cc, argsArr);
+        } else {
+            var args = '';
+            if (arguments.length === 2) {
+                args = 'Arguments: ' + arguments[1];
+            } else if (arguments.length > 2) {
+                args = 'Arguments: ' + argsArr.slice(1).join(', ');
+            }
+            func(type + ' ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details. ' + args);
+        }
+    };
+}

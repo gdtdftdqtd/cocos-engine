@@ -1,5 +1,5 @@
 /****************************************************************************
- Copyright (c) 2013-2016 Chukong Technologies Inc.
+ Copyright (c) 2013-2017 Chukong Technologies Inc.
 
  http://www.cocos.com
 
@@ -35,6 +35,7 @@ require('../audio/CCAudioEngine');
  * !#en An object to boot the game.
  * !#zh 包含游戏主体信息并负责驱动游戏的游戏对象。
  * @class Game
+ * @extends EventTarget
  */
 var game = {
 
@@ -129,14 +130,14 @@ var game = {
      * !#en The container of game canvas, equals to cc.container.
      * !#zh 游戏画布的容器。
      * @property container
-     * @type {Object}
+     * @type {HTMLDivElement}
      */
     container: null,
     /**
      * !#en The canvas of the game, equals to cc._canvas.
      * !#zh 游戏的画布。
      * @property canvas
-     * @type {Object}
+     * @type {HTMLCanvasElement}
      */
     canvas: null,
 
@@ -210,14 +211,6 @@ var game = {
      */
     onStart: null,
 
-    /**
-     * !#en Callback when game exits.
-     * !#zh 当游戏结束后的回调函数。
-     * @method onStop
-     * @type {Function}
-     */
-    onStop: null,
-
 //@Public Methods
 
 //  @Game play control
@@ -231,7 +224,7 @@ var game = {
         var self = this, config = self.config, CONFIG_KEY = self.CONFIG_KEY;
         config[CONFIG_KEY.frameRate] = frameRate;
         if (self._intervalId)
-            window.cancelAnimationFrame(self._intervalId);
+            window.cancelAnimFrame(self._intervalId);
         self._intervalId = 0;
         self._paused = true;
         self._setAnimFrame();
@@ -263,7 +256,7 @@ var game = {
         }
         // Pause main loop
         if (this._intervalId)
-            window.cancelAnimationFrame(this._intervalId);
+            window.cancelAnimFrame(this._intervalId);
         this._intervalId = 0;
     },
 
@@ -511,10 +504,11 @@ var game = {
 //  @Time ticker section
     _setAnimFrame: function () {
         this._lastTime = new Date();
-        this._frameTime = 1000 / game.config[game.CONFIG_KEY.frameRate];
-        if((cc.sys.os === cc.sys.OS_IOS && cc.sys.browserType === cc.sys.BROWSER_TYPE_WECHAT) || game.config[game.CONFIG_KEY.frameRate] !== 60) {
+        var frameRate = game.config[game.CONFIG_KEY.frameRate];
+        this._frameTime = 1000 / frameRate;
+        if (frameRate !== 60 && frameRate !== 30) {
             window.requestAnimFrame = this._stTime;
-            window.cancelAnimationFrame = this._ctTime;
+            window.cancelAnimFrame = this._ctTime;
         }
         else {
             window.requestAnimFrame = window.requestAnimationFrame ||
@@ -523,7 +517,7 @@ var game = {
             window.oRequestAnimationFrame ||
             window.msRequestAnimationFrame ||
             this._stTime;
-            window.cancelAnimationFrame = window.cancelAnimationFrame ||
+            window.cancelAnimFrame = window.cancelAnimationFrame ||
             window.cancelRequestAnimationFrame ||
             window.msCancelRequestAnimationFrame ||
             window.mozCancelRequestAnimationFrame ||
@@ -550,20 +544,26 @@ var game = {
     //Run game.
     _runMainLoop: function () {
         var self = this, callback, config = self.config, CONFIG_KEY = self.CONFIG_KEY,
-            director = cc.director;
+            director = cc.director,
+            skip = true, frameRate = config[CONFIG_KEY.frameRate];
 
         director.setDisplayStats(config[CONFIG_KEY.showFPS]);
 
         callback = function () {
             if (!self._paused) {
+                if (frameRate === 30) {
+                    if (skip = !skip) {
+                        self._intervalId = window.requestAnimFrame(callback);
+                        return;
+                    }
+                }
+
                 director.mainLoop();
-                if(self._intervalId)
-                    window.cancelAnimationFrame(self._intervalId);
                 self._intervalId = window.requestAnimFrame(callback);
             }
         };
 
-        window.requestAnimFrame(callback);
+        self._intervalId = window.requestAnimFrame(callback);
         self._paused = false;
     },
 

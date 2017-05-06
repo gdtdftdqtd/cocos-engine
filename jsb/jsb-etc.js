@@ -25,8 +25,6 @@
 
 'use strict';
 
-var macro = require('../cocos2d/core/platform/CCMacro');
-
 cc.sys.now = function () {
     return Date.now();
 };
@@ -126,13 +124,14 @@ WindowTimeFun.prototype.fun = function () {
  @param {number} delay
  @return {number}
  */
-window.setTimeout = function (code, delay) {
+window.setTimeout = function (code, delay, ...args) {
     var target = new WindowTimeFun(code);
-    if (arguments.length > 2)
-        target._args = Array.prototype.slice.call(arguments, 2);
+    if (args.length > 0) {
+        target._args = args;
+    }
     var original = target.fun;
     target.fun = function () {
-        original.apply(this, arguments);
+        original.call(this);
         clearTimeout(target._intervalId);
     };
     cc.director.getScheduler()._schedule(target.fun, target, delay / 1000, 0, 0, false, target._intervalId+'');
@@ -146,11 +145,12 @@ window.setTimeout = function (code, delay) {
  @param {number} delay
  @return {number}
  */
-window.setInterval = function (code, delay) {
+window.setInterval = function (code, delay, ...args) {
     var target = new WindowTimeFun(code);
-    if (arguments.length > 2)
-        target._args = Array.prototype.slice.call(arguments, 2);
-    cc.director.getScheduler()._schedule(target.fun, target, delay / 1000, cc.REPEAT_FOREVER, 0, false, target._intervalId+'');
+    if (args.length > 0) {
+        target._args = args;
+    }
+    cc.director.getScheduler()._schedule(target.fun, target, delay / 1000, cc.macro.REPEAT_FOREVER, 0, false, target._intervalId+'');
     _windowTimeFunHash[target._intervalId] = target;
     return target._intervalId;
 };
@@ -199,15 +199,13 @@ window._ccsg = {
     TMXObjectImage: cc.TMXObjetImage,
     TMXObjectShape: cc.TMXObjectShape,
     TMXLayer: cc.TMXLayer,
-    MotionStreak: cc.MotionStreak
+    MotionStreak: cc.MotionStreak,
+    CameraNode: cc.CameraNode
 };
 
 // __errorHandler
-window.__errorHandler = function (err) {
+window.__errorHandler = function (filename, lineno, message) {
 };
-
-// rename cc.Class to cc._Class
-cc._Class = cc.Class;
 
 // fix cc.formatStr (#2630)
 cc.formatStr = cc.js.formatStr;
@@ -215,9 +213,4 @@ cc.formatStr = cc.js.formatStr;
 // disabled premultiplied alpha for png
 if (cc.Image && cc.Image.setPNGPremultipliedAlphaEnabled) {
     cc.Image.setPNGPremultipliedAlphaEnabled(false);
-}
-
-// Mark memory model
-if (window.__ENABLE_GC_FOR_NATIVE_OBJECTS__ !== undefined) {
-    macro.ENABLE_GC_FOR_NATIVE_OBJECTS = window.__ENABLE_GC_FOR_NATIVE_OBJECTS__;
 }

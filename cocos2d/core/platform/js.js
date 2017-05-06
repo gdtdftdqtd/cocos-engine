@@ -24,6 +24,9 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+const tempCIDGenerater = new (require('./id-generater'))('cc.TmpCId.');
+
+
 function _getPropertyDescriptor (obj, name) {
     while (obj) {
         var pd = Object.getOwnPropertyDescriptor(obj, name);
@@ -42,9 +45,9 @@ function _copyprop(name, source, target) {
 
 /**
  * This module provides some JavaScript utilities.
- * All members can be accessed with cc.js
+ * All members can be accessed with "cc.js".
+ * @submodule js
  * @module js
- * @namespace cc.js
  */
 var js = {
 
@@ -81,7 +84,24 @@ var js = {
      * @return {Object} the result obj
      * @deprecated
      */
-    addon: function (obj) {
+    addon: CC_JSB ? function (obj, ...args) {
+        obj = obj || {};
+        for (var i = 0, length = args.length; i < length; i++) {
+            var source = args[i];
+            if (source) {
+                if (typeof source !== 'object') {
+                    cc.errorID(5402, source);
+                    continue;
+                }
+                for ( var name in source) {
+                    if ( !(name in obj) ) {
+                        _copyprop( name, source, obj);
+                    }
+                }
+            }
+        }
+        return obj;
+    } : function (obj) {
         'use strict';
         obj = obj || {};
         for (var i = 1, length = arguments.length; i < length; i++) {
@@ -108,7 +128,22 @@ var js = {
      * @param {Object} ...sourceObj
      * @return {Object} the result obj
      */
-    mixin: function (obj) {
+    mixin: CC_JSB ? function (obj, ...args) {
+        obj = obj || {};
+        for (var i = 0, length = args.length; i < length; i++) {
+            var source = args[i];
+            if (source) {
+                if (typeof source !== 'object') {
+                    cc.errorID(5403, source);
+                    continue;
+                }
+                for ( var name in source) {
+                    _copyprop( name, source, obj);
+                }
+            }
+        }
+        return obj;
+    } : function (obj) {
         'use strict';
         obj = obj || {};
         for (var i = 1, length = arguments.length; i < length; i++) {
@@ -130,7 +165,6 @@ var js = {
      * Derive the class from the supplied base class.
      * Both classes are just native javascript constructors, not created by cc.Class, so
      * usually you will want to inherit using {{#crossLink "cc/Class:method"}}cc.Class {{/crossLink}} instead.
-     *
      * @method extend
      * @param {Function} cls
      * @param {Function} base - the baseclass to inherit
@@ -151,9 +185,31 @@ var js = {
             }
         }
         for (var p in base) if (base.hasOwnProperty(p)) cls[p] = base[p];
-        cls.prototype = Object.create(base.prototype);
-        cls.prototype.constructor = cls;
+        cls.prototype = Object.create(base.prototype, {
+            constructor: {
+                value: cls,
+                writable: true,
+                configurable: true
+            }
+        });
         return cls;
+    },
+
+    /**
+     * Get super class
+     * @method getSuper
+     * @param {Function} ctor - the constructor of subclass
+     * @return {Function}
+     */
+    getSuper (ctor) {
+        if (CC_JSB && ctor.$super) {
+            return ctor.$super;
+        }
+        else {
+            var proto = ctor.prototype; // binded function do not have prototype
+            var dunderProto = proto && Object.getPrototypeOf(proto);
+            return dunderProto && dunderProto.constructor;
+        }
     },
 
     /**
@@ -178,30 +234,126 @@ var js = {
     getPropertyDescriptor: _getPropertyDescriptor
 };
 
+
+var tmpValueDesc = {
+    value: undefined,
+    enumerable: false,
+    writable: false,
+    configurable: true
+};
+
 /**
- * Get class name of the object, if object is just a {} (and which class named 'Object'), it will return null.
+ * Define value, just help to call Object.defineProperty.<br>
+ * The configurable will be true.
+ * @method value
+ * @param {Object} obj
+ * @param {String} prop
+ * @param {any} value
+ * @param {Boolean} [writable=false]
+ * @param {Boolean} [enumerable=false]
+ */
+js.value = function (obj, prop, value, writable, enumerable) {
+    tmpValueDesc.value = value;
+    tmpValueDesc.writable = writable;
+    tmpValueDesc.enumerable = enumerable;
+    Object.defineProperty(obj, prop, tmpValueDesc);
+    tmpValueDesc.value = undefined;
+};
+
+var tmpGetSetDesc = {
+    get: null,
+    set: null,
+    enumerable: false,
+};
+
+/**
+ * Define get set accessor, just help to call Object.defineProperty(...)
+ * @method getset
+ * @param {Object} obj
+ * @param {String} prop
+ * @param {Function} getter
+ * @param {Function} setter
+ * @param {Boolean} [enumerable=false]
+ */
+js.getset = function (obj, prop, getter, setter, enumerable) {
+    if (typeof setter !== 'function') {
+        enumerable = setter;
+        setter = undefined;
+    }
+    tmpGetSetDesc.get = getter;
+    tmpGetSetDesc.set = setter;
+    tmpGetSetDesc.enumerable = enumerable;
+    Object.defineProperty(obj, prop, tmpGetSetDesc);
+    tmpGetSetDesc.get = null;
+    tmpGetSetDesc.set = null;
+};
+
+var tmpGetDesc = {
+    get: null,
+    enumerable: false,
+    configurable: false
+};
+
+/**
+ * Define get accessor, just help to call Object.defineProperty(...)
+ * @method get
+ * @param {Object} obj
+ * @param {String} prop
+ * @param {Function} getter
+ * @param {Boolean} [enumerable=false]
+ * @param {Boolean} [configurable=false]
+ */
+js.get = function (obj, prop, getter, enumerable, configurable) {
+    tmpGetDesc.get = getter;
+    tmpGetDesc.enumerable = enumerable;
+    tmpGetDesc.configurable = configurable;
+    Object.defineProperty(obj, prop, tmpGetDesc);
+    tmpGetDesc.get = null;
+};
+
+var tmpSetDesc = {
+    set: null,
+    enumerable: false,
+    configurable: false
+};
+
+/**
+ * Define set accessor, just help to call Object.defineProperty(...)
+ * @method set
+ * @param {Object} obj
+ * @param {String} prop
+ * @param {Function} setter
+ * @param {Boolean} [enumerable=false]
+ * @param {Boolean} [configurable=false]
+ */
+js.set = function (obj, prop, setter, enumerable, configurable) {
+    tmpSetDesc.set = setter;
+    tmpSetDesc.enumerable = enumerable;
+    tmpSetDesc.configurable = configurable;
+    Object.defineProperty(obj, prop, tmpSetDesc);
+    tmpSetDesc.set = null;
+};
+
+/**
+ * Get class name of the object, if object is just a {} (and which class named 'Object'), it will return "".
  * (modified from <a href="http://stackoverflow.com/questions/1249531/how-to-get-a-javascript-objects-class">the code from this stackoverflow post</a>)
  * @method getClassName
- * @param {Object|Function} obj - instance or constructor
+ * @param {Object|Function} objOrCtor - instance or constructor
  * @return {String}
  */
-js.getClassName = function (obj) {
-    if (typeof obj === 'function') {
-        if (obj.prototype.__classname__) {
-            return obj.prototype.__classname__;
+js.getClassName = function (objOrCtor) {
+    if (typeof objOrCtor === 'function') {
+        var prototype = objOrCtor.prototype;
+        if (prototype && prototype.hasOwnProperty('__classname__') && prototype.__classname__) {
+            return prototype.__classname__;
         }
-    }
-    else if (obj && obj.constructor) {
-        if (obj.constructor.prototype && obj.constructor.prototype.hasOwnProperty('__classname__')) {
-            return obj.__classname__;
-        }
-        var retval;
+        var retval = '';
         //  for browsers which have name property in the constructor of the object, such as chrome
-        if (obj.constructor.name) {
-            retval = obj.constructor.name;
+        if (objOrCtor.name) {
+            retval = objOrCtor.name;
         }
-        if (obj.constructor.toString) {
-            var arr, str = obj.constructor.toString();
+        if (objOrCtor.toString) {
+            var arr, str = objOrCtor.toString();
             if (str.charAt(0) === '[') {
                 // str is "[object objectClass]"
                 arr = str.match(/\[\w+\s*(\w+)\]/);
@@ -216,18 +368,15 @@ js.getClassName = function (obj) {
         }
         return retval !== 'Object' ? retval : '';
     }
+    else if (objOrCtor && objOrCtor.constructor) {
+        return js.getClassName(objOrCtor.constructor);
+    }
     return '';
 };
 
-var TCID_PREFIX = 'cc.TmpCId.';
-var id = 0;
-function getTempCID () {
-    return TCID_PREFIX + (id++);
+function isTempClassId_DEV (id) {
+    return typeof id !== 'string' || id.startsWith(tempCIDGenerater.prefix);
 }
-
-var isTempClassId = CC_DEV && function (id) {
-    return typeof id !== 'string' || id.startsWith(TCID_PREFIX);
-};
 
 // id 注册
 (function () {
@@ -284,7 +433,7 @@ cc.js.unregisterClass to remove the id of unused class';
         doSetClassName(className, constructor);
         // auto set class id
         if (!constructor.prototype.hasOwnProperty('__cid__')) {
-            var id = className || getTempCID();
+            var id = className || tempCIDGenerater.getNewId();
             if (id) {
                 js._setClassId(id, constructor);
             }
@@ -300,8 +449,19 @@ cc.js.unregisterClass to remove the id of unused class';
      * @method unregisterClass
      * @param {Function} ...constructor - the class you will want to unregister, any number of classes can be added
      */
-    js.unregisterClass = function (constructor) {
-        'use strict';
+    js.unregisterClass = CC_JSB ? function (...args) {
+        for (var i = 0; i < args.length; i++) {
+            var p = args[i].prototype;
+            var classId = p.__cid__;
+            if (classId) {
+                delete _idToClass[classId];
+            }
+            var classname = p.__classname__;
+            if (classname) {
+                delete _nameToClass[classname];
+            }
+        }
+    } : function () {
         for (var i = 0; i < arguments.length; i++) {
             var p = arguments[i].prototype;
             var classId = p.__cid__;
@@ -350,7 +510,7 @@ cc.js.unregisterClass to remove the id of unused class';
         var res;
         if (typeof obj === 'function' && obj.prototype.hasOwnProperty('__cid__')) {
             res = obj.prototype.__cid__;
-            if (!allowTempId && CC_DEV && isTempClassId(res)) {
+            if (!allowTempId && CC_DEV && isTempClassId_DEV(res)) {
                 return '';
             }
             return res;
@@ -359,7 +519,7 @@ cc.js.unregisterClass to remove the id of unused class';
             var prototype = obj.constructor.prototype;
             if (prototype && prototype.hasOwnProperty('__cid__')) {
                 res = obj.__cid__;
-                if (!allowTempId && CC_DEV && isTempClassId(res)) {
+                if (!allowTempId && CC_DEV && isTempClassId_DEV(res)) {
                     return '';
                 }
                 return res;
@@ -369,90 +529,39 @@ cc.js.unregisterClass to remove the id of unused class';
     };
 
     if (CC_DEV) {
-        Object.defineProperty(js, '_registeredClassIds', {
-            get: function () {
+        js.getset(js, '_registeredClassIds',
+            function () {
                 var dump = {};
                 for (var id in _idToClass) {
                     dump[id] = _idToClass[id];
                 }
                 return dump;
             },
-            set: function (value) {
+            function (value) {
                 js.clear(_idToClass);
                 for (var id in value) {
                     _idToClass[id] = value[id];
                 }
             }
-        });
-        Object.defineProperty(js, '_registeredClassNames', {
-            get: function () {
+        );
+        js.getset(js, '_registeredClassNames', 
+            function () {
                 var dump = {};
                 for (var id in _nameToClass) {
                     dump[id] = _nameToClass[id];
                 }
                 return dump;
             },
-            set: function (value) {
+            function (value) {
                 js.clear(_nameToClass);
                 for (var id in value) {
                     _nameToClass[id] = value[id];
                 }
             }
-        });
+        );
     }
 
 })();
-
-/**
- * Define get set accessor, just help to call Object.defineProperty(...)
- * @method getset
- * @param {any} obj
- * @param {String} prop
- * @param {Function} getter
- * @param {Function} setter
- * @param {Boolean} [enumerable=false]
- */
-js.getset = function (obj, prop, getter, setter, enumerable) {
-    if (typeof setter !== 'function') {
-        enumerable = setter;
-        setter = undefined;
-    }
-    Object.defineProperty(obj, prop, {
-        get: getter,
-        set: setter,
-        enumerable: !!enumerable
-    });
-};
-
-/**
- * Define get accessor, just help to call Object.defineProperty(...)
- * @method get
- * @param {any} obj
- * @param {String} prop
- * @param {Function} getter
- * @param {Boolean} [enumerable=false]
- */
-js.get = function (obj, prop, getter, enumerable) {
-    Object.defineProperty(obj, prop, {
-        get: getter,
-        enumerable: !!enumerable
-    });
-};
-
-/**
- * Define set accessor, just help to call Object.defineProperty(...)
- * @method set
- * @param {any} obj
- * @param {String} prop
- * @param {Function} setter
- * @param {Boolean} [enumerable=false]
- */
-js.set = function (obj, prop, setter, enumerable) {
-    Object.defineProperty(obj, prop, {
-        set: setter,
-        enumerable: !!enumerable
-    });
-};
 
 /**
  * Defines a polyfill field for obsoleted codes.
@@ -509,7 +618,37 @@ js.obsoletes = function (obj, objName, props, writable) {
  * @method formatStr
  * @returns {String}
  */
-js.formatStr = function () {
+js.formatStr = CC_JSB ? function (...args) {
+    var l = args.length;
+    if (l < 1) return '';
+    var REGEXP_NUM_OR_STR = /(%d)|(%s)/;
+
+    var i = 1;
+    var str = args[0];
+    var hasSubstitution = typeof str === 'string' && REGEXP_NUM_OR_STR.test(str);
+    if (hasSubstitution) {
+        var REGEXP_STR = /%s/;
+        for (; i < l; ++i) {
+            var arg = args[i];
+            var regExpToTest = typeof arg === 'number' ? REGEXP_NUM_OR_STR : REGEXP_STR;
+            if (regExpToTest.test(str))
+                str = str.replace(regExpToTest, arg);
+            else
+                str += ' ' + arg;
+        }
+    }
+    else {
+        if (l > 1) {
+            for (; i < l; ++i) {
+                str += ' ' + args[i];
+            }
+        }
+        else {
+            str = '' + str;
+        }
+    }
+    return str;
+} : function () {
     var args = arguments;
     var l = args.length;
     if (l < 1) return '';
@@ -582,7 +721,7 @@ function fastRemoveAt (array, index) {
  */
 function remove (array, value) {
     var index = array.indexOf(value);
-    if (index !== -1) {
+    if (index >= 0) {
         removeAt(array, index);
         return true;
     }
@@ -600,7 +739,7 @@ function remove (array, value) {
  */
 function fastRemove (array, value) {
     var index = array.indexOf(value);
-    if (index !== -1) {
+    if (index >= 0) {
         array[index] = array[array.length - 1];
         --array.length;
     }
@@ -676,7 +815,7 @@ var indexOf = Array.prototype.indexOf;
  * @return {Boolean}
  */
 function contains (array, value) {
-    return indexOf.call(array, value) !== -1;
+    return indexOf.call(array, value) >= 0;
 }
 
 /**
@@ -709,3 +848,8 @@ js.array = {
 cc.js = js;
 
 module.exports = js;
+
+// fix submodule pollute ...
+/**
+ * @submodule cc
+ */

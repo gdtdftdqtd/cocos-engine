@@ -72,6 +72,25 @@ var WrapMode = cc.Enum({
 
 cc.WrapMode = WrapMode;
 
+// For internal
+function WrappedInfo (info) {
+    if (info) {
+        this.set(info);
+        return;
+    }
+
+    this.ratio = 0;
+    this.time = 0;
+    this.direction = 1;
+    this.stopped = true;
+    this.iterations = 0;
+}
+
+WrappedInfo.prototype.set = function (info) {
+    for (var k in info) {
+        this[k] = info[k];
+    }
+};
 
 /**
  * !#en The abstract interface for all playing animation.
@@ -80,9 +99,9 @@ cc.WrapMode = WrapMode;
  *
  * @extends Playable
  */
-var AnimationNodeBase = function () {
+function AnimationNodeBase () {
     Playable.call(this);
-};
+}
 JS.extend(AnimationNodeBase, Playable);
 
 /**
@@ -112,7 +131,7 @@ function AnimationNode (animator, curves, timingInput) {
      * !#en The curves list.
      * !#zh 曲线列表。
      * @property curves
-     * @type {AnimCurve[]}
+     * @type {Object[]}
      */
     this.curves = curves || [];
 
@@ -232,172 +251,172 @@ function AnimationNode (animator, curves, timingInput) {
     if (this.delay > 0) {
         this._duringDelay = true;
     }
+
+    this._wrappedInfo = new WrappedInfo();
+    this._lastWrappedInfo = null;
 }
 JS.extend(AnimationNode, AnimationNodeBase);
 
-JS.mixin(AnimationNode.prototype, {
+var proto = AnimationNode.prototype;
 
-    update: function (delta) {
+proto.update = function (delta) {
 
-        // calculate delay time
+    // calculate delay time
 
-        if (this._duringDelay) {
-            this._timeNoScale += delta;
-            if (this._timeNoScale < this.delay) {
-                // still waiting
-                return;
-            }
-            else {
-                this._duringDelay = false;
-            }
-            //// start play
-            // delta -= (this._timeNoScale - this.delay);
-        }
-
-        // make first frame perfect
-
-        //var playPerfectFirstFrame = (this.time === 0);
-        if (this._firstFramePlayed) {
-            this.time += (delta * this.speed);
+    if (this._duringDelay) {
+        this._timeNoScale += delta;
+        if (this._timeNoScale < this.delay) {
+            // still waiting
+            return;
         }
         else {
-            this._firstFramePlayed = true;
+            this._duringDelay = false;
         }
+        //// start play
+        // delta -= (this._timeNoScale - this.delay);
+    }
 
-        // sample
-        var info = this.sample();
+    // make first frame perfect
 
-        if (!this._lastWrappedInfo) {
-            this._lastWrappedInfo = info;
-        }
+    //var playPerfectFirstFrame = (this.time === 0);
+    if (this._firstFramePlayed) {
+        this.time += (delta * this.speed);
+    }
+    else {
+        this._firstFramePlayed = true;
+    }
 
-        var anotherIteration = (info.iterations | 0) > (this._lastWrappedInfo.iterations | 0);
-        if (this.repeatCount > 1 && anotherIteration) {
-            if ((this.wrapMode & WrapModeMask.Reverse) === WrapModeMask.Reverse) {
-                if (this._lastWrappedInfo.direction < 0) {
-                    this.emit('lastframe', this);
-                }
-            }
-            else {
-                if (this._lastWrappedInfo.direction > 0) {
-                    this.emit('lastframe', this);
-                }
-            }
-        }
+    // sample
+    var info = this.sample();
 
-        if (info.stopped) {
-            this.stop();
-            this.emit('finished', this);
-        }
+    if (!this._lastWrappedInfo) {
+        this._lastWrappedInfo = new WrappedInfo(info);
+    }
 
-        this._lastWrappedInfo = info;
-    },
-
-    _needRevers: function (currentIterations) {
-        var wrapMode = this.wrapMode;
-        var needRevers = false;
-
-        if ((wrapMode & WrapModeMask.PingPong) === WrapModeMask.PingPong) {
-            var isEnd = currentIterations - (currentIterations | 0) === 0;
-            if (isEnd && (currentIterations > 0)) {
-                currentIterations -= 1;
-            }
-
-            var isOddIteration = currentIterations & 1;
-            if (isOddIteration) {
-                needRevers = !needRevers;
+    var anotherIteration = (info.iterations | 0) > (this._lastWrappedInfo.iterations | 0);
+    if (this.repeatCount > 1 && anotherIteration) {
+        if ((this.wrapMode & WrapModeMask.Reverse) === WrapModeMask.Reverse) {
+            if (this._lastWrappedInfo.direction < 0) {
+                this.emit('lastframe', this);
             }
         }
-        if ((wrapMode & WrapModeMask.Reverse) === WrapModeMask.Reverse) {
+        else {
+            if (this._lastWrappedInfo.direction > 0) {
+                this.emit('lastframe', this);
+            }
+        }
+    }
+
+    if (info.stopped) {
+        this.stop();
+        this.emit('finished', this);
+    }
+
+    this._lastWrappedInfo.set(info);
+};
+
+proto._needRevers = function (currentIterations) {
+    var wrapMode = this.wrapMode;
+    var needRevers = false;
+
+    if ((wrapMode & WrapModeMask.PingPong) === WrapModeMask.PingPong) {
+        var isEnd = currentIterations - (currentIterations | 0) === 0;
+        if (isEnd && (currentIterations > 0)) {
+            currentIterations -= 1;
+        }
+
+        var isOddIteration = currentIterations & 1;
+        if (isOddIteration) {
             needRevers = !needRevers;
         }
-        return needRevers;
-    },
-
-    getWrappedInfo: function (time) {
-        var stopped = false;
-        var duration = this.duration;
-        var ratio = 0;
-        var wrapMode = this.wrapMode;
-
-        var currentIterations = Math.abs(time / duration);
-        if (currentIterations > this.repeatCount) currentIterations = this.repeatCount;
-
-        var needRevers = false;
-        if (wrapMode & WrapModeMask.ShouldWrap) {
-            needRevers = this._needRevers(currentIterations);
-        }
-
-        var direction = needRevers ? -1 : 1;
-        if (this.speed < 0) direction *= -1;
-
-        if (currentIterations >= this.repeatCount) {
-            stopped = true;
-            var tempRatio = this.repeatCount - (this.repeatCount | 0);
-            if (tempRatio === 0) {
-                tempRatio = 1;  // 如果播放过，动画不复位
-            }
-            time = tempRatio * duration * (time > 0 ? 1 : -1);
-        }
-
-        if (time > duration) {
-            var tempTime = time % duration;
-            time = tempTime === 0 ? duration : tempTime;
-        }
-        else if (time < 0) {
-            time = time % duration;
-            if (time !== 0 ) time += duration;
-        }
-
-        // calculate wrapped time
-        if (wrapMode & WrapModeMask.ShouldWrap) {
-            if (needRevers) time = duration - time;
-        }
-
-        ratio = time / duration;
-
-        return {
-            ratio: ratio,
-            time: time,
-            direction: direction,
-            stopped: stopped,
-            iterations: currentIterations
-        };
-    },
-
-    sample: function () {
-
-        // sample
-
-        var info = this.getWrappedInfo(this.time);
-
-        var curves = this.curves;
-        for (var i = 0, len = curves.length; i < len; i++) {
-            var curve = curves[i];
-            curve.sample(info.time, info.ratio, this);
-        }
-
-        return info;
-    },
-
-    onStop: function () {
-        this.emit('stop', this);
-    },
-
-    onPlay: function () {
-        this.emit('play', this);
-    },
-
-    onPause: function () {
-        this.emit('pause', this);
-    },
-
-    onResume: function () {
-        this.emit('resume', this);
     }
-});
+    if ((wrapMode & WrapModeMask.Reverse) === WrapModeMask.Reverse) {
+        needRevers = !needRevers;
+    }
+    return needRevers;
+};
 
-cc.defineGetterSetter(AnimationNode.prototype, 'wrapMode',
+proto.getWrappedInfo = function (time, info) {
+    info = info || new WrappedInfo();
+
+    var stopped = false;
+    var duration = this.duration;
+    var ratio = 0;
+    var wrapMode = this.wrapMode;
+
+    var currentIterations = Math.abs(time / duration);
+    if (currentIterations > this.repeatCount) currentIterations = this.repeatCount;
+
+    var needRevers = false;
+    if (wrapMode & WrapModeMask.ShouldWrap) {
+        needRevers = this._needRevers(currentIterations);
+    }
+
+    var direction = needRevers ? -1 : 1;
+    if (this.speed < 0) direction *= -1;
+
+    if (currentIterations >= this.repeatCount) {
+        stopped = true;
+        var tempRatio = this.repeatCount - (this.repeatCount | 0);
+        if (tempRatio === 0) {
+            tempRatio = 1;  // 如果播放过，动画不复位
+        }
+        time = tempRatio * duration * (time > 0 ? 1 : -1);
+    }
+
+    if (time > duration) {
+        var tempTime = time % duration;
+        time = tempTime === 0 ? duration : tempTime;
+    }
+    else if (time < 0) {
+        time = time % duration;
+        if (time !== 0 ) time += duration;
+    }
+
+    // calculate wrapped time
+    if (wrapMode & WrapModeMask.ShouldWrap) {
+        if (needRevers) time = duration - time;
+    }
+
+    ratio = time / duration;
+
+    info.ratio = ratio;
+    info.time = time;
+    info.direction = direction;
+    info.stopped = stopped;
+    info.iterations = currentIterations;
+
+    return info;
+};
+
+proto.sample = function () {
+    var info = this.getWrappedInfo(this.time, this._wrappedInfo);
+    var curves = this.curves;
+    for (var i = 0, len = curves.length; i < len; i++) {
+        var curve = curves[i];
+        curve.sample(info.time, info.ratio, this);
+    }
+
+    return info;
+};
+
+proto.onStop = function () {
+    this.emit('stop', this);
+};
+
+proto.onPlay = function () {
+    this.emit('play', this);
+};
+
+proto.onPause = function () {
+    this.emit('pause', this);
+};
+
+proto.onResume = function () {
+    this.emit('resume', this);
+};
+
+JS.getset(proto, 'wrapMode',
     function () {
         return this._wrapMode;
     },
@@ -418,12 +437,13 @@ cc.defineGetterSetter(AnimationNode.prototype, 'wrapMode',
     }
 );
 
-cc.js.mixin(AnimationNode.prototype, cc.EventTarget.prototype);
+cc.js.mixin(proto, cc.EventTarget.prototype);
 
 cc.AnimationNode = AnimationNode;
 
 module.exports = {
-    WrapModeMask: WrapModeMask,
-    WrapMode: WrapMode,
-    AnimationNode: AnimationNode,
+    WrapModeMask,
+    WrapMode,
+    AnimationNode,
+    WrappedInfo
 };

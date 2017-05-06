@@ -138,6 +138,7 @@ var View = cc._Class.extend({
         // Custom callback for resize event
         _t._resizeCallback = null;
         _t._orientationChanging = true;
+        _t._resizing = false;
 
         _t._scaleX = 1;
         _t._originalScaleX = 1;
@@ -182,15 +183,28 @@ var View = cc._Class.extend({
 
         // Check frame size changed or not
         var prevFrameW = view._frameSize.width, prevFrameH = view._frameSize.height, prevRotated = view._isRotated;
-        view._initFrameSize();
+        if (cc.sys.isMobile) {
+            var containerStyle = cc.game.container.style,
+                margin = containerStyle.margin;
+            containerStyle.margin = '0';
+            containerStyle.display = 'none';
+            view._initFrameSize();
+            containerStyle.margin = margin;
+            containerStyle.display = 'block';
+        }
+        else {
+            view._initFrameSize();
+        }
         if (view._isRotated === prevRotated && view._frameSize.width === prevFrameW && view._frameSize.height === prevFrameH)
             return;
 
         // Frame size changed, do resize works
         var width = view._originalDesignResolutionSize.width;
         var height = view._originalDesignResolutionSize.height;
+        view._resizing = true;
         if (width > 0)
             view.setDesignResolutionSize(width, height, view._resolutionPolicy);
+        view._resizing = false;
 
         cc.eventManager.dispatchCustomEvent('canvas-resize');
         if (view._resizeCallback) {
@@ -293,7 +307,7 @@ var View = cc._Class.extend({
         var h = __BrowserGetter.availHeight(cc.game.frame);
         var isLandscape = w >= h;
 
-        if (CC_EDITOR || !this._orientationChanging || !cc.sys.isMobile ||
+        if (CC_EDITOR || !cc.sys.isMobile ||
             (isLandscape && this._orientation & cc.macro.ORIENTATION_LANDSCAPE) || 
             (!isLandscape && this._orientation & cc.macro.ORIENTATION_PORTRAIT)) {
             locFrameSize.width = w;
@@ -311,9 +325,11 @@ var View = cc._Class.extend({
             cc.container.style.transformOrigin = '0px 0px 0px';
             this._isRotated = true;
         }
-        setTimeout(function () {
-            cc.view._orientationChanging = false;
-        }, 1000);
+        if (this._orientationChanging) {
+            setTimeout(function () {
+                cc.view._orientationChanging = false;
+            }, 1000);
+        }
     },
 
     // hack
@@ -711,7 +727,9 @@ var View = cc._Class.extend({
 
         // Permit to re-detect the orientation of device.
         this._orientationChanging = true;
-        this._initFrameSize();
+        // If resizing, then frame size is already initialized, this logic should be improved
+        if (!this._resizing)
+            this._initFrameSize();
 
         if (!policy) {
             cc.logID(2201);
@@ -1025,7 +1043,7 @@ cc.ContainerStrategy = cc._Class.extend(/** @lends cc.ContainerStrategy# */{
 
     _setupContainer: function (view, w, h) {
         var locCanvas = cc.game.canvas, locContainer = cc.game.container;
-        if (cc.sys.isMobile) {
+        if (cc.sys.os === cc.sys.OS_ANDROID) {
             document.body.style.width = (view._isRotated ? h : w) + 'px';
             document.body.style.height = (view._isRotated ? w : h) + 'px';
         }
@@ -1136,7 +1154,7 @@ cc.ContentStrategy = cc._Class.extend(/** @lends cc.ContentStrategy# */{
             this._setupContainer(view, view._frameSize.width, view._frameSize.height);
             // Setup container's margin and padding
             if (view._isRotated) {
-                containerStyle.marginLeft = frameH + 'px';
+                containerStyle.margin = '0 0 0 ' + frameH + 'px';
             }
             else {
                 containerStyle.margin = '0px';
@@ -1167,7 +1185,7 @@ cc.ContentStrategy = cc._Class.extend(/** @lends cc.ContentStrategy# */{
             if (!CC_EDITOR) {
                 // Setup container's margin and padding
                 if (view._isRotated) {
-                    containerStyle.marginLeft = frameH + 'px';
+                    containerStyle.margin = '0 0 0 ' + frameH + 'px';
                 }
                 else {
                     containerStyle.margin = '0px';
@@ -1319,7 +1337,7 @@ cc.ContentStrategy = cc._Class.extend(/** @lends cc.ContentStrategy# */{
  * @class ResolutionPolicy
  */
 /**
- * @method ResolutionPolicy
+ * @method constructor
  * @param {ContainerStrategy} containerStg The container strategy
  * @param {ContentStrategy} contentStg The content strategy
  */

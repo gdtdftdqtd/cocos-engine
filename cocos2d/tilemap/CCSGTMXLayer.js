@@ -212,6 +212,7 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
             for (i = 0; i < len; ++i) {
                 tileset = tilesets[i];
                 tex = cc.textureCache.addImage(tileset.sourceImage);
+                tex.setAliasTexParameters();
                 this._textures[i] = tex;
                 this._fillTextureGrids(tileset, i);
                 if (tileset === tilesetInfo) {
@@ -247,12 +248,16 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
     },
 
     visit: function (parent) {
-        // quick return if not visible
-        if (!this._visible)
-            return;
+        var cmd = this._renderCmd, parentCmd = parent ? parent._renderCmd : null;
 
-        var renderer = cc.renderer, cmd = this._renderCmd;
-        cmd.visit(parent && parent._renderCmd);
+        // quick return if not visible
+        if (!this._visible) {
+            cmd._propagateFlagsDown(parentCmd);
+            return;
+        }
+
+        var renderer = cc.renderer;
+        cmd.visit(parentCmd);
 
         var i, children = this._children, len = children.length, child,
             isCanvas = cc._renderType === cc.game.RENDER_TYPE_CANVAS, spTiles = this._spriteTiles;

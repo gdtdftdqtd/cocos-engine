@@ -1141,7 +1141,7 @@ cc.getImageFormatByData = function (imgData) {
 
 /**
  * Predefined constants
- * @enum Macro
+ * @enum macro
  * @type {Object}
  */
 cc.macro = {
@@ -1647,15 +1647,13 @@ cc.macro = {
      *  The same for bottom and top.                                                   <br/>
      *                                                                                 <br/>
      *  This formula prevents artifacts by using 99% of the texture.                   <br/>
-     *  The "correct" way to prevent artifacts is by using the spritesheet-artifact-fixer.py or a similar tool.<br/>
+     *  The "correct" way to prevent artifacts is by expand the texture's border with the same color by 1 pixel<br/>
      *                                                                                  <br/>
      *  Affected nodes:                                                                 <br/>
-     *      - _ccsg.Sprite / cc.SpriteBatchNode and subclasses: cc.LabelBMFont, _ccsg.TMXTiledMap <br/>
-     *      - cc.LabelAtlas                                                              <br/>
-     *      - cc.QuadParticleSystem                                                      <br/>
-     *      - cc.TileMap                                                                 <br/>
+     *      - _ccsg.Sprite                                                              <br/>
+     *      - _ccsg.TMXTiledMap                                                         <br/>
      *                                                                                  <br/>
-     *  To enabled set it to 1. Disabled by default.<br/>
+     *  Enabled by default. To disabled set it to 0. <br/>
      *  To modify it, in Web engine please refer to CCMacro.js, in JSB please refer to CCConfig.h
      * </p>
      *
@@ -1887,7 +1885,19 @@ cc.macro = {
      * 它的值被 native 宏 CC_ENABLE_GC_FOR_NATIVE_OBJECTS 所控制，修改 JS 宏的值不会产生任何效果。
      * @property {Number} ENABLE_GC_FOR_NATIVE_OBJECTS
      */
-    ENABLE_GC_FOR_NATIVE_OBJECTS: true
+    ENABLE_GC_FOR_NATIVE_OBJECTS: true,
+
+    /**
+     * !#en 
+     * Whether or not enabled tiled map auto culling.
+     * If you use cc.Camera as tiled map's camera, please disable this macro.
+     * !#zh
+     * 是否开启瓦片地图的自动裁减功能。
+     * 如果需要使用 cc.Camera 来作为瓦片地图的摄像机的话，那么请关闭此宏
+     * @property {Boolean} ENABLE_TILEDMAP_CULLING
+     * @default true
+     */
+    ENABLE_TILEDMAP_CULLING: true,
 };
 
 /**

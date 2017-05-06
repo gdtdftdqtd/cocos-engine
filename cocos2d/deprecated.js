@@ -3,6 +3,10 @@ var js = cc.js;
 
 if (CC_DEV) {
 
+    // cc.spriteFrameCache
+    js.get(cc, "spriteFrameCache", function () {
+        cc.errorID(1404);
+    });
 
     // Label
     if (cc.Label) {
@@ -23,7 +27,7 @@ if (CC_DEV) {
         cc.warnID(1401);
         return function (lhs, rhs) {
             return js.mixin(rhs, lhs);
-        }
+        };
     });
 
     /**
@@ -249,7 +253,7 @@ if (CC_DEV) {
 
     function deprecateEnum (obj, oldPath, newPath, hasTypePrefixBefore) {
         hasTypePrefixBefore = hasTypePrefixBefore !== false;
-        var enumDef = eval(newPath);
+        var enumDef = Function('return ' + newPath)();
         var entries = cc.Enum.getList(enumDef);
         var delimiter = hasTypePrefixBefore ? '_' : '.';
         for (var i = 0; i < entries.length; i++) {
@@ -342,6 +346,12 @@ if (CC_DEV) {
             }
         }
     }
+
+    // cc.director
+
+    provideClearError(cc.Director.prototype, {
+        getSecondsPerFrame : 'getDeltaTime'
+    });
 
     // cc.loader
 
@@ -574,6 +584,9 @@ if (CC_DEV) {
             'grid',
             'userData',
             'userObject',
+            'actionManager',
+            'getActionManager',
+            'setActionManager',
             'getNormalizedPosition',
             'setNormalizedPosition',
             'getCamera',
@@ -683,5 +696,5 @@ if (CC_DEV) {
 
 }
 
-// remove after 1.5
+// remove after 1.6
 js.obsolete(cc.loader, 'cc.loader.loadResAll', 'loadResDir');

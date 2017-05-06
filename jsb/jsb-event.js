@@ -103,6 +103,7 @@ cc.Event.EventCustom = function (type, bubbles) {
 };
 cc.js.extend(cc.Event.EventCustom, cc.Event);
 cc.js.mixin(cc.Event.EventCustom.prototype, {
+    reset: cc.Event.EventCustom,
     stopPropagation: function () {
         this._propagationStopped = true;
     },
@@ -124,6 +125,24 @@ cc.js.mixin(cc.Event.EventCustom.prototype, {
     },
     getEventName: cc.Event.prototype.getType
 });
+
+var _eventPool = [];
+var MAX_POOL_SIZE = 10;
+cc.Event.EventCustom.put = function (event) {
+    if (_eventPool.length < MAX_POOL_SIZE) {
+        _eventPool.push(event);
+    }
+};
+cc.Event.EventCustom.get = function (type, bubbles) {
+    var event = _eventPool.pop();
+    if (event) {
+        event.reset(type, bubbles);
+    }
+    else {
+        event = new cc.Event.EventCustom(type, bubbles);
+    }
+    return event;
+};
 
 // cc.eventManager.addListener
 cc.eventManager.addListener = function(listener, nodeOrPriority) {
@@ -206,8 +225,6 @@ cc._EventListenerKeyboard = cc.EventListenerKeyboard;
 cc._EventListenerKeyboard.LISTENER_ID = "__cc_keyboard";
 cc._EventListenerAcceleration = cc.EventListenerAcceleration;
 cc._EventListenerAcceleration.LISTENER_ID = "__cc_acceleration";
-cc._EventListenerFocus = cc.EventListenerFocus;
-cc._EventListenerFocus.LISTENER_ID = "__cc_focus_event";
 cc._EventListenerTouchAllAtOnce = cc.EventListenerTouchAllAtOnce;
 cc._EventListenerTouchAllAtOnce.LISTENER_ID = "__cc_touch_all_at_once";
 cc._EventListenerTouchOneByOne = cc.EventListenerTouchOneByOne;

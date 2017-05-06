@@ -27,6 +27,9 @@
 var EventTarget = require('./event/event-target');
 var Class = require('./platform/_CCClass');
 var AutoReleaseUtils = require('./load-pipeline/auto-release-utils');
+var ComponentScheduler = require('./component-scheduler');
+var NodeActivator = require('./node-activator');
+var EventListeners = require('./event/event-listeners');
 
 cc.g_NumberOfDraws = 0;
 
@@ -98,6 +101,7 @@ cc.g_NumberOfDraws = 0;
  * </p>
  *
  * @class Director
+ * @extends EventTarget
  */
 cc.Director = Class.extend(/** @lends cc.Director# */{
     ctor: function () {
@@ -133,13 +137,16 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
         // FPS
         self._totalFrames = 0;
         self._lastUpdate = Date.now();
-        self._secondsPerFrame = 0;
         self._deltaTime = 0.0;
 
         self._dirtyRegion = null;
 
         // Scheduler for user registration update
         self._scheduler = null;
+        // Scheduler for life-cycle methods in component
+        self._compScheduler = null;
+        // Node activator
+        self._nodeActivator = null;
         // Action manager
         self._actionManager = null;
 
@@ -180,6 +187,9 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
      * All platform independent init process should be occupied here.
      */
     sharedInit: function () {
+        this._compScheduler = new ComponentScheduler();
+        this._nodeActivator = new NodeActivator();
+
         // Animation manager
         if (cc.AnimationManager) {
             this._animationManager = new cc.AnimationManager();
@@ -196,6 +206,15 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
         }
         else {
             this._collisionManager = null;
+        }
+
+        // physics manager
+        if (cc.PhysicsManager) {
+            this._physicsManager = new cc.PhysicsManager();
+            this._scheduler.scheduleUpdate(this._physicsManager, cc.Scheduler.PRIORITY_SYSTEM, false);
+        }
+        else {
+            this._physicsManager = null;
         }
 
         // WidgetManager
@@ -414,6 +433,9 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
     purgeDirector: function () {
         //cleanup scheduler
         this.getScheduler().unscheduleAll();
+        this._compScheduler.unscheduleAll();
+
+        this._nodeActivator.reset();
 
         // Disable event dispatching
         if (cc.eventManager)
@@ -467,6 +489,11 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
         // Collider manager
         if (this._collisionManager) {
             this._scheduler.scheduleUpdate(this._collisionManager, cc.Scheduler.PRIORITY_SYSTEM, false);
+        }
+
+        // Physics manager
+        if (this._physicsManager) {
+            this._scheduler.scheduleUpdate(this._physicsManager, cc.Scheduler.PRIORITY_SYSTEM, false);
         }
 
         this.startAnimation();
@@ -604,6 +631,7 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
      * @param {Scene} scene - The need run scene.
      * @param {Function} [onBeforeLoadScene] - The function invoked at the scene before loading.
      * @param {Function} [onLaunched] - The function invoked at the scene after launch.
+     * @private
      */
     runScene: function (scene, onBeforeLoadScene, onLaunched) {
         cc.assertID(scene, 1205);
@@ -1045,16 +1073,6 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
     },
 
     /**
-     * !#en Returns seconds per frame.
-     * !#zh 获取实际记录的上一帧执行时间，可能与单位帧执行时间（AnimationInterval）有出入。
-     * @method getSecondsPerFrame
-     * @return {Number}
-     */
-    getSecondsPerFrame: function () {
-        return this._secondsPerFrame;
-    },
-
-    /**
      * !#en Returns whether next delta time equals to zero.
      * !#zh 返回下一个 “delta time” 是否等于零。
      * @method isNextDeltaTimeZero
@@ -1167,7 +1185,11 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
      */
     setActionManager: function (actionManager) {
         if (this._actionManager !== actionManager) {
+            if (this._actionManager) {
+                this._scheduler.unscheduleUpdate(this._actionManager);
+            }
             this._actionManager = actionManager;
+            this._scheduler.scheduleUpdate(this._actionManager, cc.Scheduler.PRIORITY_SYSTEM, false);
         }
     },
 
@@ -1191,6 +1213,15 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
     },
 
     /**
+     * Returns the cc.PhysicsManager associated with this director.
+     * @method getPhysicsManager
+     * @return {PhysicsManager}
+     */
+    getPhysicsManager: function () {
+        return this._physicsManager;
+    },
+
+    /**
      * !#en Returns the delta time since last frame.
      * !#zh 获取上一帧的 “delta time”。
      * @method getDeltaTime
@@ -1199,11 +1230,6 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
     getDeltaTime: function () {
         return this._deltaTime;
     },
-
-    _calculateMPF: function () {
-        var now = Date.now();
-        this._secondsPerFrame = (now - this._lastUpdate) / 1000;
-    }
 });
 
 // Event target
@@ -1255,24 +1281,6 @@ cc.Director.EVENT_AFTER_SCENE_LAUNCH = "director_after_scene_launch";
  * @param {Event} event
  */
 cc.Director.EVENT_BEFORE_UPDATE = "director_before_update";
-
-/**
- * !#en The event which will be triggered after components update.
- * !#zh 组件 “update” 时所触发的事件。
- * @event cc.Director.EVENT_COMPONENT_UPDATE
- * @param {Event} event
- * @param {Vec2} event.detail - The delta time from last frame
- */
-cc.Director.EVENT_COMPONENT_UPDATE = "director_component_update";
-
-/**
- * !#en The event which will be triggered after components late update.
- * !#zh 组件 “late update” 时所触发的事件。
- * @event cc.Director.EVENT_COMPONENT_LATE_UPDATE
- * @param {Event} event
- * @param {Vec2} event.detail - The delta time from last frame
- */
-cc.Director.EVENT_COMPONENT_LATE_UPDATE = "director_component_late_update";
 
 /**
  * !#en The event which will be triggered after engine and components update logic.
@@ -1328,13 +1336,16 @@ cc.DisplayLinkDirector = cc.Director.extend(/** @lends cc.Director# */{
     mainLoop: CC_EDITOR ? function (deltaTime, updateAnimate) {
         if (!this._paused) {
             this.emit(cc.Director.EVENT_BEFORE_UPDATE);
-            this.emit(cc.Director.EVENT_COMPONENT_UPDATE, deltaTime);
+
+            this._compScheduler.startPhase();
+            this._compScheduler.updatePhase(deltaTime);
 
             if (updateAnimate) {
                 this._scheduler.update(deltaTime);
             }
 
-            this.emit(cc.Director.EVENT_COMPONENT_LATE_UPDATE, deltaTime);
+            this._compScheduler.lateUpdatePhase(deltaTime);
+
             this.emit(cc.Director.EVENT_AFTER_UPDATE);
         }
 
@@ -1362,14 +1373,15 @@ cc.DisplayLinkDirector = cc.Director.extend(/** @lends cc.Director# */{
             this.calculateDeltaTime();
 
             if (!this._paused) {
-                // Call start for new added components
                 this.emit(cc.Director.EVENT_BEFORE_UPDATE);
+                // Call start for new added components
+                this._compScheduler.startPhase();
                 // Update for components
-                this.emit(cc.Director.EVENT_COMPONENT_UPDATE, this._deltaTime);
+                this._compScheduler.updatePhase(this._deltaTime);
                 // Engine update with scheduler
                 this._scheduler.update(this._deltaTime);
                 // Late update for components
-                this.emit(cc.Director.EVENT_COMPONENT_LATE_UPDATE, this._deltaTime);
+                this._compScheduler.lateUpdatePhase(this._deltaTime);
                 // User can use this event to do things after update
                 this.emit(cc.Director.EVENT_AFTER_UPDATE);
                 // Destroy entities that have been removed recently
@@ -1396,8 +1408,6 @@ cc.DisplayLinkDirector = cc.Director.extend(/** @lends cc.Director# */{
 
             this.emit(cc.Director.EVENT_AFTER_DRAW);
             cc.eventManager.frameUpdateListeners();
-
-            this._calculateMPF();
         }
     },
 
@@ -1419,7 +1429,22 @@ cc.DisplayLinkDirector = cc.Director.extend(/** @lends cc.Director# */{
             this.stopAnimation();
             this.startAnimation();
         }
-    }
+    },
+
+    __fastOn: function (type, callback, target) {
+        var listeners = this._bubblingListeners;
+        if (!listeners) {
+            listeners = this._bubblingListeners = new EventListeners();
+        }
+        listeners.add(type, callback, target);
+    },
+
+    __fastOff: function (type, callback, target) {
+        var listeners = this._bubblingListeners;
+        if (listeners) {
+            listeners.remove(type, callback, target);
+        }
+    },
 });
 
 cc.Director.sharedDirector = null;

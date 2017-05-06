@@ -69,6 +69,34 @@ sp.Skeleton = cc.Class({
     properties: {
 
         /**
+         * Record the listeners.
+         */
+        _startListener: {
+            default: null,
+            serializable: false,
+        },
+        _endListener: {
+            default: null,
+            serializable: false,
+        },
+        _completeListener: {
+            default: null,
+            serializable: false,
+        },
+        _eventListener: {
+            default: null,
+            serializable: false,
+        },
+        _disposeListener: {
+            default: null,
+            serializable: false,
+        },
+        _interruptListener: {
+            default: null,
+            serializable: false,
+        },
+
+        /**
          * !#en The skeletal animation is paused?
          * !#zh 该骨骼动画是否暂停。
          * @property paused
@@ -115,7 +143,7 @@ sp.Skeleton = cc.Class({
                 this.defaultAnimation = '';
                 this._refresh();
             },
-            tooltip: 'i18n:COMPONENT.skeleton.skeleton_data'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.skeleton_data'
         },
 
         ///**
@@ -215,7 +243,7 @@ sp.Skeleton = cc.Class({
             type: DefaultSkinsEnum,
             visible: true,
             displayName: "Default Skin",
-            tooltip: 'i18n:COMPONENT.skeleton.default_skin'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.default_skin'
         },
 
         // value of 0 represents no animation
@@ -257,7 +285,7 @@ sp.Skeleton = cc.Class({
             type: DefaultAnimsEnum,
             visible: true,
             displayName: 'Animation',
-            tooltip: 'i18n:COMPONENT.skeleton.animation'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.animation'
         },
 
         //// for inspector
@@ -282,7 +310,7 @@ sp.Skeleton = cc.Class({
          */
         loop: {
             default: true,
-            tooltip: 'i18n:COMPONENT.skeleton.loop'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.loop'
         },
 
         /**
@@ -305,7 +333,7 @@ sp.Skeleton = cc.Class({
                     this._sgNode.setPremultipliedAlpha(value);
                 }
             },
-            tooltip: 'i18n:COMPONENT.skeleton.premultipliedAlpha'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.premultipliedAlpha'
         },
 
         /**
@@ -321,7 +349,7 @@ sp.Skeleton = cc.Class({
                     this._sgNode.setTimeScale(this.timeScale);
                 }
             },
-            tooltip: 'i18n:COMPONENT.skeleton.time_scale'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.time_scale'
         },
 
         /**
@@ -338,7 +366,7 @@ sp.Skeleton = cc.Class({
                 }
             },
             editorOnly: true,
-            tooltip: 'i18n:COMPONENT.skeleton.debug_slots'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.debug_slots'
         },
 
         /**
@@ -355,7 +383,7 @@ sp.Skeleton = cc.Class({
                 }
             },
             editorOnly: true,
-            tooltip: 'i18n:COMPONENT.skeleton.debug_bones'
+            tooltip: CC_DEV && 'i18n:COMPONENT.skeleton.debug_bones'
         }
     },
 
@@ -422,6 +450,14 @@ sp.Skeleton = cc.Class({
                 this.pause();
             }
         };
+
+        // using the recorded event listeners
+        this._startListener && this.setStartListener(this._startListener);
+        this._endListener && this.setEndListener(this._endListener);
+        this._completeListener && this.setCompleteListener(this._completeListener);
+        this._eventListener && this.setEventListener(this._eventListener);
+        this._interruptListener && this.setInterruptListener(this._interruptListener);
+        this._disposeListener && this.setDisposeListener(this._disposeListener);
 
         //if (!CC_EDITOR) {
         //    function animationCallback (ccObj, trackIndex, type, event, loopCount) {
@@ -754,6 +790,20 @@ sp.Skeleton = cc.Class({
     },
 
     /**
+     * !#en Find animation with specified name.
+     * !#zh 查找指定名称的动画
+     * @method findAnimation
+     * @param {String} name
+     * @returns {sp.spine.Animation}
+     */
+    findAnimation: function (name) {
+        if (this._sgNode) {
+            return this._sgNode.findAnimation(name);
+        }
+        return null;
+    },
+
+    /**
      * !#en Returns track entry by trackIndex.<br>
      * Returns a {{#crossLinkModule "sp.spine"}}sp.spine{{/crossLinkModule}}.TrackEntry object.
      * !#zh 通过 track 索引获取 TrackEntry。<br>
@@ -821,8 +871,22 @@ sp.Skeleton = cc.Class({
      * @param {function} listener
      */
     setStartListener: function (listener) {
+        this._startListener = listener;
         if (this._sgNode) {
             this._sgNode.setStartListener(listener);
+        }
+    },
+
+    /**
+     * !#en Set the interrupt event listener.
+     * !#zh 用来设置动画被打断的事件监听。
+     * @method setInterruptListener
+     * @param {function} listener
+     */
+    setInterruptListener: function (listener) {
+        this._interruptListener = listener;
+        if (this._sgNode) {
+            this._sgNode.setInterruptListener(listener);
         }
     },
 
@@ -833,8 +897,22 @@ sp.Skeleton = cc.Class({
      * @param {function} listener
      */
     setEndListener: function (listener) {
+        this._endListener = listener;
         if (this._sgNode) {
             this._sgNode.setEndListener(listener);
+        }
+    },
+
+    /**
+     * !#en Set the dispose event listener.
+     * !#zh 用来设置动画将被销毁的事件监听。
+     * @method setDisposeListener
+     * @param {function} listener
+     */
+    setDisposeListener: function (listener) {
+        this._disposeListener = listener;
+        if (this._sgNode) {
+            this._sgNode.setDisposeListener(listener);
         }
     },
 
@@ -845,6 +923,7 @@ sp.Skeleton = cc.Class({
      * @param {function} listener
      */
     setCompleteListener: function (listener) {
+        this._completeListener = listener;
         if (this._sgNode) {
             this._sgNode.setCompleteListener(listener);
         }
@@ -857,6 +936,7 @@ sp.Skeleton = cc.Class({
      * @param {function} listener
      */
     setEventListener: function (listener) {
+        this._eventListener = listener;
         if (this._sgNode) {
             this._sgNode.setEventListener(listener);
         }
@@ -864,7 +944,7 @@ sp.Skeleton = cc.Class({
 
     /**
      * !#en Set the start event listener for specified TrackEntry (only supported on Web).
-     * !#zh 用来为指定的 TrackEntry 设置动画开始播放的事件监听。
+     * !#zh 用来为指定的 TrackEntry 设置动画开始播放的事件监听。（只支持 Web 平台）
      * @method setTrackStartListener
      * @param {sp.spine.TrackEntry} entry
      * @param {function} listener
@@ -876,8 +956,21 @@ sp.Skeleton = cc.Class({
     },
 
     /**
+     * !#en Set the interrupt event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画被打断的事件监听。（只支持 Web 平台）
+     * @method setTrackInterruptListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
+    setTrackInterruptListener: function (entry, listener) {
+        if (this._sgNode) {
+            this._sgNode.setTrackInterruptListener(entry, listener);
+        }
+    },
+
+    /**
      * !#en Set the end event listener for specified TrackEntry (only supported on Web).
-     * !#zh 用来为指定的 TrackEntry 设置动画播放结束的事件监听。
+     * !#zh 用来为指定的 TrackEntry 设置动画播放结束的事件监听。（只支持 Web 平台）
      * @method setTrackEndListener
      * @param {sp.spine.TrackEntry} entry
      * @param {function} listener
@@ -889,8 +982,21 @@ sp.Skeleton = cc.Class({
     },
 
     /**
+     * !#en Set the dispose event listener for specified TrackEntry (only supported on Web).
+     * !#zh 用来为指定的 TrackEntry 设置动画即将被销毁的事件监听。（只支持 Web 平台）
+     * @method setTrackDisposeListener
+     * @param {sp.spine.TrackEntry} entry
+     * @param {function} listener
+     */
+    setTrackDisposeListener: function(entry, listener){
+        if (this._sgNode) {
+            this._sgNode.setTrackDisposeListener(entry, listener);
+        }
+    },
+
+    /**
      * !#en Set the complete event listener for specified TrackEntry (only supported on Web).
-     * !#zh 用来为指定的 TrackEntry 设置动画一次循环播放结束的事件监听。
+     * !#zh 用来为指定的 TrackEntry 设置动画一次循环播放结束的事件监听。（只支持 Web 平台）
      * @method setTrackCompleteListener
      * @param {sp.spine.TrackEntry} entry
      * @param {function} listener
@@ -903,7 +1009,7 @@ sp.Skeleton = cc.Class({
 
     /**
      * !#en Set the event listener for specified TrackEntry (only supported on Web).
-     * !#zh 用来为指定的 TrackEntry 设置动画帧事件的监听。
+     * !#zh 用来为指定的 TrackEntry 设置动画帧事件的监听。（只支持 Web 平台）
      * @method setTrackEventListener
      * @param {sp.spine.TrackEntry} entry
      * @param {function} listener

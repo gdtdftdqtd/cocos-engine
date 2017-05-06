@@ -47,19 +47,18 @@ var Color = (function () {
      * @extends ValueType
      */
     /**
-     * @method Color
+     * @method constructor
      * @param {Number} [r=0] - red component of the color, default value is 0.
      * @param {Number} [g=0] - green component of the color, defualt value is 0.
      * @param {Number} [b=0] - blue component of the color, default value is 0.
      * @param {Number} [a=255] - alpha component of the color, default value is 255.
-     * @return {Color}
      */
     function Color( r, g, b, a ) {
         if (typeof r === 'object') {
-            r = r.r;
             g = r.g;
             b = r.b;
             a = r.a;
+            r = r.r;
         }
         r = r || 0;
         g = g || 0;
@@ -162,12 +161,11 @@ var Color = (function () {
         MAGENTA:    [255, 0, 255]
     };
     for (var colorName in DefaultColors) {
-        var colorGetter = (function (r, g, b, a) {
+        JS.get(Color, colorName, (function (rgba) {
             return function () {
-                return new Color(r, g, b, a);
+                return new Color(rgba[0], rgba[1], rgba[2], rgba[3]);
             };
-        }).apply(null, DefaultColors[colorName]);
-        Object.defineProperty(Color, colorName, { get: colorGetter });
+        })(DefaultColors[colorName]));
     }
 
     var proto = Color.prototype;
@@ -386,8 +384,8 @@ var Color = (function () {
     };
 
     /**
-     * !#en Read hex string and store color data into the current color object
-     * !#zh 读取 16 进制。
+     * !#en Read hex string and store color data into the current color object, the hex string must be formated as rgba or rgb.
+     * !#zh 读取 16 进制颜色。
      * @method fromHEX
      * @param {String} hexString
      * @return {Color}
@@ -397,8 +395,11 @@ var Color = (function () {
      * color.fromHEX("#FFFF33"); // Color {r: 255, g: 255, b: 51, a: 255};
      */
     proto.fromHEX = function (hexString) {
+        if (hexString.length < 8) {
+            hexString += 'FF';
+        }
         var hex = parseInt(((hexString.indexOf('#') > -1) ? hexString.substring(1) : hexString), 16);
-        this._val = (this._val & 0xff000000) | hex;
+        this._val = ((this._val & 0xff000000) | hex) >>> 0;
         return this;
     };
 

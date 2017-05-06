@@ -33,6 +33,9 @@ var Destroying = Flags.Destroying;
 var POSITION_CHANGED = 'position-changed';
 var SIZE_CHANGED = 'size-changed';
 var ANCHOR_CHANGED = 'anchor-changed';
+var ROTATION_CHANGED = 'rotation-changed';
+var SCALE_CHANGED = 'scale-changed';
+
 var CHILD_ADDED = 'child-added';
 var CHILD_REMOVED = 'child-removed';
 var CHILD_REORDER = 'child-reorder';
@@ -42,10 +45,13 @@ var ERR_INVALID_NUMBER = CC_EDITOR && 'The %s is invalid';
 var Misc = require('./utils/misc');
 //var RegisteredInEditor = Flags.RegisteredInEditor;
 
+var ActionManagerExist = !!cc.ActionManager;
+var emptyFunc = function () {};
+
 /**
  * !#en The event type supported by Node
  * !#zh Node 支持的事件类型
- * @enum Node.EventType
+ * @class Node.EventType
  * @static
  * @namespace Node
  */
@@ -63,7 +69,6 @@ var EventType = cc.Enum({
      * !#zh 当手指在屏幕上目标节点区域内移动时。
      * @property TOUCH_MOVE
      * @type {String}
-     * @value 1
      * @static
      */
     TOUCH_MOVE: 'touchmove',
@@ -245,7 +250,7 @@ var _mouseWheelHandler = function (event) {
     }
 };
 
-function _searchMaskParent (node) {
+function _searchMaskInParent (node) {
     var Mask = cc.Mask;
     if (Mask) {
         var index = 0;
@@ -278,6 +283,8 @@ function updateOrder (node) {
  * Cocos Creator 场景中的所有节点类。节点也继承了 {{#crossLink "EventTarget"}}EventTarget{{/crossLink}}，它允许节点发送事件。<br/>
  * 支持的节点事件，请参阅 {{#crossLink "Node.EventType"}}{{/crossLink}}。
  * @class Node
+ * @constructor
+ * @param {String} name
  * @extends _BaseNode
  */
 var Node = cc.Class({
@@ -331,17 +338,25 @@ var Node = cc.Class({
          * @type {String}
          */
         group: {
-            get: function () {
+            get () {
                 return cc.game.groupList[this.groupIndex] || '';
             },
 
-            set: function (value) {
+            set (value) {
                 this.groupIndex = cc.game.groupList.indexOf(value);
                 this.emit('group-changed');
             }
         },
 
         //properties moved from base node begin
+
+        /**
+         * !#en The position (x, y) of the node in its parent's coordinates.
+         * !#zh 节点在父节点坐标系中的位置（x, y）。
+         * @property {Vec2} position
+         * @example
+         * cc.log("Node Position: " + node.position);
+         */
 
         /**
          * !#en x axis position of node.
@@ -353,10 +368,10 @@ var Node = cc.Class({
          * cc.log("Node Position X: " + node.x);
          */
         x: {
-            get: function () {
+            get () {
                 return this._position.x;
             },
-            set: function (value) {
+            set (value) {
                 var localPosition = this._position;
                 if (value !== localPosition.x) {
                     if (!CC_EDITOR || isFinite(value)) {
@@ -399,10 +414,10 @@ var Node = cc.Class({
          * cc.log("Node Position Y: " + node.y);
          */
         y: {
-            get: function () {
+            get () {
                 return this._position.y;
             },
-            set: function (value) {
+            set (value) {
                 var localPosition = this._position;
                 if (value !== localPosition.y) {
                     if (!CC_EDITOR || isFinite(value)) {
@@ -445,15 +460,17 @@ var Node = cc.Class({
          * cc.log("Node Rotation: " + node.rotation);
          */
         rotation: {
-            get: function () {
+            get () {
                 if (this._rotationX !== this._rotationY)
                     cc.logID(1602);
                 return this._rotationX;
             },
-            set: function (value) {
+            set (value) {
                 if (this._rotationX !== value || this._rotationY !== value) {
                     this._rotationX = this._rotationY = value;
                     this._sgNode.rotation = value;
+
+                    this.emit(ROTATION_CHANGED);
                 }
             }
         },
@@ -468,13 +485,15 @@ var Node = cc.Class({
          * cc.log("Node Rotation X: " + node.rotationX);
          */
         rotationX: {
-            get: function () {
+            get () {
                 return this._rotationX;
             },
-            set: function (value) {
+            set (value) {
                 if (this._rotationX !== value) {
                     this._rotationX = value;
                     this._sgNode.rotationX = value;
+
+                    this.emit(ROTATION_CHANGED);
                 }
             },
         },
@@ -489,13 +508,15 @@ var Node = cc.Class({
          * cc.log("Node Rotation Y: " + node.rotationY);
          */
         rotationY: {
-            get: function () {
+            get () {
                 return this._rotationY;
             },
-            set: function (value) {
+            set (value) {
                 if (this._rotationY !== value) {
                     this._rotationY = value;
                     this._sgNode.rotationY = value;
+
+                    this.emit(ROTATION_CHANGED);
                 }
             },
         },
@@ -510,13 +531,15 @@ var Node = cc.Class({
          * cc.log("Node Scale X: " + node.scaleX);
          */
         scaleX: {
-            get: function () {
+            get () {
                 return this._scaleX;
             },
-            set: function (value) {
+            set (value) {
                 if (this._scaleX !== value) {
                     this._scaleX = value;
                     this._sgNode.scaleX = value;
+
+                    this.emit(SCALE_CHANGED);
                 }
             },
         },
@@ -531,13 +554,15 @@ var Node = cc.Class({
          * cc.log("Node Scale Y: " + node.scaleY);
          */
         scaleY: {
-            get: function () {
+            get () {
                 return this._scaleY;
             },
-            set: function (value) {
+            set (value) {
                 if (this._scaleY !== value) {
                     this._scaleY = value;
                     this._sgNode.scaleY = value;
+
+                    this.emit(SCALE_CHANGED);
                 }
             },
         },
@@ -552,10 +577,10 @@ var Node = cc.Class({
          * cc.log("Node SkewX: " + node.skewX);
          */
         skewX: {
-            get: function () {
+            get () {
                 return this._skewX;
             },
-            set: function (value) {
+            set (value) {
                 this._skewX = value;
                 this._sgNode.skewX = value;
             }
@@ -571,10 +596,10 @@ var Node = cc.Class({
          * cc.log("Node SkewY: " + node.skewY);
          */
         skewY: {
-            get: function () {
+            get () {
                 return this._skewY;
             },
-            set: function (value) {
+            set (value) {
                 this._skewY = value;
                 this._sgNode.skewY = value;
             }
@@ -589,10 +614,10 @@ var Node = cc.Class({
          * node.opacity = 255;
          */
         opacity: {
-            get: function () {
+            get () {
                 return this._opacity;
             },
-            set: function (value) {
+            set (value) {
                 if (this._opacity !== value) {
                     this._opacity = value;
                     this._sgNode.setOpacity(value);
@@ -616,10 +641,10 @@ var Node = cc.Class({
          * cc.log("CascadeOpacity: " + node.cascadeOpacity);
          */
         cascadeOpacity: {
-            get: function () {
+            get () {
                 return this._cascadeOpacityEnabled;
             },
-            set: function (value) {
+            set (value) {
                 if (this._cascadeOpacityEnabled !== value) {
                     this._cascadeOpacityEnabled = value;
                     this._sgNode.cascadeOpacity = value;
@@ -642,10 +667,10 @@ var Node = cc.Class({
          * node.color = new cc.Color(255, 255, 255);
          */
         color: {
-            get: function () {
+            get () {
                 return this._color.clone()
             },
-            set: function (value) {
+            set (value) {
                 if (!this._color.equals(value)) {
                     this._color.fromColor(value);
                     if (CC_DEV && value.a !== 255) {
@@ -667,10 +692,10 @@ var Node = cc.Class({
          * node.anchorX = 0;
          */
         anchorX: {
-            get: function () {
+            get () {
                 return this._anchorPoint.x;
             },
-            set: function (value) {
+            set (value) {
                 var anchorPoint = this._anchorPoint;
                 if (anchorPoint.x !== value) {
                     anchorPoint.x = value;
@@ -692,10 +717,10 @@ var Node = cc.Class({
          * node.anchorY = 0;
          */
         anchorY: {
-            get: function () {
+            get () {
                 return this._anchorPoint.y;
             },
-            set: function (value) {
+            set (value) {
                 var anchorPoint = this._anchorPoint;
                 if (anchorPoint.y !== value) {
                     anchorPoint.y = value;
@@ -717,7 +742,7 @@ var Node = cc.Class({
          * node.width = 100;
          */
         width: {
-            get: function () {
+            get () {
                 if (this._sizeProvider) {
                     var w = this._sizeProvider._getWidth();
                     this._contentSize.width = w;
@@ -727,7 +752,7 @@ var Node = cc.Class({
                     return this._contentSize.width;
                 }
             },
-            set: function (value) {
+            set (value) {
                 if (value !== this._contentSize.width) {
                     var sizeProvider = this._sizeProvider;
                     if (sizeProvider) {
@@ -756,7 +781,7 @@ var Node = cc.Class({
          * node.height = 100;
          */
         height: {
-            get: function () {
+            get () {
                 if (this._sizeProvider) {
                     var h = this._sizeProvider._getHeight();
                     this._contentSize.height = h;
@@ -766,7 +791,7 @@ var Node = cc.Class({
                     return this._contentSize.height;
                 }
             },
-            set: function (value) {
+            set (value) {
                 if (value !== this._contentSize.height) {
                     var sizeProvider = this._sizeProvider;
                     if (sizeProvider) {
@@ -793,10 +818,10 @@ var Node = cc.Class({
          * @private
          */
         _ignoreAnchor: {
-            get: function () {
+            get () {
                 return this.__ignoreAnchor;
             },
-            set: function (value) {
+            set (value) {
                 if (this.__ignoreAnchor !== value) {
                     this.__ignoreAnchor = value;
                     this._sgNode.ignoreAnchor = value;
@@ -819,10 +844,10 @@ var Node = cc.Class({
          * cc.log("Node zIndex: " + node.zIndex);
          */
         zIndex: {
-            get: function () {
+            get () {
                 return this._localZOrder;
             },
-            set: function (value) {
+            set (value) {
                 if (this._localZOrder !== value) {
                     this._localZOrder = value;
                     this._sgNode.zIndex = value;
@@ -837,7 +862,11 @@ var Node = cc.Class({
         //properties moved from base node end
     },
 
-    ctor: function (name) {
+    /**
+     * @method constructor
+     * @param {String} [name]
+     */
+    ctor (name) {
 
         /**
          * Current scene graph node for this node.
@@ -853,7 +882,7 @@ var Node = cc.Class({
             sgNode.onEnter = function () {
                 _ccsg.Node.prototype.onEnter.call(this);
                 if (this._entity && !this._entity._active) {
-                    cc.director.getActionManager().pauseTarget(this);
+                    ActionManagerExist && cc.director.getActionManager().pauseTarget(this);
                     cc.eventManager.pauseTarget(this);
                 }
             };
@@ -892,572 +921,25 @@ var Node = cc.Class({
 
     statics: {
         // is node but not scene
-        isNode: function (obj) {
+        isNode (obj) {
             return obj instanceof Node && (obj.constructor === Node || !(obj instanceof cc.Scene));
         }
     },
 
     // OVERRIDES
 
-    _onPreDestroy: function () {
-        var i, len;
-
-        // marked as destroying
-        this._objFlags |= Destroying;
-
-        // detach self and children from editor
-        var parent = this._parent;
-        var destroyByParent = parent && (parent._objFlags & Destroying);
-        if (!destroyByParent) {
-            if (CC_EDITOR || CC_TEST) {
-                this._registerIfAttached(false);
-            }
-        }
-
-        // destroy children
-        var children = this._children;
-        for (i = 0, len = children.length; i < len; ++i) {
-            // destroy immediate so its _onPreDestroy can be called
-            children[i]._destroyImmediate();
-        }
-
-        // destroy self components
-        for (i = 0, len = this._components.length; i < len; ++i) {
-            var component = this._components[i];
-            // destroy immediate so its _onPreDestroy can be called
-            component._destroyImmediate();
-        }
-
-        // Actions
-        cc.director.getActionManager().removeAllActionsFromTarget(this);
-        this._releaseAllActions();
-
-        // Remove Node.currentHovered
-        if (_currentHovered === this) {
-            _currentHovered = null;
-        }
-
-        // Remove all listeners
-        if (CC_JSB && this._touchListener) {
-            this._touchListener.release();
-            this._touchListener.owner = null;
-            this._touchListener.mask = null;
-            this._touchListener = null;
-        }
-        if (CC_JSB && this._mouseListener) {
-            this._mouseListener.release();
-            this._mouseListener.owner = null;
-            this._mouseListener.mask = null;
-            this._mouseListener = null;
-        }
-        cc.eventManager.removeListeners(this);
-        for (i = 0, len = this.__eventTargets.length; i < len; ++i) {
-            var target = this.__eventTargets[i];
-            target && target.targetOff(this);
-        }
-        this.__eventTargets.length = 0;
-
-        // remove from persist
-        if (this._persistNode) {
-            cc.game.removePersistRootNode(this);
-        }
-
-        if (!destroyByParent) {
-            // remove from parent
-            if (parent) {
-                var childIndex = parent._children.indexOf(this);
-                parent._children.splice(childIndex, 1);
-                parent.emit('child-removed', this);
-            }
-
-            this._removeSgNode();
-
-            // simulate some destruct logic to make undo system work correctly
-            if (CC_EDITOR) {
-                // ensure this node can reattach to scene by undo system
-                this._parent = null;
-            }
-        }
-        else if (CC_JSB) {
-            this._sgNode.release();
-            this._sgNode._entity = null;
-            this._sgNode = null;
-        }
-    },
-
-    // INTERNAL
-
-    /*
-     * The initializer for Node which will be called before all components onLoad
-     */
-    _onBatchCreated: function () {
-        var prefabInfo = this._prefab;
-        if (prefabInfo && prefabInfo.sync && !prefabInfo._synced) {
-            // checks to ensure no recursion, recursion will caused only on old data.
-            if (prefabInfo.root === this) {
-                PrefabHelper.syncWithPrefab(this);
-            }
-        }
-
-        this._updateDummySgNode();
-
-        if (this._parent) {
-            this._parent._sgNode.addChild(this._sgNode);
-        }
-
-        if (!this._activeInHierarchy) {
-            // deactivate ActionManager and EventManager by default
-            cc.director.getActionManager().pauseTarget(this);
-            cc.eventManager.pauseTarget(this);
-        }
-
-        var children = this._children;
-        for (var i = 0, len = children.length; i < len; i++) {
-            children[i]._onBatchCreated();
-        }
-    },
-
-    _onActive_EventsActions: function (newActive) {
-        // ActionManager, EventManager
-        if (newActive) {
-            // activate
-            cc.director.getActionManager().resumeTarget(this);
-            cc.eventManager.resumeTarget(this);
-            if (this._touchListener) {
-                this._touchListener.mask = _searchMaskParent(this);
-            }
-            if (this._mouseListener) {
-                this._mouseListener.mask = _searchMaskParent(this);
-            }
-        }
-        else {
-            // deactivate
-            cc.director.getActionManager().pauseTarget(this);
-            cc.eventManager.pauseTarget(this);
-        }
-    },
-
-    _onHierarchyChanged: function (oldParent) {
-        this._onHierarchyChangedBase(oldParent);
-        cc._widgetManager._nodesOrderDirty = true;
-    },
-
-// EVENTS
-    /**
-     * !#en
-     * Register a callback of a specific event type on Node.<br/>
-     * Use this method to register touch or mouse event permit propagation based on scene graph,
-     * you can propagate the event to the parents or swallow it by calling stopPropagation on the event.<br/>
-     * It's the recommended way to register touch/mouse event for Node,
-     * please do not use cc.eventManager directly for Node.
-     * !#zh
-     * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的调用者。<br/>
-     * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
-     * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 cc.eventManager。
-     * @method on
-     * @param {String} type - A string representing the event type to listen for.<br>
-     *                        See {{#crossLink "Node/position-changed:event"}}Node Events{{/crossLink}} for all builtin events.
-     * @param {Function} callback - The callback that will be invoked when the event is dispatched.
-     *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-     * @param {Event} callback.param event
-     * @param {Object} [target] - The target to invoke the callback, can be null
-     * @param {Boolean} useCapture - When set to true, the capture argument prevents callback
-     *                              from being invoked when the event's eventPhase attribute value is BUBBLING_PHASE.
-     *                              When false, callback will NOT be invoked when event's eventPhase attribute value is CAPTURING_PHASE.
-     *                              Either way, callback will be invoked when event's eventPhase attribute value is AT_TARGET.
-     * @return {Function} - Just returns the incoming callback so you can save the anonymous function easier.
-     * @example
-     * this.node.on(cc.Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
-     * node.on(cc.Node.EventType.TOUCH_START, callback, this.node);
-     * node.on(cc.Node.EventType.TOUCH_MOVE, callback, this.node);
-     * node.on(cc.Node.EventType.TOUCH_END, callback, this.node);
-     * node.on(cc.Node.EventType.TOUCH_CANCEL, callback, this.node);
-     * node.on("anchor-changed", callback, this);
-     */
-    on: function (type, callback, target, useCapture) {
-        var newAdded = false;
-        if (_touchEvents.indexOf(type) !== -1) {
-            if (!this._touchListener) {
-                this._touchListener = cc.EventListener.create({
-                    event: cc.EventListener.TOUCH_ONE_BY_ONE,
-                    swallowTouches: true,
-                    owner: this,
-                    mask: _searchMaskParent(this),
-                    onTouchBegan: _touchStartHandler,
-                    onTouchMoved: _touchMoveHandler,
-                    onTouchEnded: _touchEndHandler
-                });
-                if (CC_JSB) {
-                    this._touchListener.retain();
-                }
-                cc.eventManager.addListener(this._touchListener, this);
-                newAdded = true;
-            }
-        }
-        else if (_mouseEvents.indexOf(type) !== -1) {
-            if (!this._mouseListener) {
-                this._mouseListener = cc.EventListener.create({
-                    event: cc.EventListener.MOUSE,
-                    _previousIn: false,
-                    owner: this,
-                    mask: _searchMaskParent(this),
-                    onMouseDown: _mouseDownHandler,
-                    onMouseMove: _mouseMoveHandler,
-                    onMouseUp: _mouseUpHandler,
-                    onMouseScroll: _mouseWheelHandler,
-                });
-                if (CC_JSB) {
-                    this._mouseListener.retain();
-                }
-                cc.eventManager.addListener(this._mouseListener, this);
-                newAdded = true;
-            }
-        }
-        if (newAdded && !this._activeInHierarchy) {
-            cc.director.getScheduler().schedule(function () {
-                if (!this._activeInHierarchy) {
-                    cc.eventManager.pauseTarget(this);
-                }
-            }, this, 0, 0, 0, false);
-        }
-
-        return this._EventTargetOn(type, callback, target, useCapture);
-    },
-
-    /**
-     * !#en
-     * Removes the callback previously registered with the same type, callback, target and or useCapture.
-     * This method is merely an alias to removeEventListener.
-     * !#zh 删除之前与同类型，回调，目标或 useCapture 注册的回调。
-     * @method off
-     * @param {String} type - A string representing the event type being removed.
-     * @param {Function} callback - The callback to remove.
-     * @param {Object} [target] - The target to invoke the callback, if it's not given, only callback without target will be removed
-     * @param {Boolean} useCapture - Specifies whether the callback being removed was registered as a capturing callback or not.
-     *                              If not specified, useCapture defaults to false. If a callback was registered twice,
-     *                              one with capture and one without, each must be removed separately. Removal of a capturing callback
-     *                              does not affect a non-capturing version of the same listener, and vice versa.
-     * @example
-     * this.node.off(cc.Node.EventType.TOUCH_START, this.memberFunction, this);
-     * node.off(cc.Node.EventType.TOUCH_START, callback, this.node);
-     * node.off("anchor-changed", callback, this);
-     */
-    off: function (type, callback, target, useCapture) {
-        this._EventTargetOff(type, callback, target, useCapture);
-
-        if (_touchEvents.indexOf(type) !== -1) {
-            this._checkTouchListeners();
-        }
-        else if (_mouseEvents.indexOf(type) !== -1) {
-            this._checkMouseListeners();
-        }
-    },
-
-    /**
-     * !#en Removes all callbacks previously registered with the same target.
-     * !#zh 移除目标上的所有注册事件。
-     * @method targetOff
-     * @param {Object} target - The target to be searched for all related callbacks
-     * @example
-     * node.targetOff(target);
-     */
-    targetOff: function (target) {
-        this._EventTargetTargetOff(target);
-
-        this._checkTouchListeners();
-        this._checkMouseListeners();
-    },
-
-    _checkTouchListeners: function () {
-        if (!(this._objFlags & Destroying) && this._touchListener) {
-            var i = 0;
-            if (this._bubblingListeners) {
-                for (; i < _touchEvents.length; ++i) {
-                    if (this._bubblingListeners.has(_touchEvents[i])) {
-                        return;
-                    }
-                }
-            }
-            if (this._capturingListeners) {
-                for (; i < _touchEvents.length; ++i) {
-                    if (this._capturingListeners.has(_touchEvents[i])) {
-                        return;
-                    }
-                }
-            }
-
-            cc.eventManager.removeListener(this._touchListener);
-            this._touchListener = null;
-        }
-    },
-    _checkMouseListeners: function () {
-        if (!(this._objFlags & Destroying) && this._mouseListener) {
-            var i = 0;
-            if (this._bubblingListeners) {
-                for (; i < _mouseEvents.length; ++i) {
-                    if (this._bubblingListeners.has(_mouseEvents[i])) {
-                        return;
-                    }
-                }
-            }
-            if (this._capturingListeners) {
-                for (; i < _mouseEvents.length; ++i) {
-                    if (this._capturingListeners.has(_mouseEvents[i])) {
-                        return;
-                    }
-                }
-            }
-
-            if (_currentHovered === this) {
-                _currentHovered = null;
-            }
-
-            cc.eventManager.removeListener(this._mouseListener);
-            this._mouseListener = null;
-        }
-    },
-
-    _hitTest: function (point, listener) {
-        var w = this.width,
-            h = this.height;
-        var rect = cc.rect(0, 0, w, h);
-        var trans = this.getNodeToWorldTransform();
-        cc._rectApplyAffineTransformIn(rect, trans);
-        var left = point.x - rect.x,
-            right = rect.x + rect.width - point.x,
-            bottom = point.y - rect.y,
-            top = rect.y + rect.height - point.y;
-        if (left >= 0 && right >= 0 && top >= 0 && bottom >= 0) {
-            if (listener && listener.mask) {
-                var mask = listener.mask;
-                var parent = this;
-                for (var i = 0; parent && i < mask.index; ++i, parent = parent.parent) {
-                }
-                // find mask parent, should hit test it
-                if (parent === mask.node) {
-                    var comp = parent.getComponent(cc.Mask);
-                    return (comp && comp.enabledInHierarchy) ? comp._hitTest(point) : true;
-                }
-                // mask parent no longer exists
-                else {
-                    listener.mask = null;
-                    return true;
-                }
-            }
-            else {
-                return true;
-            }
-        }
-        else {
-            return false;
-        }
-    },
-
-    // Store all capturing parents that are listening to the same event in the array
-    _getCapturingTargets: function (type, array) {
-        var parent = this.parent;
-        while (parent) {
-            if (parent.hasEventListener(type, true)) {
-                array.push(parent);
-            }
-            parent = parent.parent;
-        }
-    },
-
-    // Store all bubbling parents that are listening to the same event in the array
-    _getBubblingTargets: function (type, array) {
-        var parent = this.parent;
-        while (parent) {
-            if (parent.hasEventListener(type)) {
-                array.push(parent);
-            }
-            parent = parent.parent;
-        }
-    },
-
-    // for event manager
-    isRunning: function () {
-        return this._activeInHierarchy;
-    },
-
-// ACTIONS
-    /**
-     * !#en
-     * Executes an action, and returns the action that is executed.<br/>
-     * The node becomes the action's target. Refer to cc.Action's getTarget() <br/>
-     * Calling runAction while the node is not active won't have any effect. <br/>
-     * Note：You shouldn't modify the action after runAction, that won't take any effect.<br/>
-     * if you want to modify, when you define action plus.
-     * !#zh
-     * 执行并返回该执行的动作。该节点将会变成动作的目标。<br/>
-     * 调用 runAction 时，节点自身处于不激活状态将不会有任何效果。<br/>
-     * 注意：你不应该修改 runAction 后的动作，将无法发挥作用，如果想进行修改，请在定义 action 时加入。
-     * @method runAction
-     * @param {Action} action
-     * @return {Action} An Action pointer
-     * @example
-     * var action = cc.scaleTo(0.2, 1, 0.6);
-     * node.runAction(action);
-     * node.runAction(action).repeatForever(); // fail
-     * node.runAction(action.repeatForever()); // right
-     */
-    runAction: function (action) {
-        if (!this.active)
-            return;
-        cc.assertID(action, 1618);
-
-        if (CC_JSB) {
-            this._retainAction(action);
-            this._sgNode._owner = this;
-        }
-        cc.director.getActionManager().addAction(action, this, false);
-        return action;
-    },
-
-    /**
-     * !#en Stops and removes all actions from the running action list .
-     * !#zh 停止并且移除所有正在运行的动作列表。
-     * @method stopAllActions
-     * @example
-     * node.stopAllActions();
-     */
-    stopAllActions: function () {
-        cc.director.getActionManager().removeAllActionsFromTarget(this);
-    },
-
-    /**
-     * !#en Stops and removes an action from the running action list.
-     * !#zh 停止并移除指定的动作。
-     * @method stopAction
-     * @param {Action} action An action object to be removed.
-     * @example
-     * var action = cc.scaleTo(0.2, 1, 0.6);
-     * node.stopAction(action);
-     */
-    stopAction: function (action) {
-        cc.director.getActionManager().removeAction(action);
-    },
-
-    /**
-     * !#en Removes an action from the running action list by its tag.
-     * !#zh 停止并且移除指定标签的动作。
-     * @method stopActionByTag
-     * @param {Number} tag A tag that indicates the action to be removed.
-     * @example
-     * node.stopAction(1);
-     */
-    stopActionByTag: function (tag) {
-        if (tag === cc.Action.TAG_INVALID) {
-            cc.logID(1612);
-            return;
-        }
-        cc.director.getActionManager().removeActionByTag(tag, this);
-    },
-
-    /**
-     * !#en Returns an action from the running action list by its tag.
-     * !#zh 通过标签获取指定动作。
-     * @method getActionByTag
-     * @see cc.Action#getTag and cc.Action#setTag
-     * @param {Number} tag
-     * @return {Action} The action object with the given tag.
-     * @example
-     * var action = node.getActionByTag(1);
-     */
-    getActionByTag: function (tag) {
-        if (tag === cc.Action.TAG_INVALID) {
-            cc.logID(1613);
-            return null;
-        }
-        return cc.director.getActionManager().getActionByTag(tag, this);
-    },
-
-    /**
-     * !#en
-     * Returns the numbers of actions that are running plus the ones that are schedule to run (actions in actionsToAdd and actions arrays).<br/>
-     *    Composable actions are counted as 1 action. Example:<br/>
-     *    If you are running 1 Sequence of 7 actions, it will return 1. <br/>
-     *    If you are running 7 Sequences of 2 actions, it will return 7.</p>
-     * !#zh
-     * 获取运行着的动作加上正在调度运行的动作的总数。<br/>
-     * 例如：<br/>
-     * - 如果你正在运行 7 个动作中的 1 个 Sequence，它将返回 1。<br/>
-     * - 如果你正在运行 2 个动作中的 7 个 Sequence，它将返回 7。<br/>
-     *
-     * @method getNumberOfRunningActions
-     * @return {Number} The number of actions that are running plus the ones that are schedule to run
-     * @example
-     * var count = node.getNumberOfRunningActions();
-     * cc.log("Running Action Count: " + count);
-     */
-    getNumberOfRunningActions: function () {
-        return cc.director.getActionManager().getNumberOfRunningActionsInTarget(this);
-    },
-
-    _retainAction: function (action) {
-        if (CC_JSB && action instanceof cc.Action && this._retainedActions.indexOf(action) === -1) {
-            this._retainedActions.push(action);
-            action.retain();
-        }
-    },
-
-    _releaseAllActions: function () {
-        if (CC_JSB) {
-            for (var i = 0; i < this._retainedActions.length; ++i) {
-                this._retainedActions[i].release();
-            }
-            this._retainedActions.length = 0;
-        }
-    },
-
-    //functions moved from base node begin
-
-    //override
-    setTag: function (value) {
-        this._tag = value;
-        this._sgNode.tag = value;
-    },
-
-    setParent: function (value) {
-        if (this._parent === value) {
-            return;
-        }
-        if (CC_EDITOR && !cc.engine.isPlaying) {
-            if (_Scene.DetectConflict.beforeAddChild(this, value)) {
-                return;
-            }
-        }
+    _onSetParent (value) {
         var sgNode = this._sgNode;
         if (sgNode.parent) {
             sgNode.parent.removeChild(sgNode, false);
         }
-        //
-        var oldParent = this._parent;
-        this._parent = value || null;
         if (value) {
-            var parent = value._sgNode;
-            parent.addChild(sgNode);
-            updateOrder(this);
-            value._children.push(this);
-            value.emit(CHILD_ADDED, this);
-        }
-        if (oldParent) {
-            if (!(oldParent._objFlags & Destroying)) {
-                var removeAt = oldParent._children.indexOf(this);
-                if (CC_DEV && removeAt < 0) {
-                    return cc.errorID(1633);
-                }
-                oldParent._children.splice(removeAt, 1);
-                oldParent.emit(CHILD_REMOVED, this);
-                this._onHierarchyChanged(oldParent);
-            }
-        }
-        else if (value) {
-            this._onHierarchyChanged(null);
+            value._sgNode.addChild(sgNode);
+            value._delaySort();
         }
     },
 
-    _onSiblingIndexChanged: function (index) {
+    _onSiblingIndexChanged (index) {
         // update rendering scene graph, sort them by arrivalOrder
         var parent = this._parent;
         var siblings = parent._children;
@@ -1495,49 +977,593 @@ var Node = cc.Class({
         }
     },
 
-    //end override
+    _onPreDestroy () {
+        var destroyByParent = this._onPreDestroyBase();
+
+        // Actions
+        if (ActionManagerExist) {
+            cc.director.getActionManager().removeAllActionsFromTarget(this);
+        }
+
+        // Remove Node.currentHovered
+        if (_currentHovered === this) {
+            _currentHovered = null;
+        }
+
+        if (CC_JSB) {
+            if (!cc.macro.ENABLE_GC_FOR_NATIVE_OBJECTS) {
+                this._releaseAllActions();
+            }
+            if (this._touchListener) {
+                this._touchListener.release();
+                this._touchListener.owner = null;
+                this._touchListener.mask = null;
+                this._touchListener = null;
+            }
+            if (this._mouseListener) {
+                this._mouseListener.release();
+                this._mouseListener.owner = null;
+                this._mouseListener.mask = null;
+                this._mouseListener = null;
+            }
+        }
+
+        if (this._reorderChildDirty) {
+            cc.director.__fastOff(cc.Director.EVENT_AFTER_UPDATE, this.sortAllChildren, this);
+        }
+
+        cc.eventManager.removeListeners(this);
+
+        if (!destroyByParent) {
+            this._removeSgNode();
+            // simulate some destruct logic to make undo system work correctly
+            if (CC_EDITOR) {
+                // ensure this node can reattach to scene by undo system
+                this._parent = null;
+            }
+        }
+        else if (CC_TEST ? (/* make CC_JSB mockable*/ Function('return CC_JSB'))() : CC_JSB) {
+            this._sgNode.release();
+            this._sgNode._entity = null;
+            this._sgNode = null;
+        }
+    },
+
+    _onPostActivated (active) {
+        var actionManager = ActionManagerExist ? cc.director.getActionManager() : null;
+        if (active) {
+            // activate
+            actionManager && actionManager.resumeTarget(this);
+            cc.eventManager.resumeTarget(this);
+            if (this._touchListener) {
+                var mask = this._touchListener.mask = _searchMaskInParent(this);
+                if (this._mouseListener) {
+                    this._mouseListener.mask = mask;
+                }
+            }
+            else if (this._mouseListener) {
+                this._mouseListener.mask = _searchMaskInParent(this);
+            }
+        }
+        else {
+            // deactivate
+            actionManager && actionManager.pauseTarget(this);
+            cc.eventManager.pauseTarget(this);
+        }
+    },
+
+    _onHierarchyChanged (oldParent) {
+        this._onHierarchyChangedBase(oldParent);
+        cc._widgetManager._nodesOrderDirty = true;
+    },
+
+    // INTERNAL
+
+    /*
+     * The initializer for Node which will be called before all components onLoad
+     */
+    _onBatchCreated () {
+        var prefabInfo = this._prefab;
+        if (prefabInfo && prefabInfo.sync && !prefabInfo._synced) {
+            // checks to ensure no recursion, recursion will caused only on old data.
+            if (prefabInfo.root === this) {
+                PrefabHelper.syncWithPrefab(this);
+            }
+        }
+
+        this._updateDummySgNode();
+
+        if (this._parent) {
+            this._parent._sgNode.addChild(this._sgNode);
+        }
+
+        if (!this._activeInHierarchy) {
+            // deactivate ActionManager and EventManager by default
+            if (ActionManagerExist) {
+                cc.director.getActionManager().pauseTarget(this);
+            }
+            cc.eventManager.pauseTarget(this);
+        }
+
+        var children = this._children;
+        for (var i = 0, len = children.length; i < len; i++) {
+            children[i]._onBatchCreated();
+        }
+    },
+
+    // EVENTS
 
     /**
-     * !#en Returns a copy of the position (x,y) of the node in cocos2d coordinates. (0,0) is the left-bottom corner.
-     * !#zh 获取在父节点坐标系中节点的位置（ x , y ）。
-     * @method getPosition
-     * @return {Vec2} The position (x,y) of the node in OpenGL coordinates
+     * !#en
+     * Register a callback of a specific event type on Node.<br/>
+     * Use this method to register touch or mouse event permit propagation based on scene graph,
+     * you can propagate the event to the parents or swallow it by calling stopPropagation on the event.<br/>
+     * It's the recommended way to register touch/mouse event for Node,
+     * please do not use cc.eventManager directly for Node.
+     * !#zh
+     * 在节点上注册指定类型的回调函数，也可以设置 target 用于绑定响应函数的调用者。<br/>
+     * 同时您可以将事件派发到父节点或者通过调用 stopPropagation 拦截它。<br/>
+     * 推荐使用这种方式来监听节点上的触摸或鼠标事件，请不要在节点上直接使用 cc.eventManager。
+     * @method on
+     * @param {String} type - A string representing the event type to listen for.<br>
+     *                        See {{#crossLink "Node/position-changed:event"}}Node Events{{/crossLink}} for all builtin events.
+     * @param {Function} callback - The callback that will be invoked when the event is dispatched.
+     *                              The callback is ignored if it is a duplicate (the callbacks are unique).
+     * @param {Event} callback.param event
+     * @param {Object} [target] - The target to invoke the callback, can be null
+     * @param {Boolean} [useCapture=false] - When set to true, the capture argument prevents callback
+     *                              from being invoked when the event's eventPhase attribute value is BUBBLING_PHASE.
+     *                              When false, callback will NOT be invoked when event's eventPhase attribute value is CAPTURING_PHASE.
+     *                              Either way, callback will be invoked when event's eventPhase attribute value is AT_TARGET.
+     * @return {Function} - Just returns the incoming callback so you can save the anonymous function easier.
      * @example
-     * cc.log("Node Position: " + node.getPosition());
+     * this.node.on(cc.Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
+     * node.on(cc.Node.EventType.TOUCH_START, callback, this.node);
+     * node.on(cc.Node.EventType.TOUCH_MOVE, callback, this.node);
+     * node.on(cc.Node.EventType.TOUCH_END, callback, this.node);
+     * node.on(cc.Node.EventType.TOUCH_CANCEL, callback, this.node);
+     * node.on("anchor-changed", callback, this);
      */
-    getPosition: function () {
-        return cc.p(this._position);
+    on (type, callback, target, useCapture) {
+        var newAdded = false;
+        if (_touchEvents.indexOf(type) !== -1) {
+            if (!this._touchListener) {
+                this._touchListener = cc.EventListener.create({
+                    event: cc.EventListener.TOUCH_ONE_BY_ONE,
+                    swallowTouches: true,
+                    owner: this,
+                    mask: _searchMaskInParent(this),
+                    onTouchBegan: _touchStartHandler,
+                    onTouchMoved: _touchMoveHandler,
+                    onTouchEnded: _touchEndHandler
+                });
+                if (CC_JSB) {
+                    this._touchListener.retain();
+                }
+                cc.eventManager.addListener(this._touchListener, this);
+                newAdded = true;
+            }
+        }
+        else if (_mouseEvents.indexOf(type) !== -1) {
+            if (!this._mouseListener) {
+                this._mouseListener = cc.EventListener.create({
+                    event: cc.EventListener.MOUSE,
+                    _previousIn: false,
+                    owner: this,
+                    mask: _searchMaskInParent(this),
+                    onMouseDown: _mouseDownHandler,
+                    onMouseMove: _mouseMoveHandler,
+                    onMouseUp: _mouseUpHandler,
+                    onMouseScroll: _mouseWheelHandler,
+                });
+                if (CC_JSB) {
+                    this._mouseListener.retain();
+                }
+                cc.eventManager.addListener(this._mouseListener, this);
+                newAdded = true;
+            }
+        }
+        if (newAdded && !this._activeInHierarchy) {
+            cc.director.getScheduler().schedule(function () {
+                if (!this._activeInHierarchy) {
+                    cc.eventManager.pauseTarget(this);
+                }
+            }, this, 0, 0, 0, false);
+        }
+
+        return this._EventTargetOn(type, callback, target, useCapture);
     },
 
     /**
      * !#en
-     * Changes the position (x,y) of the node in cocos2d coordinates.<br/>
-     * The original point (0,0) is at the left-bottom corner of screen.<br/>
-     * Usually we use cc.v2(x,y) to compose CCVec2 object.<br/>
-     * and Passing two numbers (x,y) is more efficient than passing CCPoint object.
-     * !#zh
-     * 设置节点在父坐标系中的位置。<br/>
-     * 可以通过 2 种方式设置坐标点：<br/>
-     * 1.传入 cc.v2(x, y) 类型为 cc.Vec2 的对象。<br/>
-     * 2.传入 2 个数值 x 和 y。
-     * @method setPosition
-     * @param {Vec2|Number} newPosOrxValue - The position (x,y) of the node in coordinates or the X coordinate for position
-     * @param {Number} [yValue] - Y coordinate for position
-     * @example {@link utils/api/engine/docs/cocos2d/core/utils/base-node/setPosition.js}
+     * Removes the callback previously registered with the same type, callback, target and or useCapture.
+     * This method is merely an alias to removeEventListener.
+     * !#zh 删除之前与同类型，回调，目标或 useCapture 注册的回调。
+     * @method off
+     * @param {String} type - A string representing the event type being removed.
+     * @param {Function} callback - The callback to remove.
+     * @param {Object} [target] - The target to invoke the callback, if it's not given, only callback without target will be removed
+     * @param {Boolean} [useCapture=false] - Specifies whether the callback being removed was registered as a capturing callback or not.
+     *                              If not specified, useCapture defaults to false. If a callback was registered twice,
+     *                              one with capture and one without, each must be removed separately. Removal of a capturing callback
+     *                              does not affect a non-capturing version of the same listener, and vice versa.
+     * @example
+     * this.node.off(cc.Node.EventType.TOUCH_START, this.memberFunction, this);
+     * node.off(cc.Node.EventType.TOUCH_START, callback, this.node);
+     * node.off("anchor-changed", callback, this);
      */
-    setPosition: function (newPosOrxValue, yValue) {
-        var xValue;
-        if (typeof yValue === 'undefined') {
-            xValue = newPosOrxValue.x;
-            yValue = newPosOrxValue.y;
+    off (type, callback, target, useCapture) {
+        this._EventTargetOff(type, callback, target, useCapture);
+
+        if (_touchEvents.indexOf(type) !== -1) {
+            this._checkTouchListeners();
+        }
+        else if (_mouseEvents.indexOf(type) !== -1) {
+            this._checkMouseListeners();
+        }
+    },
+
+    /**
+     * !#en Removes all callbacks previously registered with the same target.
+     * !#zh 移除目标上的所有注册事件。
+     * @method targetOff
+     * @param {Object} target - The target to be searched for all related callbacks
+     * @example
+     * node.targetOff(target);
+     */
+    targetOff (target) {
+        this._EventTargetTargetOff(target);
+
+        this._checkTouchListeners();
+        this._checkMouseListeners();
+    },
+
+    /**
+     * !#en Pause node related system events registered with the current Node. Node system events includes touch and mouse events.
+     * If recursive is set to true, then this API will pause the node system events for the node and all nodes in its sub node tree.
+     * Reference: http://cocos2d-x.org/docs/editors_and_tools/creator-chapters/scripting/internal-events/
+     * !#zh 暂停当前节点上注册的所有节点系统事件，节点系统事件包含触摸和鼠标事件。
+     * 如果传递 recursive 为 true，那么这个 API 将暂停本节点和它的子树上所有节点的节点系统事件。
+     * 参考：http://cocos.com/docs/creator/scripting/internal-events.html
+     * @method pauseSystemEvents
+     * @param {Boolean} recursive - Whether to pause node system events on the sub node tree.
+     * @example
+     * node.pauseSystemEvents(true);
+     */
+    pauseSystemEvents (recursive) {
+        cc.eventManager.pauseTarget(this, recursive);
+    },
+
+    /**
+     * !#en Resume node related system events registered with the current Node. Node system events includes touch and mouse events.
+     * If recursive is set to true, then this API will resume the node system events for the node and all nodes in its sub node tree.
+     * Reference: http://cocos2d-x.org/docs/editors_and_tools/creator-chapters/scripting/internal-events/
+     * !#zh 恢复当前节点上注册的所有节点系统事件，节点系统事件包含触摸和鼠标事件。
+     * 如果传递 recursive 为 true，那么这个 API 将恢复本节点和它的子树上所有节点的节点系统事件。
+     * 参考：http://cocos.com/docs/creator/scripting/internal-events.html
+     * @method resumeSystemEvents
+     * @param {Boolean} recursive - Whether to resume node system events on the sub node tree.
+     * @example
+     * node.resumeSystemEvents(true);
+     */
+    resumeSystemEvents (recursive) {
+        cc.eventManager.resumeTarget(this, recursive);
+    },
+
+    _checkTouchListeners () {
+        if (!(this._objFlags & Destroying) && this._touchListener) {
+            var i = 0;
+            if (this._bubblingListeners) {
+                for (; i < _touchEvents.length; ++i) {
+                    if (this._bubblingListeners.has(_touchEvents[i])) {
+                        return;
+                    }
+                }
+            }
+            if (this._capturingListeners) {
+                for (; i < _touchEvents.length; ++i) {
+                    if (this._capturingListeners.has(_touchEvents[i])) {
+                        return;
+                    }
+                }
+            }
+
+            cc.eventManager.removeListener(this._touchListener);
+            this._touchListener = null;
+        }
+    },
+    _checkMouseListeners () {
+        if (!(this._objFlags & Destroying) && this._mouseListener) {
+            var i = 0;
+            if (this._bubblingListeners) {
+                for (; i < _mouseEvents.length; ++i) {
+                    if (this._bubblingListeners.has(_mouseEvents[i])) {
+                        return;
+                    }
+                }
+            }
+            if (this._capturingListeners) {
+                for (; i < _mouseEvents.length; ++i) {
+                    if (this._capturingListeners.has(_mouseEvents[i])) {
+                        return;
+                    }
+                }
+            }
+
+            if (_currentHovered === this) {
+                _currentHovered = null;
+            }
+
+            cc.eventManager.removeListener(this._mouseListener);
+            this._mouseListener = null;
+        }
+    },
+
+    _hitTest (point, listener) {
+        var w = this.width,
+            h = this.height;
+        var rect = cc.rect(0, 0, w, h);
+        var trans = this.getNodeToWorldTransform();
+        cc._rectApplyAffineTransformIn(rect, trans);
+        var left = point.x - rect.x,
+            right = rect.x + rect.width - point.x,
+            bottom = point.y - rect.y,
+            top = rect.y + rect.height - point.y;
+        if (left >= 0 && right >= 0 && top >= 0 && bottom >= 0) {
+            if (listener && listener.mask) {
+                var mask = listener.mask;
+                var parent = this;
+                for (var i = 0; parent && i < mask.index; ++i, parent = parent.parent) {
+                }
+                // find mask parent, should hit test it
+                if (parent === mask.node) {
+                    var comp = parent.getComponent(cc.Mask);
+                    return (comp && comp.enabledInHierarchy) ? comp._hitTest(point) : true;
+                }
+                // mask parent no longer exists
+                else {
+                    listener.mask = null;
+                    return true;
+                }
+            }
+            else {
+                return true;
+            }
         }
         else {
-            xValue = newPosOrxValue;
-            yValue = yValue;
+            return false;
+        }
+    },
+
+    // Store all capturing parents that are listening to the same event in the array
+    _getCapturingTargets (type, array) {
+        var parent = this.parent;
+        while (parent) {
+            if (parent.hasEventListener(type, true)) {
+                array.push(parent);
+            }
+            parent = parent.parent;
+        }
+    },
+
+    // Store all bubbling parents that are listening to the same event in the array
+    _getBubblingTargets (type, array) {
+        var parent = this.parent;
+        while (parent) {
+            if (parent.hasEventListener(type)) {
+                array.push(parent);
+            }
+            parent = parent.parent;
+        }
+    },
+
+    // for event manager
+    isRunning () {
+        return this._activeInHierarchy;
+    },
+
+// ACTIONS
+    /**
+     * !#en
+     * Executes an action, and returns the action that is executed.<br/>
+     * The node becomes the action's target. Refer to cc.Action's getTarget() <br/>
+     * Calling runAction while the node is not active won't have any effect. <br/>
+     * Note：You shouldn't modify the action after runAction, that won't take any effect.<br/>
+     * if you want to modify, when you define action plus.
+     * !#zh
+     * 执行并返回该执行的动作。该节点将会变成动作的目标。<br/>
+     * 调用 runAction 时，节点自身处于不激活状态将不会有任何效果。<br/>
+     * 注意：你不应该修改 runAction 后的动作，将无法发挥作用，如果想进行修改，请在定义 action 时加入。
+     * @method runAction
+     * @param {Action} action
+     * @return {Action} An Action pointer
+     * @example
+     * var action = cc.scaleTo(0.2, 1, 0.6);
+     * node.runAction(action);
+     * node.runAction(action).repeatForever(); // fail
+     * node.runAction(action.repeatForever()); // right
+     */
+    runAction: ActionManagerExist ? function (action) {
+        if (!this.active)
+            return;
+        cc.assertID(action, 1618);
+
+        if (!cc.macro.ENABLE_GC_FOR_NATIVE_OBJECTS) {
+            this._retainAction(action);
+        }
+        if (CC_JSB) {
+            this._sgNode._owner = this;
+        }
+        cc.director.getActionManager().addAction(action, this, false);
+        return action;
+    } : emptyFunc,
+
+    /**
+     * !#en Pause all actions running on the current node. Equals to `cc.director.getActionManager().pauseTarget(node)`.
+     * !#zh 暂停本节点上所有正在运行的动作。和 `cc.director.getActionManager().pauseTarget(node);` 等价。
+     * @method pauseAllActions
+     * @example
+     * node.pauseAllActions();
+     */
+    pauseAllActions: ActionManagerExist ? function () {
+        cc.director.getActionManager().pauseTarget(this);
+    } : emptyFunc,
+
+    /**
+     * !#en Resume all paused actions on the current node. Equals to `cc.director.getActionManager().resumeTarget(node)`.
+     * !#zh 恢复运行本节点上所有暂停的动作。和 `cc.director.getActionManager().resumeTarget(node);` 等价。
+     * @method resumeAllActions
+     * @example
+     * node.resumeAllActions();
+     */
+    resumeAllActions: ActionManagerExist ? function () {
+        cc.director.getActionManager().resumeTarget(this);
+    } : emptyFunc,
+
+    /**
+     * !#en Stops and removes all actions from the running action list .
+     * !#zh 停止并且移除所有正在运行的动作列表。
+     * @method stopAllActions
+     * @example
+     * node.stopAllActions();
+     */
+    stopAllActions: ActionManagerExist ? function () {
+        cc.director.getActionManager().removeAllActionsFromTarget(this);
+    } : emptyFunc,
+
+    /**
+     * !#en Stops and removes an action from the running action list.
+     * !#zh 停止并移除指定的动作。
+     * @method stopAction
+     * @param {Action} action An action object to be removed.
+     * @example
+     * var action = cc.scaleTo(0.2, 1, 0.6);
+     * node.stopAction(action);
+     */
+    stopAction: ActionManagerExist ? function (action) {
+        cc.director.getActionManager().removeAction(action);
+    } : emptyFunc,
+
+    /**
+     * !#en Removes an action from the running action list by its tag.
+     * !#zh 停止并且移除指定标签的动作。
+     * @method stopActionByTag
+     * @param {Number} tag A tag that indicates the action to be removed.
+     * @example
+     * node.stopAction(1);
+     */
+    stopActionByTag: ActionManagerExist ? function (tag) {
+        if (tag === cc.Action.TAG_INVALID) {
+            cc.logID(1612);
+            return;
+        }
+        cc.director.getActionManager().removeActionByTag(tag, this);
+    } : emptyFunc,
+
+    /**
+     * !#en Returns an action from the running action list by its tag.
+     * !#zh 通过标签获取指定动作。
+     * @method getActionByTag
+     * @see cc.Action#getTag and cc.Action#setTag
+     * @param {Number} tag
+     * @return {Action} The action object with the given tag.
+     * @example
+     * var action = node.getActionByTag(1);
+     */
+    getActionByTag: ActionManagerExist ? function (tag) {
+        if (tag === cc.Action.TAG_INVALID) {
+            cc.logID(1613);
+            return null;
+        }
+        return cc.director.getActionManager().getActionByTag(tag, this);
+    } : function () {
+        return null;
+    },
+
+    /**
+     * !#en
+     * Returns the numbers of actions that are running plus the ones that are schedule to run (actions in actionsToAdd and actions arrays).<br/>
+     *    Composable actions are counted as 1 action. Example:<br/>
+     *    If you are running 1 Sequence of 7 actions, it will return 1. <br/>
+     *    If you are running 7 Sequences of 2 actions, it will return 7.</p>
+     * !#zh
+     * 获取运行着的动作加上正在调度运行的动作的总数。<br/>
+     * 例如：<br/>
+     * - 如果你正在运行 7 个动作中的 1 个 Sequence，它将返回 1。<br/>
+     * - 如果你正在运行 2 个动作中的 7 个 Sequence，它将返回 7。<br/>
+     *
+     * @method getNumberOfRunningActions
+     * @return {Number} The number of actions that are running plus the ones that are schedule to run
+     * @example
+     * var count = node.getNumberOfRunningActions();
+     * cc.log("Running Action Count: " + count);
+     */
+    getNumberOfRunningActions: ActionManagerExist ? function () {
+        return cc.director.getActionManager().getNumberOfRunningActionsInTarget(this);
+    } : function () {
+        return 0;
+    },
+
+    _retainAction (action) {
+        if (CC_JSB && action instanceof cc.Action && this._retainedActions.indexOf(action) === -1) {
+            this._retainedActions.push(action);
+            action.retain();
+        }
+    },
+
+    _releaseAllActions () {
+        if (CC_JSB) {
+            for (var i = 0; i < this._retainedActions.length; ++i) {
+                this._retainedActions[i].release();
+            }
+            this._retainedActions.length = 0;
+        }
+    },
+
+    setTag (value) {
+        this._tag = value;
+        this._sgNode.tag = value;
+    },
+
+    /**
+     * !#en Returns a copy of the position (x, y) of the node in its parent's coordinates.
+     * !#zh 获取节点在父节点坐标系中的位置（x, y）。
+     * @method getPosition
+     * @return {Vec2} The position (x, y) of the node in its parent's coordinates
+     * @example
+     * cc.log("Node Position: " + node.getPosition());
+     */
+    getPosition () {
+        return new cc.Vec2(this._position);
+    },
+
+    /**
+     * !#en
+     * Sets the position (x, y) of the node in its parent's coordinates.<br/>
+     * Usually we use cc.v2(x, y) to compose cc.Vec2 object.<br/>
+     * and Passing two numbers (x, y) is more efficient than passing cc.Vec2 object.
+     * !#zh
+     * 设置节点在父节点坐标系中的位置。<br/>
+     * 可以通过两种方式设置坐标点：<br/>
+     * 1. 传入 2 个数值 x 和 y。<br/>
+     * 2. 传入 cc.v2(x, y) 类型为 cc.Vec2 的对象。
+     * @method setPosition
+     * @param {Vec2|Number} newPosOrX - X coordinate for position or the position (x, y) of the node in coordinates
+     * @param {Number} [y] - Y coordinate for position
+     * @example {@link utils/api/engine/docs/cocos2d/core/utils/base-node/setPosition.js}
+     */
+    setPosition (newPosOrX, y) {
+        var x;
+        if (typeof y === 'undefined') {
+            x = newPosOrX.x;
+            y = newPosOrX.y;
+        }
+        else {
+            x = newPosOrX;
         }
 
         var locPosition = this._position;
-        if (locPosition.x === xValue && locPosition.y === yValue) {
+        if (locPosition.x === x && locPosition.y === y) {
             return;
         }
 
@@ -1545,20 +1571,20 @@ var Node = cc.Class({
             var oldPosition = new cc.Vec2(locPosition);
         }
 
-        if (!CC_EDITOR || isFinite(xValue)) {
-            locPosition.x = xValue;
+        if (!CC_EDITOR || isFinite(x)) {
+            locPosition.x = x;
         }
         else {
             return cc.error(ERR_INVALID_NUMBER, 'x of new position');
         }
-        if (!CC_EDITOR || isFinite(yValue)) {
-            locPosition.y = yValue;
+        if (!CC_EDITOR || isFinite(y)) {
+            locPosition.y = y;
         }
         else {
             return cc.error(ERR_INVALID_NUMBER, 'y of new position');
         }
 
-        this._sgNode.setPosition(xValue, yValue);
+        this._sgNode.setPosition(x, y);
 
         // fast check event
         var capListeners = this._capturingListeners &&
@@ -1586,7 +1612,7 @@ var Node = cc.Class({
      * @example
      * cc.log("Node Scale: " + node.getScale());
      */
-    getScale: function () {
+    getScale () {
         if (this._scaleX !== this._scaleY)
             cc.logID(1603);
         return this._scaleX;
@@ -1597,15 +1623,15 @@ var Node = cc.Class({
      * !#zh 设置节点的缩放比例，默认值为 1.0。这个函数可以在同一时间修改 X 和 Y 缩放。
      * @method setScale
      * @param {Number|Vec2} scaleX - scaleX or scale
-     * @param {Number} [scaleY=scale]
+     * @param {Number} [scaleY]
      * @example
      * node.setScale(cc.v2(1, 1));
      * node.setScale(1, 1);
      */
-    setScale: function (scaleX, scaleY) {
+    setScale (scaleX, scaleY) {
         if (typeof scaleX === 'object') {
             scaleY = scaleX.y;
-            scaleX = scaleX.x
+            scaleX = scaleX.x;
         }
         else {
             scaleY = (scaleY || scaleY === 0) ? scaleY : scaleX;
@@ -1614,6 +1640,8 @@ var Node = cc.Class({
             this._scaleX = scaleX;
             this._scaleY = scaleY;
             this._sgNode.setScale(scaleX, scaleY);
+
+            this.emit(SCALE_CHANGED);
         }
     },
 
@@ -1629,7 +1657,7 @@ var Node = cc.Class({
      * @example
      * cc.log("Content Size: " + node.getContentSize());
      */
-    getContentSize: function (ignoreSizeProvider) {
+    getContentSize (ignoreSizeProvider) {
         if (this._sizeProvider && !ignoreSizeProvider) {
             var size = this._sizeProvider.getContentSize();
             this._contentSize = size;
@@ -1653,7 +1681,7 @@ var Node = cc.Class({
      * node.setContentSize(cc.size(100, 100));
      * node.setContentSize(100, 100);
      */
-    setContentSize: function (size, height) {
+    setContentSize (size, height) {
         var locContentSize = this._contentSize;
         var clone;
         if (height === undefined) {
@@ -1694,7 +1722,7 @@ var Node = cc.Class({
      * @example
      * node.setOpacityModifyRGB(true);
      */
-    setOpacityModifyRGB: function (opacityValue) {
+    setOpacityModifyRGB (opacityValue) {
         if (this._opacityModifyRGB !== opacityValue) {
             this._opacityModifyRGB = opacityValue;
             this._sgNode.setOpacityModifyRGB(opacityValue);
@@ -1713,7 +1741,7 @@ var Node = cc.Class({
      * @example
      * var hasChange = node.isOpacityModifyRGB();
      */
-    isOpacityModifyRGB: function () {
+    isOpacityModifyRGB () {
         return this._opacityModifyRGB;
     },
 
@@ -1749,7 +1777,7 @@ var Node = cc.Class({
      * @example
      * node.setGlobalZOrder(0);
      */
-    setGlobalZOrder: function (globalZOrder) {
+    setGlobalZOrder (globalZOrder) {
         this._globalZOrder = globalZOrder;
         this._sgNode.setGlobalZOrder(globalZOrder);
     },
@@ -1762,7 +1790,7 @@ var Node = cc.Class({
      * @example
      * cc.log("Global Z Order: " + node.getGlobalZOrder());
      */
-    getGlobalZOrder: function () {
+    getGlobalZOrder () {
         this._globalZOrder = this._sgNode.getGlobalZOrder();
         return this._globalZOrder;
     },
@@ -1787,7 +1815,7 @@ var Node = cc.Class({
      * @example
      * cc.log("Node AnchorPoint: " + node.getAnchorPoint());
      */
-    getAnchorPoint: function () {
+    getAnchorPoint () {
         return cc.p(this._anchorPoint);
     },
 
@@ -1813,7 +1841,7 @@ var Node = cc.Class({
      * node.setAnchorPoint(cc.v2(1, 1));
      * node.setAnchorPoint(1, 1);
      */
-    setAnchorPoint: function (point, y) {
+    setAnchorPoint (point, y) {
         var locAnchorPoint = this._anchorPoint;
         if (y === undefined) {
             if ((point.x === locAnchorPoint.x) && (point.y === locAnchorPoint.y))
@@ -1846,7 +1874,7 @@ var Node = cc.Class({
      * @example
      * cc.log("AnchorPointInPoints: " + node.getAnchorPointInPoints());
      */
-    getAnchorPointInPoints: function () {
+    getAnchorPointInPoints () {
         return this._sgNode.getAnchorPointInPoints();
     },
 
@@ -1864,7 +1892,7 @@ var Node = cc.Class({
      * @example
      * var displayOpacity = node.getDisplayedOpacity();
      */
-    getDisplayedOpacity: function () {
+    getDisplayedOpacity () {
         return this._sgNode.getDisplayedOpacity();
     },
 
@@ -1876,7 +1904,7 @@ var Node = cc.Class({
      * @example
      * node._updateDisplayedOpacity(255);
      */
-    _updateDisplayedOpacity: function (parentOpacity) {
+    _updateDisplayedOpacity (parentOpacity) {
         this._sgNode.updateDisplayedOpacity(parentOpacity);
     },
 
@@ -1892,7 +1920,7 @@ var Node = cc.Class({
      * @example
      * var displayColor = node.getDisplayedColor();
      */
-    getDisplayedColor: function () {
+    getDisplayedColor () {
         return this._sgNode.getDisplayedColor();
     },
 
@@ -1910,7 +1938,7 @@ var Node = cc.Class({
      * @example
      * var affineTransform = node.getNodeToParentTransformAR();
      */
-    getNodeToParentTransformAR: function () {
+    getNodeToParentTransformAR () {
         var contentSize = this.getContentSize();
         var mat = this._sgNode.getNodeToParentTransform();
         if (!this._isSgTransformArToMe(contentSize)) {
@@ -1933,7 +1961,7 @@ var Node = cc.Class({
      * @example
      * var boundingBox = node.getBoundingBox();
      */
-    getBoundingBox: function () {
+    getBoundingBox () {
         var size = this.getContentSize();
         var rect = cc.rect(0, 0, size.width, size.height);
         return cc._rectApplyAffineTransformIn(rect, this.getNodeToParentTransform());
@@ -1951,7 +1979,7 @@ var Node = cc.Class({
      * @example
      * var newRect = node.getBoundingBoxToWorld();
      */
-    getBoundingBoxToWorld: function () {
+    getBoundingBoxToWorld () {
         var trans;
         if (this.parent) {
             trans = this.parent.getNodeToWorldTransformAR();
@@ -1959,7 +1987,7 @@ var Node = cc.Class({
         return this._getBoundingBoxTo(trans);
     },
 
-    _getBoundingBoxTo: function (parentTransformAR) {
+    _getBoundingBoxTo (parentTransformAR) {
         var size = this.getContentSize();
         var width = size.width;
         var height = size.height;
@@ -1994,7 +2022,7 @@ var Node = cc.Class({
      * @example
      * var affineTransform = node.getNodeToParentTransform();
      */
-    getNodeToParentTransform: function () {
+    getNodeToParentTransform () {
         var contentSize = this.getContentSize();
         var mat = this._sgNode.getNodeToParentTransform();
         if (this._isSgTransformArToMe(contentSize)) {
@@ -2015,7 +2043,7 @@ var Node = cc.Class({
      * @example
      * var affineTransform = node.getNodeToWorldTransform();
      */
-    getNodeToWorldTransform: function () {
+    getNodeToWorldTransform () {
         var contentSize = this.getContentSize();
 
         if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
@@ -2048,7 +2076,7 @@ var Node = cc.Class({
      * @example
      * var mat = node.getNodeToWorldTransformAR();
      */
-    getNodeToWorldTransformAR: function () {
+    getNodeToWorldTransformAR () {
         var contentSize = this.getContentSize();
 
         if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
@@ -2079,7 +2107,7 @@ var Node = cc.Class({
      * @example
      * var affineTransform = node.getParentToNodeTransform();
      */
-    getParentToNodeTransform: function () {
+    getParentToNodeTransform () {
         return this._sgNode.getParentToNodeTransform();
     },
 
@@ -2091,7 +2119,7 @@ var Node = cc.Class({
      * @example
      * var affineTransform = node.getWorldToNodeTransform();
      */
-    getWorldToNodeTransform: function () {
+    getWorldToNodeTransform () {
         if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
             // ensure transform computed
             cc.director._visitScene();
@@ -2099,7 +2127,7 @@ var Node = cc.Class({
         return this._sgNode.getWorldToNodeTransform();
     },
 
-    _isSgTransformArToMe: function (myContentSize) {
+    _isSgTransformArToMe (myContentSize) {
         var renderSize = this._sgNode.getContentSize();
         if (renderSize.width === 0 && renderSize.height === 0 &&
             (myContentSize.width !== 0 || myContentSize.height !== 0)) {
@@ -2122,7 +2150,7 @@ var Node = cc.Class({
      * @example
      * var newVec2 = node.convertToNodeSpace(cc.v2(100, 100));
      */
-    convertToNodeSpace: function (worldPoint) {
+    convertToNodeSpace (worldPoint) {
         if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
             // ensure transform computed
             cc.director._visitScene();
@@ -2140,7 +2168,7 @@ var Node = cc.Class({
      * @example
      * var newVec2 = node.convertToWorldSpace(cc.v2(100, 100));
      */
-    convertToWorldSpace: function (nodePoint) {
+    convertToWorldSpace (nodePoint) {
         if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
             // ensure transform computed
             cc.director._visitScene();
@@ -2163,7 +2191,7 @@ var Node = cc.Class({
      * @example
      * var newVec2 = node.convertToNodeSpaceAR(cc.v2(100, 100));
      */
-    convertToNodeSpaceAR: function (worldPoint) {
+    convertToNodeSpaceAR (worldPoint) {
         if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
             // ensure transform computed
             cc.director._visitScene();
@@ -2190,7 +2218,7 @@ var Node = cc.Class({
      * @example
      * var newVec2 = node.convertToWorldSpaceAR(cc.v2(100, 100));
      */
-    convertToWorldSpaceAR: function (nodePoint) {
+    convertToWorldSpaceAR (nodePoint) {
         if (cc._renderType === cc.game.RENDER_TYPE_CANVAS) {
             // ensure transform computed
             cc.director._visitScene();
@@ -2213,7 +2241,7 @@ var Node = cc.Class({
      * @example
      * var newVec2 = node.convertTouchToNodeSpace(touch);
      */
-    convertTouchToNodeSpace: function (touch) {
+    convertTouchToNodeSpace (touch) {
         return this.convertToNodeSpace(touch.getLocation());
     },
 
@@ -2226,11 +2254,11 @@ var Node = cc.Class({
      * @example
      * var newVec2 = node.convertTouchToNodeSpaceAR(touch);
      */
-    convertTouchToNodeSpaceAR: function (touch) {
+    convertTouchToNodeSpaceAR (touch) {
         return this.convertToNodeSpaceAR(touch.getLocation());
     },
 
-    setNodeDirty: function () {
+    setNodeDirty () {
         this._sgNode.setNodeDirty();
     },
 
@@ -2246,7 +2274,7 @@ var Node = cc.Class({
      * @example
      * node.addChild(newNode, 1, 1001);
      */
-    addChild: function (child, localZOrder, tag) {
+    addChild (child, localZOrder, tag) {
         localZOrder = localZOrder === undefined ? child._localZOrder : localZOrder;
         var name, setTag = false;
         if (typeof tag === 'undefined') {
@@ -2283,9 +2311,9 @@ var Node = cc.Class({
      * @example
      * node.cleanup();
      */
-    cleanup: function () {
+    cleanup () {
         // actions
-        cc.director.getActionManager().removeAllActionsFromTarget(this);
+        ActionManagerExist && cc.director.getActionManager().removeAllActionsFromTarget(this);
         // event
         cc.eventManager.removeListeners(this);
 
@@ -2305,7 +2333,7 @@ var Node = cc.Class({
      *
      * @method sortAllChildren
      */
-    sortAllChildren: function () {
+    sortAllChildren () {
         if (this._reorderChildDirty) {
             this._reorderChildDirty = false;
             var _children = this._children;
@@ -2332,18 +2360,18 @@ var Node = cc.Class({
                 }
                 this.emit(CHILD_REORDER);
             }
-            cc.director.__fastOff(cc.Director.EVENT_AFTER_UPDATE, this.sortAllChildren, this, this.__eventTargets);
+            cc.director.__fastOff(cc.Director.EVENT_AFTER_UPDATE, this.sortAllChildren, this);
         }
     },
 
-    _delaySort: function () {
+    _delaySort () {
         if (!this._reorderChildDirty) {
             this._reorderChildDirty = true;
-            cc.director.__fastOn(cc.Director.EVENT_AFTER_UPDATE, this.sortAllChildren, this, this.__eventTargets);
+            cc.director.__fastOn(cc.Director.EVENT_AFTER_UPDATE, this.sortAllChildren, this);
         }
     },
 
-    _updateDummySgNode: function () {
+    _updateDummySgNode () {
         var self = this;
         var sgNode = self._sgNode;
 
@@ -2371,7 +2399,7 @@ var Node = cc.Class({
         sgNode.setTag(self._tag);
     },
 
-    _updateSgNode: function () {
+    _updateSgNode () {
         this._updateDummySgNode();
         var sgNode = this._sgNode;
         sgNode.setAnchorPoint(this._anchorPoint);
@@ -2379,12 +2407,13 @@ var Node = cc.Class({
         sgNode.setColor(this._color);
 
         // update ActionManager and EventManager because sgNode maybe changed
+        var actionManager = ActionManagerExist ? cc.director.getActionManager() : null;
         if (this._activeInHierarchy) {
-            cc.director.getActionManager().resumeTarget(this);
+            actionManager && actionManager.resumeTarget(this);
             cc.eventManager.resumeTarget(this);
         }
         else {
-            cc.director.getActionManager().pauseTarget(this);
+            actionManager && actionManager.pauseTarget(this);
             cc.eventManager.pauseTarget(this);
         }
     },
@@ -2422,12 +2451,13 @@ var Node = cc.Class({
 
         this._onRestoreBase();
 
+        var actionManager = cc.director.getActionManager();
         if (this._activeInHierarchy) {
-            cc.director.getActionManager().resumeTarget(this);
+            actionManager && actionManager.resumeTarget(this);
             cc.eventManager.resumeTarget(this);
         }
         else {
-            cc.director.getActionManager().pauseTarget(this);
+            actionManager && actionManager.pauseTarget(this);
             cc.eventManager.pauseTarget(this);
         }
     },

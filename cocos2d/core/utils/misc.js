@@ -23,6 +23,8 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+// jshint evil: true
+
 // should not use long variable name because eval breaks uglify's mangle operation in this file
 var m = {};
 
@@ -88,20 +90,67 @@ m.NextPOT = function (x) {
 //
 //DirtyFlags.WIDGET = DirtyFlags.TRANSFORM | DirtyFlags.SIZE;
 
-// wrap a new scope to enalbe minify
+// wrap a new scope to avoid uglify's mangle process broken by eval in caller's scope
 
-// jshint evil: true
-m.cleanEval = function (code) {
-    return eval(code);
-};
 m.cleanEval_F = function (code, F) {
     return eval(code);
 };
+
 m.cleanEval_fireClass = function (code) {
     var fireClass = eval(code);
     return fireClass;
 };
-// jshint evil: false
 
+if (CC_EDITOR) {
+    // use anonymous function here to ensure it will not being hoisted without CC_EDITOR
+
+    m.tryCatchFunctor_EDITOR = function (funcName, receivedArgs, usedArgs, afterCall) {
+        function call_FUNC_InTryCatch (_R_ARGS_) {
+            try {
+                target._FUNC_(_U_ARGS_);
+            }
+            catch (e) {
+                cc._throw(e);
+            }
+            _AFTER_CALL_
+        }
+        // use evaled code to generate named function
+        return Function('return ' + call_FUNC_InTryCatch
+                    .toString()
+                    .replace(/_FUNC_/g, funcName)
+                    .replace('_R_ARGS_', 'target' + (receivedArgs ? ', ' + receivedArgs : ''))
+                    .replace('_U_ARGS_', usedArgs || '')
+                    .replace('_AFTER_CALL_', afterCall || ''))();
+    };
+}
+
+m.imagePool = {
+    _pool: new Array(10),
+    _MAX: 10,
+    _smallImg: "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=",
+
+    count: 0,
+    get: function () {
+        if (this.count > 0) {
+            this.count--;
+            var result = this._pool[this.count];
+            this._pool[this.count] = null;
+            return result;
+        }
+        else {
+            return new Image();
+        }
+    },
+    put: function (img) {
+        var pool = this._pool;
+        if (img instanceof HTMLImageElement && this.count < this._MAX) {
+            img.src = this._smallImg;
+            pool[this.count] = img;
+            this.count++;
+        }
+    }
+};
 
 module.exports = m;
+
+// jshint evil: false

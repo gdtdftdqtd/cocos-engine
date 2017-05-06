@@ -120,10 +120,24 @@ var Overflow = _ccsg.Label.Overflow;
 // be triggered. The function will be called after it stops being called for
 // N milliseconds. If `immediate` is passed, trigger the function on the
 // leading edge, instead of the trailing.
-function debounce(func, wait, immediate) {
+function debounce (func, wait, immediate) {
     var timeout;
-    return function() {
-        var context = this, args = arguments;
+    return CC_JSB ? function (...args) {
+        var context = this;
+        var later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+    } : function () {
+        var context = this;
+        var args = new Array(arguments.length);
+        for (var i = 0; i < arguments.length; i++) {
+            args[i] = arguments[i];
+        }
         var later = function() {
             timeout = null;
             if (!immediate) func.apply(context, args);
@@ -275,6 +289,21 @@ var Label = cc.Class({
             tooltip: CC_DEV && 'i18n:COMPONENT.label.font_size',
         },
 
+        /**
+         * !#en Font family of label, only take effect when useSystemFont property is true.
+         * !#zh 文本字体名称, 只在 useSystemFont 属性为 true 的时候生效。
+         * @property {String} fontFamily
+         */
+        fontFamily: {
+            default: "Arial",
+            tooltip: CC_DEV && 'i18n:COMPONENT.label.font_family',
+            notify: function () {
+                if (this._sgNode) {
+                    this._sgNode.setFontFileOrFamily(this.fontFamily);
+                }
+            }
+        },
+
         _lineHeight: 40,
         /**
          * !#en Line Height of label.
@@ -372,11 +401,26 @@ var Label = cc.Class({
                         cc.warnID(4000);
                     }
 
-                    var isAsset = value instanceof cc.Font;
-
-                    if (this.font instanceof cc.BitmapFont) {
-                        this._sgNode.setFontFileOrFamily(this.font.fntDataStr, this.font.spriteFrame);
+                    var font = this.font;
+                    if (font instanceof cc.BitmapFont) {
+                        if (font.spriteFrame) {
+                            if (!CC_JSB) {
+                                this._sgNode.setFontFileOrFamily(font.fntDataStr, font.spriteFrame, font);
+                            } else {
+                                if (font.spriteFrame.textureLoaded()) {
+                                    this._sgNode.setFontFileOrFamily(font.fntDataStr, font.spriteFrame);
+                                }
+                                else {
+                                    cc.warnID(4012, font.name);
+                                    this._sgNode.setFontFileOrFamily('');
+                                }
+                            }
+                        } else {
+                            cc.warnID(4011, font.name);
+                            this._sgNode.setFontFileOrFamily('');
+                        }
                     } else {
+                        var isAsset = value instanceof cc.Font;
                         var ttfName = isAsset ? value.rawUrl : '';
                         this._sgNode.setFontFileOrFamily(ttfName);
                     }
@@ -406,6 +450,7 @@ var Label = cc.Class({
                 if(CC_EDITOR) {
                     if(!value && this._isSystemFontUsed && this._userDefinedFont) {
                         this.font = this._userDefinedFont;
+                        this.spacingX = this._spacingX;
                         return;
                     }
                 }
@@ -414,7 +459,7 @@ var Label = cc.Class({
                 if (value) {
                     this.font = null;
                     if (this._sgNode) {
-                        this._sgNode.setFontFileOrFamily('Arial');
+                        this._sgNode.setFontFileOrFamily(this.fontFamily);
                     }
                 }
 
@@ -430,6 +475,20 @@ var Label = cc.Class({
             readonly: true,
             visible: true,
             animatable: false
+        },
+
+        _spacingX: 0,
+        spacingX: {
+            get: function() {
+                return this._spacingX;
+            },
+            set: function(value) {
+                this._spacingX = value;
+                if (this._sgNode) {
+                    this._sgNode.setSpacingX(this.spacingX);
+                    this._updateNodeSize();
+                }
+            }
         }
 
     },
@@ -460,18 +519,31 @@ var Label = cc.Class({
     },
 
     _initSgNode: function () {
-
-        if ( typeof this.font === 'string' ) {
+        var font = this.font;
+        if (typeof font === 'string' ) {
             cc.warnID(4000);
         }
 
-        var isAsset = this.font instanceof cc.Font;
-
         var sgNode;
-        if (this.font instanceof cc.BitmapFont) {
-            sgNode = this._sgNode = new _ccsg.Label(this.string, this.font.fntDataStr, this.font.spriteFrame);
+        if (font instanceof cc.BitmapFont) {
+            if (font.spriteFrame) {
+                if (CC_JSB) {
+                    if (font.spriteFrame.textureLoaded()) {
+                        sgNode = this._sgNode = new _ccsg.Label(this.string, font.fntDataStr, font.spriteFrame);
+                    } else {
+                        cc.warnID(4012, font.name);
+                        sgNode = this._sgNode = new _ccsg.Label(this.string);
+                    }
+                } else {
+                    sgNode = this._sgNode = new _ccsg.Label(this.string, font.fntDataStr, font.spriteFrame, font);
+                }
+            } else {
+                cc.warnID(4011, font.name);
+                sgNode = this._sgNode = new _ccsg.Label(this.string);
+            }
         } else {
-            var ttfName = isAsset ? this.font.rawUrl : '';
+            var isAsset = font instanceof cc.Font;
+            var ttfName = isAsset ? font.rawUrl : '';
             sgNode = this._sgNode = new _ccsg.Label(this.string, ttfName);
         }
 
@@ -479,25 +551,31 @@ var Label = cc.Class({
             sgNode.retain();
         }
 
-        if (this.font instanceof cc.BitmapFont) {
-            this._bmFontOriginalSize = this.font.fontSize;
+        if (font instanceof cc.BitmapFont) {
+            this._bmFontOriginalSize = font.fontSize;
         }
 
         sgNode.setVisible(false);
         sgNode.setHorizontalAlign( this.horizontalAlign );
         sgNode.setVerticalAlign( this.verticalAlign );
         sgNode.setFontSize( this._fontSize );
+        if (this.useSystemFont) {
+            sgNode.setFontFileOrFamily(this.fontFamily);
+        }
         sgNode.setOverflow( this.overflow );
         sgNode.enableWrapText( this._enableWrapText );
         sgNode.setLineHeight(this._lineHeight);
         sgNode.setString(this.string);
+        if (font instanceof cc.BitmapFont) {
+            sgNode.setSpacingX(this.spacingX);
+        }
         if (CC_EDITOR) {
             this._userDefinedFontSize = this.fontSize;
-            this._userDefinedFont = this.font;
+            this._userDefinedFont = font;
         }
         if (CC_EDITOR && this._useOriginalSize) {
             this.node.setContentSize(sgNode.getContentSize());
-            if (this.font instanceof cc.BitmapFont) {
+            if (font instanceof cc.BitmapFont) {
                 this.lineHeight = sgNode.getBMFontLineHeight();
             }
             this._useOriginalSize = false;

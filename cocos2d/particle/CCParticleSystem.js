@@ -102,7 +102,7 @@ var properties = {
             cc.engine.repaintInEditMode();
         },
         animatable: false,
-        tooltip: 'i18n:COMPONENT.particle_system.preview'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.preview'
     },
 
     /**
@@ -136,7 +136,7 @@ var properties = {
             }
         },
         animatable: false,
-        tooltip: 'i18n:COMPONENT.particle_system.custom'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.custom'
     },
 
     /**
@@ -170,7 +170,7 @@ var properties = {
         },
         animatable: false,
         url: cc.ParticleAsset,
-        tooltip: 'i18n:COMPONENT.particle_system.file'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.file'
     },
 
     /**
@@ -195,7 +195,7 @@ var properties = {
             }
         },
         url: cc.Texture2D,
-        tooltip: 'i18n:COMPONENT.particle_system.texture'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.texture'
     },
 
     /**
@@ -211,7 +211,7 @@ var properties = {
             this._sgNode.particleCount = value;
         },
         visible: false,
-        tooltip: 'i18n:COMPONENT.particle_system.particleCount'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.particleCount'
     },
 
     /**
@@ -232,7 +232,7 @@ var properties = {
         },
         animatable: false,
         type:BlendFactor,
-        tooltip: 'i18n:COMPONENT.particle_system.srcBlendFactor'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.srcBlendFactor'
     },
 
     /**
@@ -253,7 +253,7 @@ var properties = {
         },
         animatable: false,
         type: BlendFactor,
-        tooltip: 'i18n:COMPONENT.particle_system.dstBlendFactor'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.dstBlendFactor'
     },
 
     /**
@@ -284,7 +284,7 @@ var properties = {
             }
         },
         animatable: false,
-        tooltip: 'i18n:COMPONENT.particle_system.autoRemoveOnFinish'
+        tooltip: CC_DEV && 'i18n:COMPONENT.particle_system.autoRemoveOnFinish'
     },
 
     /**
@@ -686,6 +686,8 @@ var ParticleSystem = cc.Class({
         this._focused = false;
         this._willStart = false;
         this._blendFunc = new cc.BlendFunc(0, 0);
+        // prevent repeated rewriting 'onExit'
+        this._originOnExit = null;
     },
 
     properties: properties,
@@ -912,7 +914,14 @@ var ParticleSystem = cc.Class({
                 sgNode.particleCount = 0;
 
                 var active = sgNode.isActive();
-                sgNode.initWithDictionary(content, '');
+
+                if (CC_EDITOR) {
+                    sgNode._plistFile = file;
+                    sgNode.initWithDictionary(content, '');
+                }
+                else {
+                    sgNode.initWithFile(file);
+                }
 
                 // To avoid it export custom particle data textureImageData too large,
                 // so use the texutreUuid instead of textureImageData
@@ -982,15 +991,19 @@ var ParticleSystem = cc.Class({
         var autoRemove = this._autoRemoveOnFinish;
         sgNode.autoRemoveOnFinish = autoRemove;
         if (autoRemove) {
-            cc.assert(!sgNode.onExit);
+            if (this._originOnExit) {
+                return;
+            }
+            this._originOnExit = sgNode.onExit;
             var self = this;
             sgNode.onExit = function () {
-                _ccsg.Node.prototype.onExit.call(this);
+                self._originOnExit.call(this);
                 self.node.destroy();
             };
         }
-        else if (sgNode.hasOwnProperty('onExit')) {
-            sgNode.onExit = _ccsg.Node.prototype.onExit;
+        else if (this._originOnExit) {
+            sgNode.onExit = this._originOnExit;
+            this._originOnExit = null;
         }
     }
 });

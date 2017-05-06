@@ -145,7 +145,7 @@ cc.TMXObjectGroupInfo = cc._Class.extend(/** @lends cc.TMXObjectGroupInfo# */{
  * @property {number} spacing - Spacing
  * @property {number} margin - Margin
  * @property {string} sourceImage - Filename containing the tiles (should be sprite sheet / texture atlas)
- * @property {cc.Size|null} imageSize - Size in pixels of the image
+ * @property {cc.Size} imageSize - Size in pixels of the image
  */
 cc.TMXTilesetInfo = cc._Class.extend(/** @lends cc.TMXTilesetInfo# */{
 
@@ -848,7 +848,7 @@ cc.TMXMapInfo = cc.SAXParser.extend(/** @lends cc.TMXMapInfo# */{
         var objects = selGroup.querySelectorAll('object');
         var getContentScaleFactor = cc.director.getContentScaleFactor();
         if (objects) {
-            for (j = 0; j < objects.length; j++) {
+            for (var j = 0; j < objects.length; j++) {
                 var selObj = objects[j];
                 // The value for "type" was blank or not a valid class name
                 // Create an instance of TMXObjectInfo to store the object and its properties

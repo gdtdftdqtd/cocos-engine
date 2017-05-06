@@ -27,7 +27,6 @@ var JS = require('./js');
 var CCObject = require('./CCObject');
 var Attr = require('./attribute');
 var CCClass = require('./CCClass');
-var cleanEval = require('../utils/misc').cleanEval;
 
 // HELPERS
 
@@ -362,8 +361,7 @@ var _Deserializer = (function () {
         var props = klass.__props__;
         // self, obj, serializedData, klass, target
         var sources = [
-            '(function(s,o,d,k,t){',
-                'var prop;'
+            'var prop;'
         ];
         // sources.push('var vb,vn,vs,vo,vu,vf;');    // boolean, number, string, object, undefined, function
         for (var p = 0; p < props.length; p++) {
@@ -427,8 +425,25 @@ var _Deserializer = (function () {
             // parse the serialized data as primitive javascript object, so its __id__ will be dereferenced
             sources.push('s._deserializePrimitiveObject(o._$erialized,d);');
         }
-        sources.push('})');
-        return cleanEval(sources.join(''));
+        return Function('s', 'o', 'd', 'k', 't', sources.join(''));
+    }
+
+    function unlinkUnusedPrefab (self, serialized, obj) {
+        var uuid = serialized['asset'] && serialized['asset'].__uuid__;
+        if (uuid) {
+            var last = self.result.uuidList.length - 1;
+            if (self.result.uuidList[last] === uuid &&
+                self.result.uuidObjList[last] === obj &&
+                self.result.uuidPropList[last] === 'asset') {
+                self.result.uuidList.pop();
+                self.result.uuidObjList.pop();
+                self.result.uuidPropList.pop();
+            }
+            else {
+                var debugEnvOnlyInfo = 'Failed to skip prefab asset while deserializing PrefabInfo';
+                cc.warn(debugEnvOnlyInfo);
+            }
+        }
     }
 
     function _deserializeFireClass (self, obj, serialized, klass, target) {
@@ -438,22 +453,13 @@ var _Deserializer = (function () {
             // if (CC_TEST && !isPhantomJS) {
             //     cc.log(deserialize);
             // }
-            Object.defineProperty(klass, '__deserialize__', { value: deserialize, writable: true });
+            JS.value(klass, '__deserialize__', deserialize, true);
         }
         deserialize(self, obj, serialized, klass, target);
-
-        // HACK: remove unneeded asset property
-        if (/* preview or build */
-            CC_DEV && (!CC_EDITOR || self._ignoreEditorOnly) &&
-            klass === cc._PrefabInfo && !obj.sync) {
-            var uuid = serialized['asset'] && serialized['asset'].__uuid__;
-            if (uuid) {
-                var index = self.result.uuidList.indexOf(uuid);
-                if (index !== -1) {
-                    JS.array.fastRemoveAt(self.result.uuidList, index);
-                    JS.array.fastRemoveAt(self.result.uuidObjList, index);
-                    JS.array.fastRemoveAt(self.result.uuidPropList, index);
-                }
+        // if preview or build
+        if (CC_DEV && (!CC_EDITOR || self._ignoreEditorOnly)) {
+            if (klass === cc._PrefabInfo && !obj.sync) {
+                unlinkUnusedPrefab(self, serialized, obj);
             }
         }
     }

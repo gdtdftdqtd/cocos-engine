@@ -47,6 +47,7 @@ if (CC_DEV) {
         "1401": "The first argument should be the destination object", //inject
         "1402": "The 'visible' property of %s is deprecated, use 'enabled' instead please.", //visible
         "1403": "Sorry, cc.audioEngine.willPlayMusic is removed.", //willPlayMusicError
+        "1404": "cc.spriteFrameCache is removed, please use cc.loader to load and cache sprite frames of atlas format.",
         //Scheduler: 1500
         "1500": "CCSheduler#scheduleCallback. Callback already scheduled. Updating interval from:%s to %s", //scheduleCallbackForTarget
         "1501": "cc.scheduler.scheduleCallbackForTarget(): callback_fn should be non-null.", //scheduleCallbackForTarget_2
@@ -265,7 +266,7 @@ if (CC_DEV) {
         "3610": "The type of %s must be cc.Float or cc.Integer, not Number.", //getTypeChecker_7
         "3611": "Can not indicate the '%s' attribute for %s, which its default value is type of %s.", //getTypeChecker_8
         "3612": "%s Just set the default value to 'new %s()' and it will be handled properly.", //getTypeChecker_9
-        "3613": "'No need to use 'serializable: false' or 'editorOnly: true' for the getter of '%s.%s', every getter is actually non-serialized.", //defineGetSet
+        "3613": "'No need to specify the '%s' attribute for the getter of '%s.%s', every getter is actually non-serialized.", //defineGetSet
         "3615": "Each script can have at most one Component.", //define_2
         "3616": "Should not specify class name %s for Component which defines in project.", //define_3
         "3617": "ctor of CCClass '%s' should not accept any arguments.", //_createCtor
@@ -290,7 +291,6 @@ if (CC_DEV) {
         "3636": "Do not set default value to non-empty object, unless the object defines its own 'clone' function. Set default value of %s.%s to null or {}, and initialize in 'onLoad' or 'ctor' please. (just like 'this.%s = {foo: bar};')", //defineProp_2        
         "3637": "Can not declare %s.%s, it is already defined in the prototype of %s", //defineProp_3        
         "3638": "'%s': the getter of '%s' is already defined!", //defineGetSet_2
-        "3639": "Can not apply the specified attribute to the getter of '%s.%s', attribute index: %s", //defineGetSet_3
         "3640": "'%s': the setter of '%s' is already defined!", //defineGetSet_4
         "3641": "Can not construct %s because it contains object property.", //getNewValueTypeCode
         "3642": "Cannot define %s.%s because static member name can not be '%s'.", //CCClass_4
@@ -301,6 +301,8 @@ if (CC_DEV) {
         "3647": "The length of range array must be equal or greater than 2", //parseAttributes_4
         "3648": "Can not declare %s.%s method, it is already defined in the properties of %s.",
         "3649": "CCClass %s have conflict between its ctor and __ctor__.",
+        "3650": "No need to specifiy '%s' attribute for '%s' in class \"%s\".",
+        "3651": "Can not call `_super` or `prototype.ctor` in ES6 Classes \"%s\", use `super` instead please.",
         //Prefab: 3700
         "3700": "internal error: _prefab is undefined", //_doInstantiate
         "3701": "Failed to load prefab asset for node '%s'", //syncWithPrefab
@@ -321,8 +323,8 @@ if (CC_DEV) {
         "3813": "removeComponent: Component must be non-nil", //removeComponent
         "3814": "Argument must be non-nil", //_removeComponent
         "3815": "Component not owned by this entity", //_removeComponent_2        
-        "3816": "Node '%s' is already activating", //_activeRecursively
-        "3817": "Sorry, the component of '%s' which with an index of %s is corrupted! It has been removed.", //_activeRecursively_2
+        "3816": "Node '%s' is already activating or deactivating.",
+        "3817": "Sorry, the component of '%s' which with an index of %s is corrupted! It has been removed.",
         "3818": "Failed to read or parse project.json", //_loadConfig
         "3819": "Warning: target element is not a DIV or CANVAS", //_initRenderer
         //Animation: 3900
@@ -350,6 +352,8 @@ if (CC_DEV) {
         "4008": "cc.LabelBMFont.initWithString(): Impossible to create font. Please check file", //
         "4009": "cocos2d: LabelBMFont: character not found %s", //BMFont.createFontChars
         "4010": "cc.LabelBMFont.setFntFile() : Impossible to create font. Please check file", //BMFont.setFntFile
+        "4011": "Property spriteFrame of Font '%s' is invalid. Using system font instead.", // BMFont spriteFrame is invalid.
+        "4012": "The texture of Font '%s' must be already loaded on JSB. Using system font instead.",
         //Layout: 4100
         "4100": "Property padding is deprecated, please use paddingLeft, paddingRight, paddingTop and paddingBottom instead", //padding
         //Mask: 4200
@@ -575,6 +579,11 @@ if (CC_DEV) {
         "8103": "cc.GLProgram.link(): Cannot link invalid program", //link
         "8104": "cocos2d: ERROR: Failed to link program: %s", //link
         "8105": "cocos2d: cc.shaderCache._loadDefaultShader, error shader type", //_loadDefaultShader
+        //Physics: 8200
+        "8200": "Please set node\'s active instead of rigidbody\'s enabled.", //cc.RigidBody.enabled
+        //Camera: 8300
+        "8300": "Should only one camera exists, please check your project.", //cc.Camera.enabled
+        "8301": "Camera does not support Canvas Mode.", //cc.Camera.enabled
     };
     cc._LogInfos = logs;
 }

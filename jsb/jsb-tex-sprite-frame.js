@@ -47,7 +47,9 @@ cc.TextureCache.prototype.addImageAsync = function (url, cb, target) {
     });
     return localTex;
 };
-// Fix for compatibility with old APIs
+if (!cc.TextureCache.prototype._addImage) {
+    cc.TextureCache.prototype._addImage = cc.TextureCache.prototype.addImage;
+}
 cc.TextureCache.prototype.addImage = function (url, cb, target) {
     if (typeof cb === "function") {
         return this.addImageAsync(url, cb, target);
@@ -89,6 +91,12 @@ cc.textureCache.removeTextureForKey = function (key) {
 cc.Class._fastDefine('cc.Texture2D', cc.Texture2D, []);
 cc.Texture2D.$super = cc.RawAsset;
 
+cc.Texture2D.WrapMode = cc.Enum({
+    REPEAT: 0x2901,
+    CLAMP_TO_EDGE: 0x812f,
+    MIRRORED_REPEAT: 0x8370
+});
+
 var prototype = cc.Texture2D.prototype;
 
 prototype.isLoaded = function () {
@@ -114,6 +122,10 @@ prototype.textureLoaded = function () {
 
 prototype._ctor = function (filename, rect, rotated, offset, originalSize) {
     this._name = '';
+    this.insetTop = 0;
+    this.insetBottom = 0;
+    this.insetLeft = 0;
+    this.insetRight = 0;
     if (filename !== undefined) {
         this.initWithTexture(filename, rect, rotated, offset, originalSize);
     } else {
@@ -183,16 +195,8 @@ prototype._refreshTexture = function (texture) {
         if (originalSize.width === 0 || originalSize.height === 0) {
             originalSize = cc.size(w, h);
         }
-
         var offset = this.getOffset();
         var rotated = this.isRotated();
-
-        if (this.insetTop === undefined) {
-            this.insetTop = 0;
-            this.insetBottom = 0;
-            this.insetLeft = 0;
-            this.insetRight = 0;
-        }
 
         this._initWithTexture(texture, rect, rotated, offset, originalSize);
 

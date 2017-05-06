@@ -1,5 +1,3 @@
-/*global dirtyFlags */
-
 /****************************************************************************
  Copyright (c) 2008-2010 Ricardo Quesada
  Copyright (c) 2011-2012 cocos2d-x.org
@@ -45,9 +43,9 @@
             this._notifyRegionStatus && this._notifyRegionStatus(_ccsg.Node.CanvasRenderCmd.RegionStatus.Dirty);
         }
 
-        if(locFlag & dirtyFlags.contentDirty) {
+        if(locFlag & flags.contentDirty) {
             this._notifyRegionStatus && this._notifyRegionStatus(_ccsg.Node.CanvasRenderCmd.RegionStatus.Dirty);
-            this._dirtyFlag &= ~dirtyFlags.contentDirty;
+            this._dirtyFlag &= ~flags.contentDirty;
         }
 
         if (colorDirty || (locFlag & flags.textDirty)) {
@@ -375,7 +373,6 @@
         this._calculateTextBaseline();
 
         this._updateTexture();
-
     };
 
 
@@ -425,6 +422,15 @@
                 this._labelContext.strokeText(this._splitedStrings[i],
                                               startPosition.x, startPosition.y + i * lineHeight);
             }
+            if(this._node.getFillColorGradientEnabled()) {
+                var gradientStartColor = this._node.getGradientStartColor() || cc.color(255, 255, 255, 255);
+                var gradientEndColor = this._node.getGradientEndColor() || cc.color(255, 255, 255, 255);
+                var gradientArgument = this._getGradientArgs();
+                var gradient = this._labelContext.createLinearGradient(gradientArgument.left, gradientArgument.top, gradientArgument.right, gradientArgument.bottom);
+                gradient.addColorStop(0, cc.colorToHex(gradientStartColor));
+                gradient.addColorStop(1, cc.colorToHex(gradientEndColor));
+                this._labelContext.fillStyle = gradient;
+            }
             this._labelContext.fillText(this._splitedStrings[i], startPosition.x, startPosition.y + i * lineHeight);
             if(this._node._isUnderline) {
                 underlineStartPosition = this._calculateUnderlineStartPosition();
@@ -440,7 +446,34 @@
         }
 
         this._texture._textureLoaded = false;
+        // Hack. because we delete _htmlElementObj after usage in WEBGL mode
+        this._texture._htmlElementObj = this._labelCanvas;
         this._texture.handleLoadedTexture(true);
+    };
+
+    proto._getGradientArgs = function () {
+        this._gradientArgument = {};
+        this._gradientArgument.left = 0;
+        this._gradientArgument.top = 0;
+        var contentSize = this._node._contentSize;
+        switch(this._node.getFillColorGradientDirection()) {
+                //horizontal
+            case 0:
+                this._gradientArgument.right = contentSize.width;
+                this._gradientArgument.bottom = 0;
+                break;
+            case 1:
+                this._gradientArgument.right = 0;
+                this._gradientArgument.bottom = contentSize.height;
+                break;
+            case 2:
+                this._gradientArgument.right = contentSize.width;
+                this._gradientArgument.bottom = contentSize.height;
+                break;
+            default:
+                break;
+        }
+        return this._gradientArgument;
     };
 
     proto._rebuildLabelSkin = function () {

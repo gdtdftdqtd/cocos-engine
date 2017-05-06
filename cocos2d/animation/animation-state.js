@@ -15,10 +15,9 @@ var AnimationNode = require('./types').AnimationNode;
  */
 
 /**
- * @method AnimationState
+ * @method constructor
  * @param {AnimationClip} clip
  * @param {String} [name]
- * @return {AnimationState}
  */
 function AnimationState (clip, name) {
     AnimationNode.call(this, null, null, {
@@ -26,8 +25,14 @@ function AnimationState (clip, name) {
     });
 
     this._emit = this.emit;
-    this.emit = function () {
-        cc.director.getAnimationManager().pushDelayEvent(this, '_emit', arguments);
+    this.emit = CC_JSB ? function (...args) {
+        cc.director.getAnimationManager().pushDelayEvent(this, '_emit', args);
+    } : function () {
+        var args = new Array(arguments.length);
+        for (var i = 0, l = args.length; i < l; i++) {
+            args[i] = arguments[i];
+        }
+        cc.director.getAnimationManager().pushDelayEvent(this, '_emit', args);
     };
 
     this._clip = clip;

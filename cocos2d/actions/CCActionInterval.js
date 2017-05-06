@@ -312,10 +312,10 @@ cc.Sequence = cc.ActionInterval.extend({
         cc.ActionInterval.prototype.ctor.call(this);
         this._actions = [];
 
-		var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
-		var last = paramArray.length - 1;
-		if ((last >= 0) && (paramArray[last] == null))
-			cc.logID(1015);
+        var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
+        var last = paramArray.length - 1;
+        if ((last >= 0) && (paramArray[last] == null))
+            cc.logID(1015);
 
         if (last >= 0) {
             var prev = paramArray[0], action1;
@@ -430,7 +430,8 @@ cc.Sequence = cc.ActionInterval.extend({
  * The created action will run actions sequentially, one after another.
  * !#zh 顺序执行动作，创建的动作将按顺序依次运行。
  * @method sequence
- * @param {Array|FiniteTimeAction} tempArray
+ * @param {FiniteTimeAction|FiniteTimeAction[]} actionOrActionArray
+ * @param {FiniteTimeAction} ...tempArray
  * @return {ActionInterval}
  * @example
  * // example
@@ -443,24 +444,17 @@ cc.Sequence = cc.ActionInterval.extend({
 // todo: It should be use new
 cc.sequence = function (/*Multiple Arguments*/tempArray) {
     var paramArray = (tempArray instanceof Array) ? tempArray : arguments;
-    if ((paramArray.length > 0) && (paramArray[paramArray.length - 1] == null))
+    var last = paramArray.length - 1;
+    if ((last >= 0) && (paramArray[last] == null))
         cc.logID(1015);
 
-    var result, current, i, repeat;
-    while(paramArray && paramArray.length > 0){
-        current = Array.prototype.shift.call(paramArray);
-        repeat = current._timesForRepeat || 1;
-        current._repeatMethod = false;
-        current._timesForRepeat = 1;
-
-        i = 0;
-        if(!result){
-            result = current;
-            i = 1;
-        }
-
-        for(i; i<repeat; i++){
-            result = cc.Sequence._actionOneTwo(result, current);
+    var result = null;
+    if (last >= 0) {
+        result = paramArray[0];
+        for (var i = 1; i <= last; i++) {
+            if (paramArray[i]) {
+                result = cc.Sequence._actionOneTwo(result, paramArray[i]);
+            }
         }
     }
 
@@ -821,7 +815,8 @@ cc.Spawn = cc.ActionInterval.extend({
  * !#en Create a spawn action which runs several actions in parallel.
  * !#zh 同步执行动作，同步执行一组动作。
  * @method spawn
- * @param {Array|FiniteTimeAction}tempArray
+ * @param {FiniteTimeAction|FiniteTimeAction[]} actionOrActionArray
+ * @param {FiniteTimeAction} ...tempArray
  * @return {FiniteTimeAction}
  * @example
  * // example
@@ -1149,7 +1144,7 @@ cc.MoveBy = cc.ActionInterval.extend({
  * @method moveBy
  * @param {Number} duration duration in seconds
  * @param {Vec2|Number} deltaPos
- * @param {Number} deltaY
+ * @param {Number} [deltaY]
  * @return {ActionInterval}
  * @example
  * // example
@@ -1168,7 +1163,7 @@ cc.moveBy = function (duration, deltaPos, deltaY) {
  * @extends MoveBy
  * @param {Number} duration duration in seconds
  * @param {Vec2|Number} position
- * @param {Number} y
+ * @param {Number} [y]
  * @example
  * var actionBy = new cc.MoveTo(2, cc.p(80, 80));
  */
@@ -1186,7 +1181,7 @@ cc.MoveTo = cc.MoveBy.extend({
      * Initializes the action.
      * @param {Number} duration  duration in seconds
      * @param {Vec2} position
-     * @param {Number} y
+     * @param {Number} [y]
      * @return {Boolean}
      */
     initWithDuration:function (duration, position, y) {
@@ -1225,8 +1220,8 @@ cc.MoveTo = cc.MoveBy.extend({
  * !#zh 移动到目标位置。
  * @method moveTo
  * @param {Number} duration duration in seconds
- * @param {Vec2} position
- * @param {Number} y
+ * @param {Vec2|Number} position
+ * @param {Number} [y]
  * @return {ActionInterval}
  * @example
  * // example
@@ -1523,8 +1518,8 @@ cc.JumpBy = cc.ActionInterval.extend({
  * @param {Number} duration
  * @param {Vec2|Number} position
  * @param {Number} [y]
- * @param {Number} height
- * @param {Number} jumps
+ * @param {Number} [height]
+ * @param {Number} [jumps]
  * @return {ActionInterval}
  * @example
  * // example
@@ -1543,8 +1538,8 @@ cc.jumpBy = function (duration, position, y, height, jumps) {
  * @param {Number} duration
  * @param {Vec2|Number} position
  * @param {Number} [y]
- * @param {Number} height
- * @param {Number} jumps
+ * @param {Number} [height]
+ * @param {Number} [jumps]
  * @example
  * var actionTo = new cc.JumpTo(2, cc.p(300, 0), 50, 4);
  * var actionTo = new cc.JumpTo(2, 300, 0, 50, 4);
@@ -1606,8 +1601,8 @@ cc.JumpTo = cc.JumpBy.extend({
  * @param {Number} duration
  * @param {Vec2|Number} position
  * @param {Number} [y]
- * @param {Number} height
- * @param {Number} jumps
+ * @param {Number} [height]
+ * @param {Number} [jumps]
  * @return {ActionInterval}
  * @example
  * // example
@@ -1638,8 +1633,8 @@ cc.bezierAt = function (a, b, c, d, t) {
  * Relative to its movement.
  * @class BezierBy
  * @extends ActionInterval
- * @param {Number} t time in seconds
- * @param {Array} c Array of points
+ * @param {Number} t - time in seconds
+ * @param {Vec2[]} c - Array of points
  * @example
  * var bezier = [cc.p(0, windowSize.height / 2), cc.p(300, -windowSize.height / 2), cc.p(300, 100)];
  * var bezierForward = new cc.BezierBy(3, bezier);
@@ -1660,8 +1655,8 @@ cc.BezierBy = cc.ActionInterval.extend({
 
     /*
      * Initializes the action.
-     * @param {Number} t time in seconds
-     * @param {Array} c Array of points
+     * @param {Number} t - time in seconds
+     * @param {Vec2[]} c - Array of points
      * @return {Boolean}
      */
     initWithDuration:function (t, c) {
@@ -1749,8 +1744,8 @@ cc.BezierBy = cc.ActionInterval.extend({
  * Relative to its movement.
  * !#zh 按贝赛尔曲线轨迹移动指定的距离。
  * @method bezierBy
- * @param {Number} t time in seconds
- * @param {Array} c Array of points
+ * @param {Number} t - time in seconds
+ * @param {Vec2[]} c - Array of points
  * @return {ActionInterval}
  * @example
  * // example
@@ -1766,7 +1761,7 @@ cc.bezierBy = function (t, c) {
  * @class BezierTo
  * @extends BezierBy
  * @param {Number} t
- * @param {Array} c array of points
+ * @param {Vec2[]} c - Array of points
  * @example
  * var bezier = [cc.p(0, windowSize.height / 2), cc.p(300, -windowSize.height / 2), cc.p(300, 100)];
  * var bezierTo = new cc.BezierTo(2, bezier);
@@ -1783,7 +1778,7 @@ cc.BezierTo = cc.BezierBy.extend({
     /*
      * Initializes the action.
      * @param {Number} t time in seconds
-     * @param {Array} c Array of points
+     * @param {Vec2[]} c - Array of points
      * @return {Boolean}
      */
     initWithDuration:function (t, c) {
@@ -1817,7 +1812,7 @@ cc.BezierTo = cc.BezierBy.extend({
  * !#zh 按贝赛尔曲线轨迹移动到目标位置。
  * @method bezierTo
  * @param {Number} t
- * @param {Array} c array of points
+ * @param {Vec2[]} c - Array of points
  * @return {ActionInterval}
  * @example
  * // example
