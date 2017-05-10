@@ -307,10 +307,13 @@ var RichText = cc.Class({
         for (var i = 0; i < this._labelSegments.length; ++i ) {
             var labelSegment = this._labelSegments[i];
             var clickHandler = labelSegment._clickHandler;
+            var clickType = labelSegment._clickType;
+            var clickArgs = labelSegment._clickArgs;
             if (clickHandler && this._containsTouchLocation(labelSegment, event.touch.getLocation())) {
                 components.forEach(function(component) {
                     if(component.enabledInHierarchy && component[clickHandler]) {
-                        component[clickHandler](event);
+                        var data = {type:clickType, value: clickArgs}
+                        component[clickHandler](event, data);
                     }
                 });
             }
@@ -543,6 +546,8 @@ var RichText = cc.Class({
             if(richTextElement.style.event) {
                 if(richTextElement.style.event.click) {
                     sprite._clickHandler = richTextElement.style.event.click;
+                    sprite._clickType = richTextElement.style.event.eventType;
+                    sprite._clickArgs = richTextElement.style.event.eventArgs;
                 }
             }
         } else {
@@ -764,6 +769,8 @@ var RichText = cc.Class({
         if (textStyle && textStyle.event) {
             if (textStyle.event.click) {
                 label._clickHandler = textStyle.event.click;
+                label._clickType = textStyle.event.eventType;
+                label._clickArgs = textStyle.event.eventArgs;
             }
         }
     }

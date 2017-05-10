@@ -262,7 +262,13 @@ cc.HtmlTextParser.prototype = {
 
             if(isValidTag) {
                 eventName = eventName.substring(0, eventName.length-1).trim();
+                var eventArray = eventValue.split(':');
+                eventValue = eventArray[0];
+                var eventType = eventArray[1] || "";
+                var eventArgs = eventArray[2] || "";
                 obj[eventName] = eventValue;
+                obj['eventType'] = eventType;
+                obj['eventArgs'] = eventArgs;
             }
 
             eventString = eventString.substring(index).trim();
