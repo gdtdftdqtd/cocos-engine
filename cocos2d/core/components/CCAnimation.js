@@ -419,6 +419,33 @@ var Animation = cc.Class({
         return newState;
     },
 
+    //add by chl
+    addClipWithNoReplace: function (clip, newName) {
+        if (!clip) {
+            cc.warnID(3900);
+            return;
+        }
+        this._init();
+
+        // add clip
+        if (!cc.js.array.contains(this._clips, clip)) {
+            this._clips.push(clip);
+        }
+
+        // replace same name clip
+        newName = newName || clip.name;
+        var state = this._nameToState[newName];
+        if (state) {
+            return state;
+        }
+
+        // replace state
+        var newState = new cc.AnimationState(clip, newName);
+        this._nameToState[newName] = newState;
+        return newState;
+    },
+    //end add
+
     /**
      * !#en 
      * Remove clip from the animation list. This will remove the clip and any animation states based on it.
