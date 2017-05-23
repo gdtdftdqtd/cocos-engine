@@ -47,18 +47,14 @@ function debounce (func, wait, immediate) {
         if (callNow) func.apply(context, args);
     } : function () {
         var context = this;
-        var args = new Array(arguments.length);
-        for (var i = 0; i < arguments.length; i++) {
-            args[i] = arguments[i];
-        }
         var later = function() {
             timeout = null;
-            if (!immediate) func.apply(context, args);
+            if (!immediate) func.apply(context, arguments);
         };
         var callNow = immediate && !timeout;
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
+        if (callNow) func.apply(context, arguments);
     };
 }
 
@@ -356,7 +352,7 @@ var RichText = cc.Class({
 
         this._applyTextAttribute(labelSegment);
 
-        labelSegment.setAnchorPoint(cc.p(0, 0));
+        labelSegment.setAnchorPoint(0, 0);
         this._sgNode.addChild(labelSegment);
         this._labelSegments.push(labelSegment);
 
@@ -513,7 +509,7 @@ var RichText = cc.Class({
         var spriteFrame = this.imageAtlas.getSpriteFrame(spriteFrameName);
         if(spriteFrame) {
             var sprite = new cc.Scale9Sprite();
-            sprite.setAnchorPoint(cc.p(0, 0));
+            sprite.setAnchorPoint(0, 0);
             spriteFrame.__sprite = sprite;
             this._sgNode.addChild(sprite);
             this._labelSegments.push(sprite);
@@ -536,8 +532,7 @@ var RichText = cc.Class({
                 }
             }
             this._applySpriteFrame(spriteFrame);
-            sprite.setContentSize(cc.size(spriteRect.width * scaleFactor,
-                                          spriteRect.height * scaleFactor));
+            sprite.setContentSize(spriteRect.width * scaleFactor, spriteRect.height * scaleFactor);
             sprite._lineCount = this._lineCount;
 
             if(richTextElement.style.event) {
@@ -629,7 +624,8 @@ var RichText = cc.Class({
         }
         this._labelHeight =this._lineCount * this.lineHeight;
 
-        sgNode._setContentSize(cc.size(this._labelWidth, this._labelHeight));
+        sgNode._setContentSize(this._labelWidth, this._labelHeight);
+        this.node.emit('size-changed');
 
         this._updateRichTextPosition();
         this._layoutDirty = false;

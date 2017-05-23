@@ -24,7 +24,7 @@
  ****************************************************************************/
 
 var JS = require('./js');
-var Enum = require('../value-types/CCEnum');
+var Enum = require('./CCEnum');
 var Utils = require('./utils');
 var _isPlainEmptyObj_DEV = Utils.isPlainEmptyObj_DEV;
 var _cloneable_DEV = Utils.cloneable_DEV;
@@ -310,10 +310,10 @@ function doDefine (className, baseClass, mixins, options) {
     var prototype = fireClass.prototype;
     if (baseClass) {
         if (!__es6__) {
-            JS.extend(fireClass, baseClass);    // 这里会把父类的 __props__ 复制给子类
-            prototype = fireClass.prototype;    // get extended prototype
+            JS.extend(fireClass, baseClass);        // 这里会把父类的 __props__ 复制给子类
+            prototype = fireClass.prototype;        // get extended prototype
         }
-        fireClass.$super = baseClass;
+        JS.value(fireClass, '$super', baseClass);   // not inheritable in JSB and TypeScript
         if (CC_DEV && shouldAddProtoCtor) {
             prototype.ctor = function () {};
         }
@@ -769,7 +769,7 @@ function declareProperties (cls, className, properties, baseClass, mixins, es6) 
  *
  * @param {Object} [options.editor] - attributes for Component listed below.
  * @param {Boolean} [options.editor.executeInEditMode=false] - Allows the current component to run in edit mode. By default, all components are executed only at runtime, meaning that they will not have their callback functions executed while the Editor is in edit mode.
- * @param {Component} [options.editor.requireComponent] - Automatically add required component as a dependency.
+ * @param {Function} [options.editor.requireComponent] - Automatically add required component as a dependency.
  * @param {String} [options.editor.menu] - The menu path to register a component to the editors "Component" menu. Eg. "Rendering/Camera".
  * @param {Number} [options.editor.executionOrder=0] - The execution order of lifecycle methods for Component. Those less than 0 will execute before while those greater than 0 will execute after. The order will only affect onLoad, onEnable, start, update and lateUpdate while onDisable and onDestroy will not be affected.
  * @param {Boolean} [options.editor.disallowMultiple] - If specified to a type, prevents Component of the same type (or subtype) to be added more than once to a Node.
@@ -1201,11 +1201,8 @@ module.exports = {
     getNewValueTypeCode,
     IDENTIFIER_RE,
     escapeForJS,
+    getDefault: getDefault
 };
-
-if (CC_DEV) {
-    module.exports.getDefault = getDefault;
-}
 
 if (CC_TEST) {
     JS.mixin(CCClass, module.exports);

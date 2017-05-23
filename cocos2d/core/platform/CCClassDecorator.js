@@ -32,6 +32,7 @@
  *
  * @submodule _decorator
  * @module _decorator
+ * @main
  */
 
 // inspired by toddlxt (https://github.com/toddlxt/Creator-TypeScript-Boilerplate)
@@ -41,9 +42,8 @@ const Preprocess = require('./preprocess-class');
 const JS = require('./js');
 const isPlainEmptyObj_DEV = CC_DEV && require('./utils').isPlainEmptyObj_DEV;
 
-function fNOP () {}
-function dNOP () {
-    return fNOP;
+function fNOP (ctor) {
+    return ctor;
 }
 
 function getSubDict (obj, key) {
@@ -69,7 +69,9 @@ function checkCtorArgument (decorate) {
 function _checkNormalArgument (validator_DEV, decorate, decoratorName) {
     return function (target) {
         if (CC_DEV && validator_DEV(target, decoratorName) === false) {
-            return fNOP;
+            return function () {
+                return fNOP;
+            };
         }
         return function (ctor) {
             return decorate(ctor, target);
@@ -84,7 +86,7 @@ var checkCompArgument = _checkNormalArgument.bind(null, CC_DEV && function (arg,
     }
 });
 
-function _checkArgumentType (type) {
+function _argumentChecker (type) {
     return _checkNormalArgument.bind(null, CC_DEV && function (arg, decoratorName) {
         if (arg instanceof cc.Component || arg === undefined) {
             cc.error('The parameter for %s is missing.', decoratorName);
@@ -96,9 +98,9 @@ function _checkArgumentType (type) {
         }
     });
 }
-var checkStringArgument = _checkArgumentType('string');
-var checkNumberArgument = _checkArgumentType('number');
-// var checkBooleanArgument = _checkArgumentType('boolean');
+var checkStringArgument = _argumentChecker('string');
+var checkNumberArgument = _argumentChecker('number');
+// var checkBooleanArgument = _argumentChecker('boolean');
 
 
 function getClassProto (ctor, decoratorName) {
@@ -192,8 +194,8 @@ var ccclass = checkCtorArgument(function (ctor, name) {
  * @method property
  * @param {Object} [options] - an object with some property attributes
  * @param {Any} [options.type]
- * @param {RawAsset} [options.url]
- * @param {Boolean} [options.visible]
+ * @param {Function} [options.url]
+ * @param {Boolean|Function} [options.visible]
  * @param {String} [options.displayName]
  * @param {String} [options.tooltip]
  * @param {Boolean} [options.multiline]
@@ -284,7 +286,7 @@ var ccclass = checkCtorArgument(function (ctor, name) {
  *     }
  * });
  * @typescript
- * property(options?: {type?: any; url?: cc.RawAsset; visible?: boolean; displayName?: string; tooltip?: string; multiline?: boolean; readonly?: boolean; min?: number; max?: number; step?: number; range?: number[]; slide?: boolean; serializable?: boolean; editorOnly?: boolean; override?: boolean; animatable?: boolean; default?: any}): Function
+ * property(options?: {type?: any; url?: typeof cc.RawAsset; visible?: boolean|(() => boolean); displayName?: string; tooltip?: string; multiline?: boolean; readonly?: boolean; min?: number; max?: number; step?: number; range?: number[]; slide?: boolean; serializable?: boolean; editorOnly?: boolean; override?: boolean; animatable?: boolean; default?: any}): Function
  * property(_target: Object, _key: any, _desc?: any): void
  */
 function property (ctorProtoOrOptions, propName, desc) {
@@ -371,6 +373,10 @@ function createEditorDecorator (argCheckFunc, editorPropName, staticValue) {
     }, editorPropName);
 }
 
+function createDummyDecorator (argCheckFunc) {
+    return argCheckFunc(fNOP);
+}
+
 /**
  * !#en
  * Makes a CCClass that inherit from component execute in edit mode.<br>
@@ -393,7 +399,7 @@ function createEditorDecorator (argCheckFunc, editorPropName, staticValue) {
  * executeInEditMode(): Function
  * executeInEditMode(_class: Function): void
  */
-var executeInEditMode = CC_DEV ? createEditorDecorator(checkCtorArgument, 'executeInEditMode', true) : dNOP;
+var executeInEditMode = (CC_DEV ? createEditorDecorator : createDummyDecorator)(checkCtorArgument, 'executeInEditMode', true);
 
 /**
  * !#en
@@ -412,7 +418,7 @@ var executeInEditMode = CC_DEV ? createEditorDecorator(checkCtorArgument, 'execu
  *     // ...
  * }
  * @typescript
- * requireComponent(requiredComponent: {new (): cc.Component}): Function
+ * requireComponent(requiredComponent: typeof cc.Component): Function
  */
 var requireComponent = createEditorDecorator(checkCompArgument, 'requireComponent');
 
@@ -436,7 +442,7 @@ var requireComponent = createEditorDecorator(checkCompArgument, 'requireComponen
  * @typescript
  * menu(path: string): Function
  */
-var menu = CC_DEV ? createEditorDecorator(checkStringArgument, 'menu') : dNOP;
+var menu = (CC_DEV ? createEditorDecorator : createDummyDecorator)(checkStringArgument, 'menu');
 
 /**
  * !#en
@@ -459,7 +465,7 @@ var menu = CC_DEV ? createEditorDecorator(checkStringArgument, 'menu') : dNOP;
  * @typescript
  * executionOrder(order: number): Function
  */
-var executionOrder = CC_DEV ? createEditorDecorator(checkNumberArgument, 'executionOrder') : dNOP;
+var executionOrder = createEditorDecorator(checkNumberArgument, 'executionOrder');
 
 /**
  * !#en
@@ -480,7 +486,7 @@ var executionOrder = CC_DEV ? createEditorDecorator(checkNumberArgument, 'execut
  * disallowMultiple(): Function
  * disallowMultiple(_class: Function): void
  */
-var disallowMultiple = CC_DEV ? createEditorDecorator(checkCtorArgument, 'disallowMultiple') : dNOP;
+var disallowMultiple = (CC_DEV ? createEditorDecorator : createDummyDecorator)(checkCtorArgument, 'disallowMultiple');
 
 /**
  * !#en
@@ -503,7 +509,7 @@ var disallowMultiple = CC_DEV ? createEditorDecorator(checkCtorArgument, 'disall
  * playOnFocus(): Function
  * playOnFocus(_class: Function): void
  */
-var playOnFocus = CC_DEV ? createEditorDecorator(checkCtorArgument, 'playOnFocus') : dNOP;
+var playOnFocus = (CC_DEV ? createEditorDecorator : createDummyDecorator)(checkCtorArgument, 'playOnFocus');
 
 /**
  * !#en
@@ -524,7 +530,7 @@ var playOnFocus = CC_DEV ? createEditorDecorator(checkCtorArgument, 'playOnFocus
  * @typescript
  * inspector(path: string): Function
  */
-var inspector = CC_DEV ? createEditorDecorator(checkStringArgument, 'inspector') : dNOP;
+var inspector = (CC_DEV ? createEditorDecorator : createDummyDecorator)(checkStringArgument, 'inspector');
 
 /**
  * !#en
@@ -546,7 +552,7 @@ var inspector = CC_DEV ? createEditorDecorator(checkStringArgument, 'inspector')
  * @typescript
  * icon(path: string): Function
  */
-var icon = CC_DEV ? createEditorDecorator(checkStringArgument, 'icon') : dNOP;
+var icon = (CC_DEV ? createEditorDecorator : createDummyDecorator)(checkStringArgument, 'icon');
 
 /**
  * !#en
@@ -567,7 +573,7 @@ var icon = CC_DEV ? createEditorDecorator(checkStringArgument, 'icon') : dNOP;
  * @typescript
  * help(path: string): Function
  */
-var help = CC_DEV ? createEditorDecorator(checkStringArgument, 'help') : dNOP;
+var help = (CC_DEV ? createEditorDecorator : createDummyDecorator)(checkStringArgument, 'help');
 
 // Other Decorators
 

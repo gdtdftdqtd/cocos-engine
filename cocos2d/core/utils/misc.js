@@ -25,6 +25,8 @@
 
 // jshint evil: true
 
+var JS = require('../platform/js');
+
 // should not use long variable name because eval breaks uglify's mangle operation in this file
 var m = {};
 
@@ -124,32 +126,17 @@ if (CC_EDITOR) {
     };
 }
 
-m.imagePool = {
-    _pool: new Array(10),
-    _MAX: 10,
-    _smallImg: "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=",
-
-    count: 0,
-    get: function () {
-        if (this.count > 0) {
-            this.count--;
-            var result = this._pool[this.count];
-            this._pool[this.count] = null;
-            return result;
-        }
-        else {
-            return new Image();
-        }
-    },
-    put: function (img) {
-        var pool = this._pool;
-        if (img instanceof HTMLImageElement && this.count < this._MAX) {
-            img.src = this._smallImg;
-            pool[this.count] = img;
-            this.count++;
-        }
-    }
+m.imagePool = new JS.Pool(function (img) {
+                            if (img instanceof HTMLImageElement) {
+                                img.src = this._smallImg;
+                                return true;
+                            }
+                            return false;
+                       }, 10);
+m.imagePool.get = function () {
+    return this._get() || new Image();
 };
+m.imagePool._smallImg = "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
 
 module.exports = m;
 

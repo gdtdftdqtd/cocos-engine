@@ -25,7 +25,7 @@
 
 var CompScheduler = require('./component-scheduler');
 var Flags = require('./platform/CCObject').Flags;
-var JsArray = require('./platform/js').array;
+var JS = require('./platform/js');
 var callerFunctor = CC_EDITOR && require('./utils/misc').tryCatchFunctor_EDITOR;
 
 var MAX_POOL_SIZE = 4;
@@ -75,17 +75,10 @@ function createActivateTask () {
     };
 }
 
-var activateTasksPool = [];
-// get invoker temporary
-function getActivateTask () {
-    return activateTasksPool.pop() || createActivateTask();
-}
-// release invoker temporary
-function putActivateTask (task) {
-    if (activateTasksPool.length < MAX_POOL_SIZE) {
-        activateTasksPool.push(task);
-    }
-}
+var activateTasksPool = new JS.Pool(MAX_POOL_SIZE);
+activateTasksPool.get = function getActivateTask () {
+    return this._get() || createActivateTask();
+};
 
 function _componentCorrupted (node, comp, index) {
     if (CC_DEV) {
@@ -96,7 +89,7 @@ function _componentCorrupted (node, comp, index) {
         node._removeComponent(comp);
     }
     else {
-        JsArray.removeAt(node._components, index);
+        JS.array.removeAt(node._components, index);
     }
 }
 
@@ -195,7 +188,7 @@ var NodeActivator = cc.Class({
 
     activateNode (node, active) {
         if (active) {
-            var task = getActivateTask(node);
+            var task = activateTasksPool.get();
             this._activatingStack.push(task);
 
             this._activateNodeRecursively(node, task.preload, task.onLoad, task.onEnable);
@@ -204,7 +197,7 @@ var NodeActivator = cc.Class({
             task.onEnable.invoke();
 
             this._activatingStack.pop();
-            putActivateTask(task);
+            activateTasksPool.put(task);
         }
         else {
             this._deactivateNodeRecursively(node);

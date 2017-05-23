@@ -326,15 +326,13 @@ EventCustom.prototype.getUserData = function () {
 EventCustom.prototype.getEventName = cc.Event.prototype.getType;
 
 
-var _eventPool = [];
 var MAX_POOL_SIZE = 10;
+var _eventPool = new JS.Pool(MAX_POOL_SIZE);
 EventCustom.put = function (event) {
-    if (_eventPool.length < MAX_POOL_SIZE) {
-        _eventPool.push(event);
-    }
+    _eventPool.put(event);
 };
 EventCustom.get = function (type, bubbles) {
-    var event = _eventPool.pop();
+    var event = _eventPool._get();
     if (event) {
         event.reset(type, bubbles);
     }

@@ -176,11 +176,15 @@ var Animation = cc.Class({
     },
 
     onEnable: function () {
-        this.resume();
+        if (this._animator) {
+            this._animator.resume();
+        }
     },
 
     onDisable: function () {
-        this.pause();
+        if (this._animator) {
+            this._animator.pause();
+        }
     },
 
     onDestroy: function () {
@@ -214,16 +218,7 @@ var Animation = cc.Class({
      */
     play: function (name, startTime) {
         var state = this.playAdditive(name, startTime);
-        var playingStates = this._animator.playingAnims;
-
-        for (var i = playingStates.length; i >= 0; i--) {
-            if (playingStates[i] === state) {
-                continue;
-            }
-
-            this._animator.stopState(playingStates[i]);
-        }
-
+        this._animator.stopStatesExcept(state);
         return state;
     },
 
@@ -245,9 +240,11 @@ var Animation = cc.Class({
     playAdditive: function (name, startTime) {
         this._init();
         var state = this.getAnimationState(name || (this._defaultClip && this._defaultClip.name));
-        if (state) {
-            var animator = this._animator;
 
+        if (state) {
+            this.enabled = true;
+            
+            var animator = this._animator;
             if (animator.isPlaying && state.isPlaying) {
                 if (state.isPaused) {
                     animator.resumeState(state);
@@ -305,7 +302,7 @@ var Animation = cc.Class({
             }
         }
         else {
-            this._animator.pause();
+            this.enabled = false;
         }
     },
 
@@ -326,7 +323,7 @@ var Animation = cc.Class({
             }
         }
         else {
-            this._animator.resume();
+            this.enabled = true;
         }
     },
 
@@ -510,7 +507,7 @@ var Animation = cc.Class({
      * @param {String} type - A string representing the event type to listen for.
      * @param {Function} callback - The callback that will be invoked when the event is dispatched.
      *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-     * @param {Event} callback.param event
+     * @param {Event} callback.event event
      * @param {Object} [target] - The target to invoke the callback, can be null
      * @param {Boolean} [useCapture=false] - When set to true, the capture argument prevents callback
      *                              from being invoked when the event's eventPhase attribute value is BUBBLING_PHASE.
@@ -518,6 +515,9 @@ var Animation = cc.Class({
      *                              Either way, callback will be invoked when event's eventPhase attribute value is AT_TARGET.
      *
      * @return {Function} - Just returns the incoming callback so you can save the anonymous function easier.
+     * @typescript
+     * on(type: string, callback: (event: Event.EventCustom) => void, target?: any, useCapture?: boolean): (event: Event.EventCustom) => void
+     * on<T>(type: string, callback: (event: T) => void, target?: any, useCapture?: boolean): (event: T) => void
      * @example
      * onPlay: function (event) {
      *     var state = event.detail;    // state instanceof cc.AnimationState
@@ -525,7 +525,7 @@ var Animation = cc.Class({
      * }
      * 
      * // register event to all animation
-     * animation.on('', 'play',      this.onPlay,        this);
+     * animation.on('play', this.onPlay, this);
      */
     on: function (type, callback, target, useCapture) {
         this._init();
@@ -541,11 +541,7 @@ var Animation = cc.Class({
             }
         }
 
-        var anims = this._animator.playingAnims;
-        for (var j = 0, jj = anims.length; j < jj; j++) {
-            anims[j].on(type, callback, target, useCapture);
-        }
-
+        this._animator.on(type, callback, target, useCapture);
         listeners.push([type, callback, target, useCapture]);
 
         return callback;
@@ -568,7 +564,7 @@ var Animation = cc.Class({
      *
      * @example
      * // unregister event to all animation
-     * animation.off('', 'play',      this.onPlay,        this);
+     * animation.off('play', this.onPlay, this);
      */
     off: function (type, callback, target, useCapture) {
         this._init();
