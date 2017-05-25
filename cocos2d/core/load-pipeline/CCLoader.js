@@ -251,6 +251,22 @@ JS.mixin(CCLoader.prototype, {
         _sharedResources.length = 0;
     },
 
+    getResUrl: function(url) {
+        var realUrl = url;
+        var uuid = this._getResUuid(url, cc.AudioClip);
+        if (uuid) {
+            var res = getResWithUrl({
+                type: "uuid",
+                uuid: uuid
+            });
+            if (!res.url && !res.uuid){
+                return url;
+            }
+            realUrl = res.url;
+        }
+        return realUrl;
+    },
+
     flowInDeps: function (owner, urlList, callback) {
         if (owner && !owner.deps) {
             owner.deps = [];
