@@ -386,6 +386,12 @@ var EventAnimCurve = cc.Class({
     },
 
     _fireEvent: function (index) {
+        //add by chl
+        if (!this.target.isValid) {
+            return;
+        }
+        //end
+
         if (index < 0 || index >= this.events.length || this._ignoreIndex === index) return;
 
         var eventInfo = this.events[index];
