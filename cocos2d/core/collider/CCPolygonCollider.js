@@ -23,21 +23,14 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-/**
- * !#en Polygon Collider.
- * !#zh 多边形碰撞组件
- * @class PolygonCollider
- * @extends Component
- */
-var PolygonCollider = cc.Class({
-    name: 'cc.PolygonCollider',
-    extends: require('./CCCollider'),
-
-    editor: CC_EDITOR && {
-        menu: 'i18n:MAIN_MENU.component.collider/Polygon Collider',
-    },
-
+cc.Collider.Polygon = cc.Class({
     properties: {
+        threshold: {
+            default: 1,
+            serializable: false,
+            visible: false
+        },
+
         _offset: cc.v2(0, 0),
 
         /**
@@ -63,12 +56,38 @@ var PolygonCollider = cc.Class({
          * @type {[Vec2]}
          */
         points: {
+            tooltip: CC_DEV && 'i18n:COMPONENT.physics.physics_collider.points',
             default: function () {
-                 return [cc.v2(-50, -50), cc.v2(-50, 50), cc.v2(50, 50), cc.v2(50, -50)]; 
+                 return [cc.v2(-50,-50), cc.v2(50, -50), cc.v2(50,50), cc.v2(-50,50)];
             },
             type: [cc.Vec2]
         }
+    },
+
+    resetInEditor: CC_EDITOR && function () {
+        this.resetPointsByContour();
+    },
+
+    resetPointsByContour: CC_EDITOR && function () {
+        _Scene.PhysicsUtils.resetPoints(this, {threshold: this.threshold});
     }
+});
+
+/**
+ * !#en Polygon Collider.
+ * !#zh 多边形碰撞组件
+ * @class PolygonCollider
+ * @extends Component
+ */
+var PolygonCollider = cc.Class({
+    name: 'cc.PolygonCollider',
+    extends: cc.Collider,
+    mixins: [cc.Collider.Polygon],
+
+    editor: CC_EDITOR && {
+        menu: 'i18n:MAIN_MENU.component.collider/Polygon Collider',
+        inspector: 'packages://inspector/inspectors/comps/physics/points-base-collider.js',
+    },
 });
 
 cc.PolygonCollider = module.exports = PolygonCollider;

@@ -30,45 +30,25 @@ const gulp = require('gulp');
 const Del = require('del');
 const Shell = require('gulp-shell');
 
-const Modular = require('./gulp/tasks/modular');
 const Engine = require('./gulp/tasks/engine');
 const Test = require('./gulp/tasks/test');
 const Watch = require('./gulp/tasks/watch');
-
-///////////////
-// modular //
-///////////////
-
-//gulp.task('build-file-without-module', function (done) {
-//    Modular.buildFileWithoutModular(paths.outDir, done);
-//});
-gulp.task('build-all-modular', function (done) {
-    Modular.buildModular('modular-cocos2d.js', './bin', [], done);
-});
-gulp.task('build-cut-modular', function (done) {
-    Modular.buildModular('modular-cocos2d-cut.js', './bin', [], done);
-});
-
-gulp.task('build-modular-cocos2d', ['build-all-modular', 'build-cut-modular'], function (done) {
-    Del(['./bin/cocos2d-js.js', './bin/cocos2d-js-min.js', './bin/.cache'], done);
-});
-
 
 /////////////
 // engine //
 /////////////
 
-gulp.task('build-cocos2d-dev', ['build-modular-cocos2d'], function (done) {
-    Engine.buildCocosJs('./index.js', './bin/cocos2d-js.js', ['./bin/modular-cocos2d-cut.js'], done);
+gulp.task('build-cocos2d-dev', function (done) {
+    Engine.buildCocosJs('./index.js', './bin/cocos2d-js.js', [],  done);
 });
 
-gulp.task('build-cocos2d-min', ['build-modular-cocos2d'], function (done) {
-    Engine.buildCocosJsMin('./index.js', './bin/cocos2d-js-min.js', ['./bin/modular-cocos2d-cut.js'], done);
+gulp.task('build-cocos2d-min', function (done) {
+    Engine.buildCocosJsMin('./index.js', './bin/cocos2d-js-min.js', [], done);
 });
 
 gulp.task('build-html5', ['build-cocos2d-dev', 'build-cocos2d-min']);
 
-gulp.task('build-preview', ['build-modular-cocos2d'], function (done) {
+gulp.task('build-preview',  function (done) {
     Engine.buildPreview('./index.js', './bin/cocos2d-js-for-preview.js', done);
 });
 
@@ -88,7 +68,41 @@ var jsbSkipModules = [
     '../../extensions/dragonbones/CCFactory',
     '../../extensions/dragonbones/CCArmatureDisplay',
     '../../extensions/dragonbones/CCSlot',
-    '../../extensions/dragonbones/CCTextureData'
+    '../../extensions/dragonbones/CCTextureData',
+    '../../external/box2d/box2d.js',
+    '../../cocos2d/core/physics/platform/CCPhysicsDebugDraw.js',
+    '../../cocos2d/core/physics/platform/CCPhysicsUtils.js',
+    '../../cocos2d/core/physics/platform/CCPhysicsAABBQueryCallback.js',
+    '../../cocos2d/core/physics/platform/CCPhysicsRayCastCallback.js',
+    '../../cocos2d/core/physics/platform/CCPhysicsContactListner.js',
+    '../../cocos2d/core/camera/CCSGCameraNode.js',
+    '../../cocos2d/core/label/CCSGLabel.js',
+    '../../cocos2d/core/label/CCSGLabelCanvasRenderCmd.js',
+    '../../cocos2d/core/label/CCSGLabelWebGLRenderCmd.js',
+    '../../cocos2d/clipping-nodes/CCClippingNode.js',
+    '../../cocos2d/clipping-nodes/CCClippingNodeCanvasRenderCmd.js',
+    '../../cocos2d/clipping-nodes/CCClippingNodeWebGLRenderCmd.js',
+    '../../cocos2d/core/videoplayer/CCSGVideoPlayer.js',
+    '../../cocos2d/core/webview/CCSGWebView.js',
+    '../../cocos2d/core/editbox/CCSGEditBox.js',
+    '../../cocos2d/particle/CCSGParticleSystem.js',
+    '../../cocos2d/particle/CCSGParticleSystemCanvasRenderCmd.js',
+    '../../cocos2d/particle/CCSGParticleSystemWebGLRenderCmd.js',
+    '../../cocos2d/particle/CCParticleBatchNode.js',
+    '../../cocos2d/particle/CCParticleBatchNodeCanvasRenderCmd.js',
+    '../../cocos2d/particle/CCParticleBatchNodeWebGLRenderCmd.js',
+    '../../cocos2d/tilemap/CCSGTMXTiledMap.js',
+    '../../cocos2d/tilemap/CCTMXXMLParser.js',
+    '../../cocos2d/tilemap/CCSGTMXObjectGroup.js',
+    '../../cocos2d/tilemap/CCSGTMXObject.js',
+    '../../cocos2d/tilemap/CCSGTMXLayer.js',
+    '../../cocos2d/tilemap/CCTMXLayerCanvasRenderCmd.js',
+    '../../cocos2d/tilemap/CCTMXLayerWebGLRenderCmd.js',
+    '../../cocos2d/motion-streak/CCSGMotionStreak.js',
+    '../../cocos2d/motion-streak/CCSGMotionStreakWebGLRenderCmd.js',
+    '../../cocos2d/render-texture/CCRenderTexture.js',
+    '../../cocos2d/render-texture/CCRenderTextureCanvasRenderCmd.js',
+    '../../cocos2d/render-texture/CCRenderTextureWebGLRenderCmd.js'
 ];
 
 gulp.task('build-jsb-extends-dev', function (done) {
@@ -114,16 +128,24 @@ gulp.task('build-min', ['build-html5', 'build-jsb']);
 // test //
 /////////
 
-gulp.task('clean-test', function (done) {
-    Test.clean([
+gulp.task('clean-test', ['clean-test-cases'], function (done) {
+    Del([
         './bin/cocos2d-js-extends-for-test.js',
-        './bin/cocos2d-js-for-test.js'
+        './bin/cocos2d-js-for-test.js',
     ], done);
 });
 
-gulp.task('build-test', ['build-modular-cocos2d', 'clean-test'], function (done) {
+gulp.task('clean-test-cases', function (done) {
+    Del('./bin/test/**/*', done);
+});
+
+gulp.task('build-test-cases', ['clean-test-cases'], function (done) {
+    Test.buildTestCase('./bin/test/', done);
+});
+
+gulp.task('build-test', ['clean-test', 'build-test-cases'], function (done) {
     Test.build('./index.js', './bin/cocos2d-js-for-test.js',
-               '../editor/test-utils/engine-extends-entry.js','./bin/cocos2d-js-extends-for-test.js',
+               '../editor/test-utils/engine-extends-entry.js', './bin/cocos2d-js-extends-for-test.js',
                done);
 });
 

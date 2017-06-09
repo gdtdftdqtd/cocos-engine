@@ -4,7 +4,6 @@
  * !#zh 动画剪辑，用于存储动画数据。
  * @class AnimationClip
  * @extends Asset
- *
  */
 var AnimationClip = cc.Class({
     name: 'cc.AnimationClip',
@@ -72,8 +71,9 @@ var AnimationClip = cc.Class({
          * !#en Event data.
          * !#zh 事件数据。
          * @property events
-         * @type {Array}
+         * @type {Object[]}
          * @example {@link utils/api/engine/docs/cocos2d/core/animation-clip/event-data.js}
+         * @typescript events: {frame: number, func: string, params: string[]}[]
          */
         events: {
             default: [],
@@ -123,7 +123,40 @@ var AnimationClip = cc.Class({
             };
 
             return clip;
+        },
+
+        createWithSpriteFramesAndProps: function (spriteFrames, props, sample) {
+            if (!Array.isArray(spriteFrames)) {
+                cc.errorID(3905);
+                return null;
+            }
+
+            var clip = new AnimationClip();
+            clip.sample = sample || clip.sample;
+
+            clip._duration = spriteFrames.length / clip.sample;
+
+            var frames = [];
+            var step = 1 / clip.sample;
+
+            for (var i = 0, l = spriteFrames.length; i < l; i++) {
+                frames[i] = { frame: (i * step), value: spriteFrames[i] };
+            }
+
+            clip.curveData = {
+                comps: {
+                    // component
+                    'cc.Sprite': {
+                        // component properties
+                        'spriteFrame': frames
+                    },
+                },
+                props: props,
+            };
+
+            return clip;
         }
+
     }
 });
 

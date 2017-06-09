@@ -30,7 +30,7 @@
 var SCROLLY = 40;
 var TIMER_NAME = 400;
 var LEFT_PADDING = 2;
-var Utils = require('../cocos2d/core/platform/utils');
+var Utils = require('../platform/utils');
 
 function adjustEditBoxPosition (editBox) {
     var worldPos = editBox.convertToWorldSpace(cc.p(0,0));
@@ -239,11 +239,12 @@ _ccsg.EditBox = _ccsg.Node.extend({
     _keyboardReturnType: KeyboardReturnType.DEFAULT,
     _maxLength: 50,
     _text: '',
-    _textColor: null,
     _placeholderText: '',
     _alwaysOnTop: false,
     _placeholderFontName: '',
     _placeholderFontSize: 14,
+    __fullscreen: false,
+    __autoResize: false,
     _placeholderColor: null,
     _className: 'EditBox',
 
@@ -322,8 +323,7 @@ _ccsg.EditBox = _ccsg.Node.extend({
 
     cleanup: function () {
         this._super();
-
-        this._renderCmd._removeDomFromGameContainer();
+        this._renderCmd.removeDom();
     },
 
     _onTouchBegan: function (touch) {
@@ -669,7 +669,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
 
 
     proto._createDomInput = function () {
-        this._removeDomFromGameContainer();
+        this.removeDom();
 
         var thisPointer = this;
         var tmpEdTxt = this._edTxt = document.createElement('input');
@@ -764,7 +764,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
     };
 
     proto._createDomTextArea = function () {
-        this._removeDomFromGameContainer();
+        this.removeDom();
 
         var thisPointer = this;
         var tmpEdTxt = this._edTxt = document.createElement('textarea');
@@ -974,7 +974,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         }
 
         if (cc.sys.isMobile && !this._editingMode) {
-            // Pre adaptation and 
+            // Pre adaptation and
             this._beginEditingOnMobile(this._editBox);
         }
         this._editingMode = true;
@@ -1171,7 +1171,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         cc.game.container.appendChild(this._edTxt);
     };
 
-    proto._removeDomFromGameContainer = function () {
+    proto.removeDom = function () {
         var editBox = this._edTxt;
         if(editBox){
             var hasChild = Utils.contains(cc.game.container, editBox);
@@ -1191,7 +1191,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         this._textLabel = null;
         this._placeholderLabel = null;
         this._editingMode = false;
-        
+
         this.__fullscreen = false;
         this.__autoResize = false;
         this.__rotateScreen = false;
