@@ -23,7 +23,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-
+require('./CCTextUtils.js');
 var EventTarget = require("../event/event-target");
 
 var FntLoader = {
@@ -267,7 +267,6 @@ _ccsg.Label = _ccsg.Node.extend({
         this._tailoredTopY =  0;
         this._tailoredBottomY =  0;
         this._bmfontScale =  1.0;
-        this._spacingX =  0;
         this._horizontalKernings =  [];
         this._lineBreakWithoutSpaces =  false;
 
@@ -670,10 +669,7 @@ _ccsg.Label = _ccsg.Node.extend({
         }
         return _ccsg.Node.prototype._getHeight.call(this);
     },
-});
-
-cc.BMFontHelper = {
-    _alignText: function() {
+        _alignText: function() {
         var ret = true;
 
         do {
@@ -1329,12 +1325,11 @@ cc.BMFontHelper = {
             }
         }
     }
-};
+});
 
 
 var _p = _ccsg.Label.prototype;
 cc.js.addon(_p, EventTarget.prototype);
-cc.js.mixin(_p, cc.BMFontHelper);
 
 _ccsg.Label.Type = cc.Enum({
     TTF: 0,

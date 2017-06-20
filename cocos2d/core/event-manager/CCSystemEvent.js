@@ -120,6 +120,9 @@ var SystemEvent = cc.Class({
                     event: cc.EventListener.ACCELERATION,
                     callback: function (acc, event) {
                         event.type = EventType.DEVICEMOTION;
+                        if (CC_JSB) {
+                            event.acc = acc;
+                        }
                         cc.systemEvent.dispatchEvent(event);
                     }
                 });
@@ -153,5 +156,15 @@ var SystemEvent = cc.Class({
 
 cc.SystemEvent = module.exports = SystemEvent;
 if (!CC_EDITOR) {
+/** 
+ * @module cc
+ */
+
+/**
+ * !#en The System event singleton for global usage
+ * !#zh 系统事件单例，方便全局使用
+ * @property systemEvent
+ * @type {SystemEvent}
+ */    
     cc.systemEvent = new cc.SystemEvent();
 }

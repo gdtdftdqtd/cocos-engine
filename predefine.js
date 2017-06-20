@@ -47,14 +47,14 @@ if (CC_DEV) {
 // output all info before initialized
 require('./CCDebugger');
 cc._initDebugSetting(cc.DebugMode.INFO);
-if (CC_DEV) {
+if (CC_DEBUG) {
     require('./DebugInfos');
 }
 
 // polyfills
 /* require('./polyfill/bind'); */
 require('./polyfill/string');
-require('./polyfill/math');
+require('./polyfill/misc');
 require('./polyfill/array');
 if (!(CC_EDITOR && Editor.isMainProcess)) {
     require('./polyfill/typescript');

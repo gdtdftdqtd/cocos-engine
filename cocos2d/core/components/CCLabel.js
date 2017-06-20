@@ -22,7 +22,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-
+require('../label/CCSGLabel.js');
+require('../label/CCSGLabelCanvasRenderCmd.js');
+require('../label/CCSGLabelWebGLRenderCmd.js');
 /**
  * !#en Enum for text alignment.
  * !#zh 文本横向对齐类型
@@ -134,18 +136,14 @@ function debounce (func, wait, immediate) {
         if (callNow) func.apply(context, args);
     } : function () {
         var context = this;
-        var args = new Array(arguments.length);
-        for (var i = 0; i < arguments.length; i++) {
-            args[i] = arguments[i];
-        }
         var later = function() {
             timeout = null;
-            if (!immediate) func.apply(context, args);
+            if (!immediate) func.apply(context, arguments);
         };
         var callNow = immediate && !timeout;
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
+        if (callNow) func.apply(context, arguments);
     };
 }
 
@@ -301,7 +299,8 @@ var Label = cc.Class({
                 if (this._sgNode) {
                     this._sgNode.setFontFileOrFamily(this.fontFamily);
                 }
-            }
+            },
+            animatable: false
         },
 
         _lineHeight: 40,

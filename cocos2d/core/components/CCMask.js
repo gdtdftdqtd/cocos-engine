@@ -22,7 +22,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-
+require('../../clipping-nodes/CCClippingNode.js');
+require('../../clipping-nodes/CCClippingNodeCanvasRenderCmd.js');
+require('../../clipping-nodes/CCClippingNodeWebGLRenderCmd.js');
 var Base = cc._RendererInSG;
 
 /**
@@ -248,6 +250,9 @@ var Mask = cc.Class({
 
     onEnable: function () {
         this._super();
+        if (this.spriteFrame) {
+            this.spriteFrame.ensureLoadTexture();
+        }
         this.node.on('size-changed', this._refreshStencil, this);
         this.node.on('anchor-changed', this._refreshStencil, this);
     },

@@ -37,8 +37,8 @@ var PolygonSeprator = require('../CCPolygonSeprator');
  */
 var PhysicsPolygonCollider = cc.Class({
     name: 'cc.PhysicsPolygonCollider',
-    extends: cc.PolygonCollider,
-    mixins: [cc.PhysicsCollider],
+    extends: cc.PhysicsCollider,
+    mixins: [cc.Collider.Polygon],
 
     editor: {
         menu: CC_EDITOR && 'i18n:MAIN_MENU.component.physics/Collider/Polygon',
@@ -46,12 +46,16 @@ var PhysicsPolygonCollider = cc.Class({
         requireComponent: cc.RigidBody
     },
 
-    properties: cc.PhysicsCollider.properties,
-
     _createShape: function (scale) {
         var shapes = [];
 
         var points = this.points;
+        
+        // check if last point equal to first point
+        if (points.length > 0 && points[0].equals(points[points.length - 1])) {
+            points.length -= 1;
+        }
+
         var ret = PolygonSeprator.validate(points);
 
         if (ret === 2) {

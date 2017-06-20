@@ -196,7 +196,7 @@ var BaseNode = cc.Class({
 
         /**
          * !#en The uuid for editor, will be stripped before building project.
-         * !#zh 用于编辑器使用的 uuid，在构建项目之前将会被剔除。
+         * !#zh 主要用于编辑器的 uuid，在编辑器下可用于持久化存储，在项目构建之后将变成自增的 id。
          * @property uuid
          * @type {String}
          * @readOnly
@@ -414,9 +414,7 @@ var BaseNode = cc.Class({
      * node.attr(attrs);
      */
     attr (attrs) {
-        for (var key in attrs) {
-            this[key] = attrs[key];
-        }
+        Js.mixin(this, attrs);
     },
 
     // composition: GET
@@ -489,6 +487,7 @@ var BaseNode = cc.Class({
     },
 
     // composition: ADD
+
     addChild (child) {
 
         if (CC_DEV && !(child instanceof cc._BaseNode)) {
@@ -500,6 +499,22 @@ var BaseNode = cc.Class({
         // invokes the parent setter
         child.setParent(this);
 
+    },
+
+    /**
+     * !#en
+     * Inserts a child to the node at a specified index.
+     * !#zh
+     * 插入子节点到指定位置
+     * @method insertChild
+     * @param {Node} child - the child node to be inserted
+     * @param {Number} siblingIndex - the sibling index to place the child in
+     * @example
+     * node.insertChild(child, 2);
+     */
+    insertChild (child, siblingIndex) {
+        child.parent = this;
+        child.setSiblingIndex(siblingIndex);
     },
 
     // HIERARCHY METHODS
@@ -554,12 +569,12 @@ var BaseNode = cc.Class({
 
     /**
      * !#en
-     * Remove itself from its parent node. If cleanup is true, then also remove all actions and callbacks. <br/>
-     * If the cleanup parameter is not passed, it will force a cleanup. <br/>
+     * Remove itself from its parent node. If cleanup is `true`, then also remove all events and actions. <br/>
+     * If the cleanup parameter is not passed, it will force a cleanup, so it is recommended that you always pass in the `false` parameter when calling this API.<br/>
      * If the node orphan, then nothing happens.
      * !#zh
-     * 从父节点中删除一个节点。cleanup 参数为 true，那么在这个节点上所有的动作和回调都会被删除，反之则不会。<br/>
-     * 如果不传入 cleanup 参数，默认是 true 的。<br/>
+     * 从父节点中删除该节点。如果不传入 cleanup 参数或者传入 `true`，那么这个节点上所有绑定的事件、action 都会被删除。<br/>
+     * 因此建议调用这个 API 时总是传入 `false` 参数。<br/>
      * 如果这个节点是一个孤节点，那么什么都不会发生。
      * @method removeFromParent
      * @param {Boolean} [cleanup=true] - true if all actions and callbacks on this node should be removed, false otherwise.
@@ -705,7 +720,7 @@ var BaseNode = cc.Class({
      * // get custom test calss.
      * var test = node.getComponent("Test");
      * @typescript
-     * getComponent<T extends Component>(type: {new(): T; }): T
+     * getComponent<T extends Component>(type: {prototype: T}): T
      * getComponent(className: string): any
      */
     getComponent (typeOrClassName) {
@@ -726,7 +741,7 @@ var BaseNode = cc.Class({
      * var sprites = node.getComponents(cc.Sprite);
      * var tests = node.getComponents("Test");
      * @typescript
-     * getComponents<T extends Component>(type: {new(): T; }): T[]
+     * getComponents<T extends Component>(type: {prototype: T}): T[]
      * getComponents(className: string): any[]
      */
     getComponents (typeOrClassName) {
@@ -747,7 +762,7 @@ var BaseNode = cc.Class({
      * var sprite = node.getComponentInChildren(cc.Sprite);
      * var Test = node.getComponentInChildren("Test");
      * @typescript
-     * getComponentInChildren<T extends Component>(type: {new(): T; }): T
+     * getComponentInChildren<T extends Component>(type: {prototype: T}): T
      * getComponentInChildren(className: string): any
      */
     getComponentInChildren (typeOrClassName) {
@@ -768,7 +783,7 @@ var BaseNode = cc.Class({
      * var sprites = node.getComponentsInChildren(cc.Sprite);
      * var tests = node.getComponentsInChildren("Test");
      * @typescript
-     * getComponentsInChildren<T extends Component>(type: {new(): T; }): T[]
+     * getComponentsInChildren<T extends Component>(type: {prototype: T}): T[]
      * getComponentsInChildren(className: string): any[]
      */
     getComponentsInChildren (typeOrClassName) {
@@ -804,7 +819,7 @@ var BaseNode = cc.Class({
      * var sprite = node.addComponent(cc.Sprite);
      * var test = node.addComponent("Test");
      * @typescript
-     * addComponent<T extends Component>(type: {new(): T; }): T
+     * addComponent<T extends Component>(type: {new(): T}): T
      * addComponent(className: string): any
      */
     addComponent (typeOrClassName) {
@@ -1260,7 +1275,7 @@ if (CC_DEV) {
  * !#zh
  * 注意：此节点激活时，此事件仅从最顶部的节点发出。
  * @event active-in-hierarchy-changed
- * @param {Event} event
+ * @param {Event.EventCustom} event
  */
 
 cc._BaseNode = module.exports = BaseNode;

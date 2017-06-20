@@ -1,4 +1,4 @@
-if (CC_DEV) {
+if (CC_DEBUG) {
     var logs = {
         //ActionManager: 1000
         "1000": "cc.ActionManager.addAction(): action must be non-null", //addAction
@@ -49,16 +49,17 @@ if (CC_DEV) {
         "1403": "Sorry, cc.audioEngine.willPlayMusic is removed.", //willPlayMusicError
         "1404": "cc.spriteFrameCache is removed, please use cc.loader to load and cache sprite frames of atlas format.",
         //Scheduler: 1500
-        "1500": "CCSheduler#scheduleCallback. Callback already scheduled. Updating interval from:%s to %s", //scheduleCallbackForTarget
-        "1501": "cc.scheduler.scheduleCallbackForTarget(): callback_fn should be non-null.", //scheduleCallbackForTarget_2
-        "1502": "cc.scheduler.scheduleCallbackForTarget(): target should be non-null.", //scheduleCallbackForTarget_3
-        "1503": "cc.Scheduler.pauseTarget():target should be non-null", //pauseTarget
-        "1504": "cc.Scheduler.resumeTarget():target should be non-null", //resumeTarget
-        "1505": "cc.Scheduler.isTargetPaused():target should be non-null", //isTargetPaused
+        "1500": "cc.Scheduler#schedule: Callback already scheduled. Updating interval from:%s to %s", //scheduleCallbackForTarget
+        "1501": "cc.Scheduler#scheduleCallbackForTarget(): callback_fn should be non-null.", //scheduleCallbackForTarget_2
+        "1502": "cc.Scheduler#scheduleCallbackForTarget(): target should be non-null.", //scheduleCallbackForTarget_3
+        "1503": "cc.Scheduler#pauseTarget():target should be non-null", //pauseTarget
+        "1504": "cc.Scheduler#resumeTarget():target should be non-null", //resumeTarget
+        "1505": "cc.Scheduler#isTargetPaused():target should be non-null", //isTargetPaused
         "1506": "warning: you CANNOT change update priority in scheduled function", //_schedulePerFrame
-        "1507": "CCScheduler#scheduleSelector. Selector already scheduled. Updating interval from: %.4f to %.4f", //schedule
+        "1507": "cc.Scheduler#scheduleSelector: Selector already scheduled. Updating interval from: %.4f to %.4f", //schedule
         "1508": "Argument callback must not be empty", //isScheduled
         "1509": "Argument target must be non-nullptr", //isScheduled
+        "1510": "cc.Scheduler: Illegal target which doesn't have uuid or instanceId",
         //Node: 1600
         "1600": "getZOrder is deprecated. Please use getLocalZOrder instead.", //getZOrder
         "1601": "setZOrder is deprecated. Please use setLocalZOrder instead.", //setZOrder
@@ -364,9 +365,6 @@ if (CC_DEV) {
         "4300": "can not found the %s page.", //removePage
         //RichText: 4400
         "4400": "Invalid RichText img tag! The sprite frame name can\'t be found in the ImageAtlas!", //_addRichTextImageElement
-        //ToggleGroup: 4500
-        "4500": "Toggle alreay in ToggleGroup. Something bad happened, please report this issue to the Creator developer, thanks.", //addToggle
-        "4501": "Toggle is not in ToggleGroup. Something bad happened, please report this issue to the Creator developer, thanks.", //removeToggle
         //MissingScript: 4600
         "4600": "Script attached to '%s' is missing or invalid.", //onLoad
         //EditBox: 4700

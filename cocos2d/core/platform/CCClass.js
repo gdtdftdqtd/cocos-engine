@@ -24,7 +24,7 @@
  ****************************************************************************/
 
 var JS = require('./js');
-var Enum = require('../value-types/CCEnum');
+var Enum = require('./CCEnum');
 var Utils = require('./utils');
 var _isPlainEmptyObj_DEV = Utils.isPlainEmptyObj_DEV;
 var _cloneable_DEV = Utils.cloneable_DEV;
@@ -32,7 +32,6 @@ var Attr = require('./attribute');
 var DELIMETER = Attr.DELIMETER;
 var getTypeChecker = Attr.getTypeChecker;
 var preprocess = require('./preprocess-class');
-var Misc = require('../utils/misc');
 require('./requiring-frame');
 
 var BUILTIN_ENTRIES = ['name', 'extends', 'mixins', 'ctor', '__ctor__', 'properties', 'statics', 'editor', '__ES6__'];
@@ -310,10 +309,10 @@ function doDefine (className, baseClass, mixins, options) {
     var prototype = fireClass.prototype;
     if (baseClass) {
         if (!__es6__) {
-            JS.extend(fireClass, baseClass);    // 这里会把父类的 __props__ 复制给子类
-            prototype = fireClass.prototype;    // get extended prototype
+            JS.extend(fireClass, baseClass);        // 这里会把父类的 __props__ 复制给子类
+            prototype = fireClass.prototype;        // get extended prototype
         }
-        fireClass.$super = baseClass;
+        JS.value(fireClass, '$super', baseClass);   // not inheritable in JSB and TypeScript
         if (CC_DEV && shouldAddProtoCtor) {
             prototype.ctor = function () {};
         }
@@ -465,7 +464,7 @@ function compileProps (actualClass) {
 
     // functions for generated code
     var F = [];
-    var func = '(function(){\n';
+    var func = '';
 
     for (var i = 0; i < propList.length; i++) {
         var prop = propList[i];
@@ -512,16 +511,19 @@ function compileProps (actualClass) {
         }
     }
 
-    func += '})';
-
     // if (CC_TEST && !isPhantomJS) {
     //     console.log(func);
     // }
 
     // Overwite __initProps__ to avoid compile again.
-    // Use eval to bind scoped variable just in one function, so that we don't have to bind this.
-    var initProps = actualClass.prototype.__initProps__ = Misc.cleanEval_F(func, F);
-
+    var initProps;
+    if (F.length === 0) {
+        initProps = Function(func);
+    }
+    else {
+        initProps = Function('F', 'return (function(){\n' + func + '})')(F);
+    }
+    actualClass.prototype.__initProps__ = initProps;
     // call instantiateProps immediately, no need to pass actualClass into it anymore
     // (use call to manually bind `this` because `this` may not instanceof actualClass)
     initProps.call(this);
@@ -531,21 +533,16 @@ function _createCtor (ctors, baseClass, className, options) {
     // bound super calls
     var superCallBounded = baseClass && boundSuperCalls(baseClass, options, className);
 
-    var body;
     var args = CC_JSB ? '...args' : '';
-    if (CC_DEV) {
-        body = '(function ' + normalizeClassName_DEV(className) + '(' + args + '){\n';
-    }
-    else {
-        body = '(function(' + args + '){\n';
-    }
+    var ctorName = CC_DEV ? normalizeClassName_DEV(className) : 'CCClass';
+    var body = 'return function ' + ctorName + '(' + args + '){\n';
 
     if (superCallBounded) {
         body += 'this._super=null;\n';
     }
 
     // instantiate props
-    body += 'this.__initProps__(fireClass);\n';
+    body += 'this.__initProps__(' + ctorName + ');\n';
 
     // call user constructors
     var ctorLen = ctors.length;
@@ -556,10 +553,10 @@ function _createCtor (ctors, baseClass, className, options) {
         }
         var SNIPPET = CC_JSB ? '].apply(this,args);\n' : '].apply(this,arguments);\n';
         if (ctorLen === 1) {
-            body += 'fireClass.__ctors__[0' + SNIPPET;
+            body += ctorName + '.__ctors__[0' + SNIPPET;
         }
         else {
-            body += 'var cs=fireClass.__ctors__;\n';
+            body += 'var cs=' + ctorName + '.__ctors__;\n';
             for (var i = 0; i < ctorLen; i++) {
                 body += 'cs[' + i + SNIPPET;
             }
@@ -570,9 +567,9 @@ function _createCtor (ctors, baseClass, className, options) {
                     '}\n';
         }
     }
-    body += '})';
+    body += '}';
 
-    return Misc.cleanEval_fireClass(body);
+    return Function(body)();
 }
 
 function _validateCtor_DEV (ctor, baseClass, className, options) {
@@ -769,7 +766,7 @@ function declareProperties (cls, className, properties, baseClass, mixins, es6) 
  *
  * @param {Object} [options.editor] - attributes for Component listed below.
  * @param {Boolean} [options.editor.executeInEditMode=false] - Allows the current component to run in edit mode. By default, all components are executed only at runtime, meaning that they will not have their callback functions executed while the Editor is in edit mode.
- * @param {Component} [options.editor.requireComponent] - Automatically add required component as a dependency.
+ * @param {Function} [options.editor.requireComponent] - Automatically add required component as a dependency.
  * @param {String} [options.editor.menu] - The menu path to register a component to the editors "Component" menu. Eg. "Rendering/Camera".
  * @param {Number} [options.editor.executionOrder=0] - The execution order of lifecycle methods for Component. Those less than 0 will execute before while those greater than 0 will execute after. The order will only affect onLoad, onEnable, start, update and lateUpdate while onDisable and onDestroy will not be affected.
  * @param {Boolean} [options.editor.disallowMultiple] - If specified to a type, prevents Component of the same type (or subtype) to be added more than once to a Node.
@@ -1173,7 +1170,9 @@ function parseAttributes (cls, attrs, className, propName, usedInGetter) {
             if (range.length >= 2) {
                 (attrsProto || getAttrsProto())[attrsProtoKey + 'min'] = range[0];
                 attrsProto[attrsProtoKey + 'max'] = range[1];
-                attrsProto[attrsProtoKey + 'step'] = range[2];
+                if (range.length > 2) {
+                    attrsProto[attrsProtoKey + 'step'] = range[2];
+                }
             }
             else if (CC_DEV) {
                 cc.errorID(3647);
@@ -1201,11 +1200,8 @@ module.exports = {
     getNewValueTypeCode,
     IDENTIFIER_RE,
     escapeForJS,
+    getDefault: getDefault
 };
-
-if (CC_DEV) {
-    module.exports.getDefault = getDefault;
-}
 
 if (CC_TEST) {
     JS.mixin(CCClass, module.exports);

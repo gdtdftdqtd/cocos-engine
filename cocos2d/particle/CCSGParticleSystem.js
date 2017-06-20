@@ -1673,6 +1673,7 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
         }
         this._particleIdx = 0;
 
+        var worldToNodeTransform = this.getWorldToNodeTransform();
         var currentPosition = cc.Particle.TemporaryPoints[0];
         if (this.positionType === _ccsg.ParticleSystem.Type.FREE) {
             cc.pIn(currentPosition, this.convertToWorldSpace(this._pointZeroForParticle));
@@ -1760,9 +1761,12 @@ _ccsg.ParticleSystem = _ccsg.Node.extend({
                     //
                     var newPos = tpa;
                     if (this.positionType === _ccsg.ParticleSystem.Type.FREE || this.positionType === _ccsg.ParticleSystem.Type.RELATIVE) {
-                        var diff = tpb;
-                        cc.pIn(diff, currentPosition);
-                        cc.pSubIn(diff, selParticle.startPos);
+                        var diff = tpb, localStartPos = tpc;
+                        // current Position convert To Node Space
+                        cc._pointApplyAffineTransformIn(currentPosition, worldToNodeTransform, diff);
+                        // start Position convert To Node Space
+                        cc._pointApplyAffineTransformIn(selParticle.startPos, worldToNodeTransform, localStartPos);
+                        cc.pSubIn(diff, localStartPos);
 
                         cc.pIn(newPos, selParticle.pos);
                         cc.pSubIn(newPos, diff);
@@ -2227,21 +2231,4 @@ _ccsg.ParticleSystem.Type = cc.Enum({
      * Living particles are attached to the emitter and are translated along with it.
      */
     GROUPED: 2
-});
-
-// fireball#2856
-
-var particleSystemPro = _ccsg.ParticleSystem.prototype;
-Object.defineProperty(particleSystemPro, 'visible', {
-    get: _ccsg.Node.prototype.isVisible,
-    set: particleSystemPro.setVisible
-});
-
-Object.defineProperty(particleSystemPro, 'ignoreAnchor', {
-    get: _ccsg.Node.prototype.isIgnoreAnchorPointForPosition,
-    set: particleSystemPro.ignoreAnchorPointForPosition
-});
-
-Object.defineProperty(particleSystemPro, 'opacityModifyRGB', {
-    get: particleSystemPro.isOpacityModifyRGB
 });

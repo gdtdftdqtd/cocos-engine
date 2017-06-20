@@ -323,8 +323,7 @@ _ccsg.EditBox = _ccsg.Node.extend({
 
     cleanup: function () {
         this._super();
-
-        this._renderCmd._removeDomFromGameContainer();
+        this._renderCmd.removeDom();
     },
 
     _onTouchBegan: function (touch) {
@@ -670,7 +669,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
 
 
     proto._createDomInput = function () {
-        this._removeDomFromGameContainer();
+        this.removeDom();
 
         var thisPointer = this;
         var tmpEdTxt = this._edTxt = document.createElement('input');
@@ -765,7 +764,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
     };
 
     proto._createDomTextArea = function () {
-        this._removeDomFromGameContainer();
+        this.removeDom();
 
         var thisPointer = this;
         var tmpEdTxt = this._edTxt = document.createElement('textarea');
@@ -970,12 +969,18 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         if (!this._editBox._alwaysOnTop) {
             if (this._edTxt.style.display === 'none') {
                 this._edTxt.style.display = '';
-                this._edTxt.focus();
+                if (cc.sys.browserType === cc.sys.BROWSER_TYPE_UC) {
+                    setTimeout(function () {
+                        this._edTxt.focus();
+                    }.bind(this), TIMER_NAME);
+                } else {
+                    this._edTxt.focus();
+                }
             }
         }
 
         if (cc.sys.isMobile && !this._editingMode) {
-            // Pre adaptation and 
+            // Pre adaptation and
             this._beginEditingOnMobile(this._editBox);
         }
         this._editingMode = true;
@@ -1172,7 +1177,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         cc.game.container.appendChild(this._edTxt);
     };
 
-    proto._removeDomFromGameContainer = function () {
+    proto.removeDom = function () {
         var editBox = this._edTxt;
         if(editBox){
             var hasChild = Utils.contains(cc.game.container, editBox);
@@ -1192,7 +1197,7 @@ _ccsg.EditBox.KeyboardReturnType = KeyboardReturnType;
         this._textLabel = null;
         this._placeholderLabel = null;
         this._editingMode = false;
-        
+
         this.__fullscreen = false;
         this.__autoResize = false;
         this.__rotateScreen = false;

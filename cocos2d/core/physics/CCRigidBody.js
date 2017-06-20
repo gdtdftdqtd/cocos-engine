@@ -615,6 +615,50 @@ var RigidBody = cc.Class({
 
     /**
      * !#en
+     * Get all the joints connect to the rigidbody.
+     * !#zh
+     * 获取链接到此刚体的所有关节
+     * @method getInertia
+     * @return {[Joint]} the joint list.
+     */
+    getJointList: function () {
+        if (!this._b2Body) return [];
+
+        if (CC_JSB) {
+            var joints = this._b2Body.GetJointList();
+            for (var i = 0; i < joints.length; i++) {
+                joints[i] = joints[i]._joint;
+            }
+            return joints;
+        }
+        else {
+            var joints = [];
+
+            var list = this._b2Body.GetJointList();
+            if (!list) return [];
+
+            joints.push(list.joint._joint);
+            
+            // find prev joint
+            var prev = list.prev;
+            while (prev) {
+                joints.push(prev.joint._joint);
+                prev = prev.prev;
+            }
+
+            // find next joint
+            var next = list.next;
+            while (next) {
+                joints.push(next.joint._joint);
+                next = next.next;
+            }
+
+            return joints;
+        }
+    },
+
+    /**
+     * !#en
      * Apply a force at a world point. If the force is not
 	 * applied at the center of mass, it will generate a torque and
 	 * affect the angular velocity.
@@ -808,7 +852,7 @@ var RigidBody = cc.Class({
 
     _onNodeScaleChanged: function (event) {
         if (this._b2Body) {
-            var colliders = this.getComponents(cc.Collider);
+            var colliders = this.getComponents(cc.PhysicsCollider);
             for (var i = 0; i < colliders.length; i++) {
                 colliders[i].apply();
             }

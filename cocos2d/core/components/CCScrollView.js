@@ -110,7 +110,13 @@ var EventType = cc.Enum({
      * !#zh 当用户松手的时候会发出一个事件
      * @property {Number} TOUCH_UP
      */
-    TOUCH_UP : 10
+    TOUCH_UP : 10,
+    /**
+     * !#en The event emmitted when ScrollView scroll ended with a threshold
+     * !#zh 滚动视图滚动快要结束的时候发出的事件
+     * @property {Number} AUTOSCROLL_ENDED_WITH_THRESHOLD
+     */
+    AUTOSCROLL_ENDED_WITH_THRESHOLD: 11
 });
 
 var eventMap = {
@@ -124,8 +130,8 @@ var eventMap = {
     'bounce-right' : EventType.BOUNCE_RIGHT,
     'bounce-top' : EventType.BOUNCE_TOP,
     'scroll-ended' : EventType.AUTOSCROLL_ENDED,
-    'touch-up' : EventType.TOUCH_UP
-
+    'touch-up' : EventType.TOUCH_UP,
+    'scroll-ended-with-threshold' : EventType.AUTOSCROLL_ENDED_WITH_THRESHOLD
 };
 
 /**
@@ -173,9 +179,10 @@ var ScrollView = cc.Class({
         this._outOfBoundaryAmountDirty = true;
         this._stopMouseWheel = false;
         this._mouseWheelEventElapsedTime = 0.0;
-        this._isScrollEndedEventFired = false;
+        this._isScrollEndedWithThresholdEventFired = false;
         //use bit wise operations to indicate the direction
         this._scrollEventEmitMask = 0;
+        this._isBouncing = false;
     },
 
     properties: {
@@ -219,7 +226,6 @@ var ScrollView = cc.Class({
          */
         inertia: {
             default: true,
-            animatable: false,
             tooltip: CC_DEV && 'i18n:COMPONENT.scrollview.inertia',
         },
 
@@ -235,7 +241,6 @@ var ScrollView = cc.Class({
             default: 0.5,
             type: 'Float',
             range: [0, 1, 0.1],
-            animatable: false,
             tooltip: CC_DEV && 'i18n:COMPONENT.scrollview.brake',
         },
 
@@ -258,7 +263,6 @@ var ScrollView = cc.Class({
         bounceDuration: {
             default: 1,
             range: [0, 10],
-            animatable: false,
             tooltip: CC_DEV && 'i18n:COMPONENT.scrollview.bounceDuration',
         },
 
@@ -706,17 +710,25 @@ var ScrollView = cc.Class({
      * @method getContentPosition
      * @returns {Position} - The content's position in its parent space.
      */
-    getContentPosition: function() {
+    getContentPosition: function () {
         return this.content.getPosition();
     },
 
     //private methods
-    _registerEvent: function() {
+    _registerEvent: function () {
         this.node.on(cc.Node.EventType.TOUCH_START, this._onTouchBegan, this, true);
         this.node.on(cc.Node.EventType.TOUCH_MOVE, this._onTouchMoved, this, true);
         this.node.on(cc.Node.EventType.TOUCH_END, this._onTouchEnded, this, true);
         this.node.on(cc.Node.EventType.TOUCH_CANCEL, this._onTouchCancelled, this, true);
         this.node.on(cc.Node.EventType.MOUSE_WHEEL, this._onMouseWheel, this, true);
+    },
+
+    _unregisterEvent: function () {
+        this.node.off(cc.Node.EventType.TOUCH_START, this._onTouchBegan, this, true);
+        this.node.off(cc.Node.EventType.TOUCH_MOVE, this._onTouchMoved, this, true);
+        this.node.off(cc.Node.EventType.TOUCH_END, this._onTouchEnded, this, true);
+        this.node.off(cc.Node.EventType.TOUCH_CANCEL, this._onTouchCancelled, this, true);
+        this.node.off(cc.Node.EventType.MOUSE_WHEEL, this._onMouseWheel, this, true);
     },
 
     _onMouseWheel: function(event, captureListeners) {
@@ -1043,11 +1055,15 @@ var ScrollView = cc.Class({
     },
 
     _handlePressLogic: function() {
+        if (this._autoScrolling) {
+            this._dispatchEvent('scroll-ended');
+        }
         this._autoScrolling = false;
+        this._isBouncing = false;
 
         this._touchMovePreviousTimestamp = getTimeInMilliseconds();
-        this._touchMoveDisplacements = [];
-        this._touchMoveTimeDeltas = [];
+        this._touchMoveDisplacements.length = 0;
+        this._touchMoveTimeDeltas.length = 0;
 
         this._onScrollBarTouchBegan();
     },
@@ -1095,10 +1111,13 @@ var ScrollView = cc.Class({
         var bounceBackTime = Math.max(this.bounceDuration, 0);
         this._startAutoScroll(bounceBackAmount, bounceBackTime, true);
 
-        if (bounceBackAmount.y > 0) this._dispatchEvent('bounce-top');
-        if (bounceBackAmount.y < 0) this._dispatchEvent('bounce-bottom');
-        if (bounceBackAmount.x > 0) this._dispatchEvent('bounce-right');
-        if (bounceBackAmount.x < 0) this._dispatchEvent('bounce-left');
+        if (!this._isBouncing) {
+            if (bounceBackAmount.y > 0) this._dispatchEvent('bounce-top');
+            if (bounceBackAmount.y < 0) this._dispatchEvent('bounce-bottom');
+            if (bounceBackAmount.x > 0) this._dispatchEvent('bounce-right');
+            if (bounceBackAmount.x < 0) this._dispatchEvent('bounce-left');
+            this._isBouncing = true;
+        }
 
         return true;
     },
@@ -1162,12 +1181,12 @@ var ScrollView = cc.Class({
         }
 
         var newPosition = cc.pAdd(this._autoScrollStartPosition, cc.pMult(this._autoScrollTargetDelta, percentage));
-        var reachedEnd = (percentage === 1);
+        var reachedEnd = Math.abs(percentage - 1) <= EPSILON;
 
         var fireEvent = Math.abs(percentage - 1) <= this.getScrollEndedEventTiming();
-        if(fireEvent && !this._isScrollEndedEventFired) {
-            this._dispatchEvent('scroll-ended');
-            this._isScrollEndedEventFired = true;
+        if(fireEvent && !this._isScrollEndedWithThresholdEventFired) {
+            this._dispatchEvent('scroll-ended-with-threshold');
+            this._isScrollEndedWithThresholdEventFired = true;
         }
 
         if (this.elastic) {
@@ -1185,14 +1204,17 @@ var ScrollView = cc.Class({
             }
         }
 
-        var contentPos = cc.pSub(newPosition, this.getContentPosition());
-        this._moveContent(contentPos, reachedEnd);
-
         if (reachedEnd) {
             this._autoScrolling = false;
-            if(!this._isScrollEndedEventFired) {
-                this._dispatchEvent('scroll-ended');
-            }
+        }
+
+        var contentPos = cc.pSub(newPosition, this.getContentPosition());
+        this._moveContent(contentPos, reachedEnd);
+        this._dispatchEvent('scrolling');
+
+        if (!this._autoScrolling) {
+            this._isBouncing = false;
+            this._dispatchEvent('scroll-ended');
         }
     },
 
@@ -1263,7 +1285,7 @@ var ScrollView = cc.Class({
         this._autoScrollTotalTime = timeInSecond;
         this._autoScrollAccumulatedTime = 0;
         this._autoScrollBraking = false;
-        this._isScrollEndedEventFired = false;
+        this._isScrollEndedWithThresholdEventFired = false;
         this._autoScrollBrakingStartPosition = cc.p(0, 0);
 
         var currentOutOfBoundary = this._getHowMuchOutOfBoundary();
@@ -1423,17 +1445,6 @@ var ScrollView = cc.Class({
         this.node.emit(event, this);
     },
 
-    //component life cycle methods
-    __preload: function () {
-        if (!CC_EDITOR) {
-            this._registerEvent();
-            this.node.on('size-changed', this._calculateBoundary, this);
-            if(this.content) {
-                this.content.on('size-changed', this._calculateBoundary, this);
-            }
-        }
-    },
-
     _adjustContentOutOfBoundary: function () {
         this._outOfBoundaryAmountDirty = true;
         if(this._isOutOfBoundary()) {
@@ -1452,13 +1463,6 @@ var ScrollView = cc.Class({
         //So this event could make sure the content is on the correct position after loading.
         if(this.content) {
             cc.director.once(cc.Director.EVENT_AFTER_VISIT, this._adjustContentOutOfBoundary, this);
-        }
-    },
-
-    onDestroy: function() {
-        this.node.off('size-changed', this._calculateBoundary, this);
-        if(this.content) {
-            this.content.off('size-changed', this._calculateBoundary, this);
         }
     },
 
@@ -1483,11 +1487,25 @@ var ScrollView = cc.Class({
     },
 
     onDisable: function () {
+        if (!CC_EDITOR) {
+            this._unregisterEvent();
+            this.node.off('size-changed', this._calculateBoundary, this);
+            if(this.content) {
+                this.content.off('size-changed', this._calculateBoundary, this);
+            }
+        }
         this._hideScrollbar();
         this.stopAutoScroll();
     },
 
     onEnable: function () {
+        if (!CC_EDITOR) {
+            this._registerEvent();
+            this.node.on('size-changed', this._calculateBoundary, this);
+            if(this.content) {
+                this.content.on('size-changed', this._calculateBoundary, this);
+            }
+        }
         this._showScrollbar();
     },
 
@@ -1506,7 +1524,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event scroll-to-top
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1516,7 +1534,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event scroll-to-bottom
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1526,7 +1544,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event scroll-to-left
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1536,7 +1554,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event scroll-to-right
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1546,7 +1564,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event scrolling
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1556,7 +1574,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event bounce-bottom
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1566,7 +1584,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event bounce-top
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1576,7 +1594,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event bounce-left
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1586,7 +1604,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event bounce-right
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1596,7 +1614,7 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event scroll-ended
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */
 
@@ -1606,6 +1624,6 @@ cc.ScrollView = module.exports = ScrollView;
  * !#zh
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event touch-up
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {ScrollView} event.detail - The ScrollView component.
  */

@@ -36,8 +36,6 @@ var ANCHOR_CHANGED = 'anchor-changed';
 var ROTATION_CHANGED = 'rotation-changed';
 var SCALE_CHANGED = 'scale-changed';
 
-var CHILD_ADDED = 'child-added';
-var CHILD_REMOVED = 'child-removed';
 var CHILD_REORDER = 'child-reorder';
 
 var ERR_INVALID_NUMBER = CC_EDITOR && 'The %s is invalid';
@@ -1109,13 +1107,16 @@ var Node = cc.Class({
      *                        See {{#crossLink "Node/position-changed:event"}}Node Events{{/crossLink}} for all builtin events.
      * @param {Function} callback - The callback that will be invoked when the event is dispatched.
      *                              The callback is ignored if it is a duplicate (the callbacks are unique).
-     * @param {Event} callback.param event
+     * @param {Event} callback.event event
      * @param {Object} [target] - The target to invoke the callback, can be null
      * @param {Boolean} [useCapture=false] - When set to true, the capture argument prevents callback
      *                              from being invoked when the event's eventPhase attribute value is BUBBLING_PHASE.
      *                              When false, callback will NOT be invoked when event's eventPhase attribute value is CAPTURING_PHASE.
      *                              Either way, callback will be invoked when event's eventPhase attribute value is AT_TARGET.
      * @return {Function} - Just returns the incoming callback so you can save the anonymous function easier.
+     * @typescript
+     * on(type: string, callback: (event: Event.EventCustom) => void, target?: any, useCapture?: boolean): (event: Event.EventCustom) => void
+     * on<T>(type: string, callback: (event: T) => void, target?: any, useCapture?: boolean): (event: T) => void
      * @example
      * this.node.on(cc.Node.EventType.TOUCH_START, this.memberFunction, this);  // if "this" is component and the "memberFunction" declared in CCClass.
      * node.on(cc.Node.EventType.TOUCH_START, callback, this.node);
@@ -1303,7 +1304,15 @@ var Node = cc.Class({
         var w = this.width,
             h = this.height;
         var rect = cc.rect(0, 0, w, h);
-        var trans = this.getNodeToWorldTransform();
+        
+        var trans;
+        if (cc.Camera.main) {
+            trans = cc.Camera.main.getNodeToCameraTransform(this);
+        }
+        else {
+            trans = this.getNodeToWorldTransform();
+        }
+
         cc._rectApplyAffineTransformIn(rect, trans);
         var left = point.x - rect.x,
             right = rect.x + rect.width - point.x,
@@ -1661,7 +1670,7 @@ var Node = cc.Class({
         if (this._sizeProvider && !ignoreSizeProvider) {
             var size = this._sizeProvider.getContentSize();
             this._contentSize = size;
-            return size;
+            return cc.size(size);
         }
         else {
             return cc.size(this._contentSize);
@@ -2264,7 +2273,7 @@ var Node = cc.Class({
 
     /**
      * !#en
-     * "add" logic MUST only be in this method <br/>
+     * Adds a child to the node with z order and tag.
      * !#zh
      * 添加子节点，并且可以修改该节点的 局部 Z 顺序和标签。
      * @method addChild
@@ -2503,35 +2512,35 @@ if (CC_JSB) {
 
 /**
  * @event position-changed
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {Vec2} event.detail - The old position, but this parameter is only available in editor!
  */
 /**
  * @event size-changed
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {Size} event.detail - The old size, but this parameter is only available in editor!
  */
 /**
  * @event anchor-changed
- * @param {Event} event
+ * @param {Event.EventCustom} event
  */
 /**
  * @event child-added
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {Node} event.detail - child
  */
 /**
  * @event child-removed
- * @param {Event} event
+ * @param {Event.EventCustom} event
  * @param {Node} event.detail - child
  */
 /**
  * @event child-reorder
- * @param {Event} event
+ * @param {Event.EventCustom} event
  */
 /**
  * @event group-changed
- * @param {Event} event
+ * @param {Event.EventCustom} event
  */
 
 /**
@@ -2633,24 +2642,6 @@ if (CC_JSB) {
  * @param {Boolean} cascadeOpacityEnabled
  * @example
  * node.setCascadeOpacityEnabled(true);
- */
-
-/*
- * !#en Returns whether node's color value affect its child nodes.
- * !#zh 返回节点的颜色值是否影响其子节点。
- * @method isCascadeColorEnabled
- * @returns {Boolean}
- * @example
- * cc.log(node.isCascadeColorEnabled());
- */
-
-/**
- * !#en Enable or disable cascade color, if cascade enabled, child nodes' opacity will be the cascade value of parent color and its own color.
- * !#zh 启用或禁用级连颜色，如果级连启用，子节点的颜色将是父颜色和它自己的颜色的级连值。
- * @method setCascadeColorEnabled
- * @param {Boolean} cascadeColorEnabled
- * @example
- * node.setCascadeColorEnabled(true);
  */
 
 var SameNameGetSets = ['parent', 'tag', 'skewX', 'skewY', 'position', 'rotation', 'rotationX', 'rotationY',

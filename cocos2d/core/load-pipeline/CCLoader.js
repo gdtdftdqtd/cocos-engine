@@ -26,6 +26,7 @@
 var JS = require('../platform/js');
 var Pipeline = require('./pipeline');
 var LoadingItems = require('./loading-items');
+var AssetLoader = require('./asset-loader');
 var Downloader = require('./downloader');
 var Loader = require('./loader');
 var AssetTable = require('./asset-table');
@@ -82,16 +83,26 @@ var _sharedList = [];
  * @static
  */
 function CCLoader () {
+    var assetLoader = new AssetLoader();
     var downloader = new Downloader();
     var loader = new Loader();
 
     Pipeline.call(this, [
+        assetLoader,
         downloader,
         loader
     ]);
 
     /**
-     * The downloader in cc.loader's pipeline, it's by default the first pipe.
+     * The asset loader in cc.loader's pipeline, it's by default the first pipe.
+     * It's used to identify an asset's type, and determine how to download it.
+     * @property assetLoader
+     * @type {Object}
+     */
+    this.assetLoader = assetLoader;
+
+    /**
+     * The downloader in cc.loader's pipeline, it's by default the second pipe.
      * It's used to download files with several handlers: pure text, image, script, audio, font, uuid.
      * You can add your own download function with addDownloadHandlers
      * @property downloader
@@ -100,7 +111,7 @@ function CCLoader () {
     this.downloader = downloader;
 
     /**
-     * The downloader in cc.loader's pipeline, it's by default the second pipe.
+     * The downloader in cc.loader's pipeline, it's by default the third pipe.
      * It's used to parse downloaded content with several handlers: JSON, image, plist, fnt, uuid.
      * You can add your own download function with addLoadHandlers
      * @property loader
@@ -152,8 +163,8 @@ proto.addLoadHandlers = function (extMap) {
 
 /**
  * Load resources with a progression callback and a complete callback.
- * The progression callback is the same as Pipeline's {{#crossLink "Pipeline/onProgress:method"}}onProgress{{/crossLink}}
- * The complete callback is almost the same as Pipeline's {{#crossLink "Pipeline/onComplete:method"}}onComplete{{/crossLink}}
+ * The progression callback is the same as Pipeline's {{#crossLink "LoadingItems/onProgress:method"}}onProgress{{/crossLink}}
+ * The complete callback is almost the same as Pipeline's {{#crossLink "LoadingItems/onComplete:method"}}onComplete{{/crossLink}}
  * The only difference is when user pass a single url as resources, the complete callback will set its result directly as the second parameter.
  *
  * @example
@@ -182,10 +193,13 @@ proto.addLoadHandlers = function (extMap) {
  * @method load
  * @param {String|String[]|Object} resources - Url list in an array
  * @param {Function} [progressCallback] - Callback invoked when progression change
+ * @param {Number} progressCallback.completedCount - The number of the items that are already completed
+ * @param {Number} progressCallback.totalCount - The total number of the items
+ * @param {Object} progressCallback.item - The latest item which flow out the pipeline
  * @param {Function} [completeCallback] - Callback invoked when all resources loaded
  * @typescript
  * load(resources: string|string[]|{uuid?: string, url?: string, type?: string}, completeCallback?: Function): void
- * load(resources: string|string[]|{uuid?: string, url?: string, type?: string}, progressCallback: Function, completeCallback: Function|null): void
+ * load(resources: string|string[]|{uuid?: string, url?: string, type?: string}, progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: Function|null): void
  */
 proto.load = function(resources, progressCallback, completeCallback) {
     if (completeCallback === undefined) {
@@ -385,6 +399,9 @@ proto._parseLoadResArgs = function (type, onProgress, onComplete) {
  *                       The url is relative to the "resources" folder, extensions must be omitted.
  * @param {Function} [type] - Only asset of type will be loaded if this argument is supplied.
  * @param {Function} [progressCallback] - Callback invoked when progression change.
+ * @param {Number} progressCallback.completedCount - The number of the items that are already completed.
+ * @param {Number} progressCallback.totalCount - The total number of the items.
+ * @param {Object} progressCallback.item - The latest item which flow out the pipeline.
  * @param {Function} [completeCallback] - Callback invoked when the resource loaded.
  * @param {Error} completeCallback.error - The error info or null if loaded successfully.
  * @param {Object} completeCallback.resource - The loaded resource if it can be found otherwise returns null.
@@ -409,10 +426,10 @@ proto._parseLoadResArgs = function (type, onProgress, onComplete) {
  *     cc.log('Result should be a sprite frame: ' + (spriteFrame instanceof cc.SpriteFrame));
  * });
  * @typescript
- * loadRes(url: string, type: {new (): cc.Asset}, progressCallback: Function, completeCallback: ((error: Error, resource: any) => void)|null): void
- * loadRes(url: string, type: {new (): cc.Asset}, completeCallback: (error: Error, resource: any) => void): void
- * loadRes(url: string, type: {new (): cc.Asset}): void
- * loadRes(url: string, progressCallback: Function, completeCallback: ((error: Error, resource: any) => void)|null): void
+ * loadRes(url: string, type: typeof cc.Asset, progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: ((error: Error, resource: any) => void)|null): void
+ * loadRes(url: string, type: typeof cc.Asset, completeCallback: (error: Error, resource: any) => void): void
+ * loadRes(url: string, type: typeof cc.Asset): void
+ * loadRes(url: string, progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: ((error: Error, resource: any) => void)|null): void
  * loadRes(url: string, completeCallback: (error: Error, resource: any) => void): void
  * loadRes(url: string): void
  */
@@ -503,6 +520,9 @@ proto._loadResUuids = function (uuids, progressCallback, completeCallback, urls)
  *                          The url is relative to the "resources" folder, extensions must be omitted.
  * @param {Function} [type] - Only asset of type will be loaded if this argument is supplied.
  * @param {Function} [progressCallback] - Callback invoked when progression change.
+ * @param {Number} progressCallback.completedCount - The number of the items that are already completed.
+ * @param {Number} progressCallback.totalCount - The total number of the items.
+ * @param {Object} progressCallback.item - The latest item which flow out the pipeline.
  * @param {Function} [completeCallback] - A callback which is called when all assets have been loaded, or an error occurs.
  * @param {Error} completeCallback.error - If one of the asset failed, the complete callback is immediately called
  *                                         with the error. If all assets are loaded successfully, error will be null.
@@ -522,10 +542,10 @@ proto._loadResUuids = function (uuids, progressCallback, completeCallback, urls)
  *     // ...
  * });
  * @typescript
- * loadResArray(url: string[], type: {new (): cc.Asset}, progressCallback: Function, completeCallback: ((error: Error, resource: any[]) => void)|null): void
- * loadResArray(url: string[], type: {new (): cc.Asset}, completeCallback: (error: Error, resource: any[]) => void): void
- * loadResArray(url: string[], type: {new (): cc.Asset}): void
- * loadResArray(url: string[], progressCallback: Function, completeCallback: ((error: Error, resource: any[]) => void)|null): void
+ * loadResArray(url: string[], type: typeof cc.Asset, progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: ((error: Error, resource: any[]) => void)|null): void
+ * loadResArray(url: string[], type: typeof cc.Asset, completeCallback: (error: Error, resource: any[]) => void): void
+ * loadResArray(url: string[], type: typeof cc.Asset): void
+ * loadResArray(url: string[], progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: ((error: Error, resource: any[]) => void)|null): void
  * loadResArray(url: string[], completeCallback: (error: Error, resource: any[]) => void): void
  * loadResArray(url: string[]): void
  */
@@ -560,6 +580,9 @@ proto.loadResArray = function (urls, type, progressCallback, completeCallback) {
  *                       The url is relative to the "resources" folder, extensions must be omitted.
  * @param {Function} [type] - Only asset of type will be loaded if this argument is supplied.
  * @param {Function} [progressCallback] - Callback invoked when progression change.
+ * @param {Number} progressCallback.completedCount - The number of the items that are already completed.
+ * @param {Number} progressCallback.totalCount - The total number of the items.
+ * @param {Object} progressCallback.item - The latest item which flow out the pipeline.
  * @param {Function} [completeCallback] - A callback which is called when all assets have been loaded, or an error occurs.
  * @param {Error} completeCallback.error - If one of the asset failed, the complete callback is immediately called
  *                                         with the error. If all assets are loaded successfully, error will be null.
@@ -591,10 +614,10 @@ proto.loadResArray = function (urls, type, progressCallback, completeCallback) {
  *     var url = urls[0];
  * });
  * @typescript
- * loadResDir(url: string, type: {new (): cc.Asset}, progressCallback: Function, completeCallback: ((error: Error, resource: any[], urls: string[]) => void)|null): void
- * loadResDir(url: string, type: {new (): cc.Asset}, completeCallback: (error: Error, resource: any[], urls: string[]) => void): void
- * loadResDir(url: string, type: {new (): cc.Asset}): void
- * loadResDir(url: string, progressCallback: Function, completeCallback: ((error: Error, resource: any[], urls: string[]) => void)|null): void
+ * loadResDir(url: string, type: typeof cc.Asset, progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: ((error: Error, resource: any[], urls: string[]) => void)|null): void
+ * loadResDir(url: string, type: typeof cc.Asset, completeCallback: (error: Error, resource: any[], urls: string[]) => void): void
+ * loadResDir(url: string, type: typeof cc.Asset): void
+ * loadResDir(url: string, progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: ((error: Error, resource: any[], urls: string[]) => void)|null): void
  * loadResDir(url: string, completeCallback: (error: Error, resource: any[], urls: string[]) => void): void
  * loadResDir(url: string): void
  */
@@ -648,16 +671,14 @@ proto.getResCount = function () {
 
 /**
  * !#en Get all resource dependencies of the requested asset in an array, including itself.
- * The owner parameter accept the following types: 1. The asset itself; 2. The resource url; 3. The asset's uuid.
+ * The owner parameter accept the following types: 1. The asset itself; 2. The resource url; 3. The asset's uuid.<br>
  * The returned array stores the dependencies with their uuids, after retrieve dependencies,
- * you can release them, access dependent assets by passing the uuid to {{#crossLink "loader/getRes:method"}}{{/crossLink}}, or other stuffs you want.
+ * you can release them, access dependent assets by passing the uuid to {{#crossLink "loader/getRes:method"}}{{/crossLink}}, or other stuffs you want.<br>
  * For release all dependencies of an asset, please refer to {{#crossLink "loader/release:method"}}{{/crossLink}}
  * Here is some examples:
- * !#zh 获取一个指定资源的所有依赖资源，包含它自身，并保存在数组中返回。owner 参数接收以下几种类型：
- * 1. 资源 asset 对象；2. 资源目录下的 url；3. 资源的 uuid
- * 返回的数组将仅保存依赖资源的 uuid，获取这些 uuid 后，你可以从 loader 释放这些资源；通过 {{#crossLink "loader/getRes:method"}}{{/crossLink}} 获取某个资源或者其他你需要的处理。
- * 想要释放一个资源及其依赖资源，可以参考 {{#crossLink "loader/release:method"}}{{/crossLink}}。
- * 下面是一些示例代码：
+ * !#zh 获取一个指定资源的所有依赖资源，包含它自身，并保存在数组中返回。owner 参数接收以下几种类型：1. 资源 asset 对象；2. 资源目录下的 url；3. 资源的 uuid。<br>
+ * 返回的数组将仅保存依赖资源的 uuid，获取这些 uuid 后，你可以从 loader 释放这些资源；通过 {{#crossLink "loader/getRes:method"}}{{/crossLink}} 获取某个资源或者进行其他你需要的操作。<br>
+ * 想要释放一个资源及其依赖资源，可以参考 {{#crossLink "loader/release:method"}}{{/crossLink}}。下面是一些示例代码：
  *
  * @example
  * // Release all dependencies of a loaded prefab
@@ -673,7 +694,8 @@ proto.getResCount = function () {
  *     }
  * }
  *
- * @param {Asset|RawAsset|String} owner The owner asset or the resource url or the asset's uuid
+ * @method getDependsRecursively
+ * @param {Asset|RawAsset|String} owner - The owner asset or the resource url or the asset's uuid
  * @returns {Array}
  */
 proto.getDependsRecursively = function (owner) {
