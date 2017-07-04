@@ -209,6 +209,30 @@ jsbLabel.prototype.setOutlineColor = function(value) {
     }
 };
 
+jsbLabel.prototype.setShadowed = function(value) {
+    this._shadowed = !!value;
+    if(this._shadowed) {
+        this.enableShadow(this.getShadowColor(), this.getShadowOffset());
+    } else {
+        //1 equals cpp shadow effect
+        this.disableEffect(2);
+    }
+};
+
+jsbLabel.prototype.setShadowOffset = function(value) {
+    this._shadowOffset = value;
+    if(this._shadowed) {
+        this.enableShadow(this.getShadowColor(), this.getShadowOffset());
+    }
+};
+
+jsbLabel.prototype.setShadowColor = function(value) {
+    this._shadowColor = cc.color(value);
+    if(this._shadowed) {
+        this.enableShadow(this.getShadowColor(), this.getShadowOffset());
+    }
+};
+
 jsbLabel.prototype.setMargin = function() {
     //add an empty here, needed to be implemented by native
 };
@@ -223,6 +247,18 @@ jsbLabel.prototype.getOutlineWidth = function() {
 
 jsbLabel.prototype.getOutlineColor = function() {
     return this._outlineColor || cc.color(255,255,255,255);
+};
+
+jsbLabel.prototype.isShadowed = function() {
+    return this._shadowed;
+};
+
+jsbLabel.prototype.getShadowOffset = function() {
+    return this._shadowOffset || cc.size(1,1);
+};
+
+jsbLabel.prototype.getShadowColor = function() {
+    return this._shadowColor || cc.color(255,255,255,255);
 };
 
 

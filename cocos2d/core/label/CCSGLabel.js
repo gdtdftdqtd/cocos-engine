@@ -449,6 +449,18 @@ _ccsg.Label = _ccsg.Node.extend({
         this._outlineWidth = value;
         this._notifyLabelSkinDirty();
     },
+    
+    setShadowed: function(value) {
+        
+    },
+
+    setShadowOffset: function(value) {
+        
+    },
+
+    setShadowColor: function(value) {
+        
+    },
 
     getOutlineWidth: function() {
         return this._outlineWidth;

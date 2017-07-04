@@ -50,6 +50,7 @@ module.exports = [
     require('./CCWebView'),
     require('./CCSpriteDistortion'),
     require('./CCLabelOutline'),
+    require('./CCLabelShadow'),
     require('./CCRichText'),
     require('./CCToggleGroup'),
     require('./CCToggle')

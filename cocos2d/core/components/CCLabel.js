@@ -293,7 +293,7 @@ var Label = cc.Class({
          * @property {String} fontFamily
          */
         fontFamily: {
-            default: "Arial",
+            default: "Helvetica",
             tooltip: CC_DEV && 'i18n:COMPONENT.label.font_family',
             notify: function () {
                 if (this._sgNode) {
