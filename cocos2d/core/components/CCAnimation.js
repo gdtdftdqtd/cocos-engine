@@ -260,6 +260,9 @@ var Animation = cc.Class({
 
             this.currentClip = state.clip;
         }
+        else{
+            cc.log("error playAnimation no animation",name);
+        }
         return state;
     },
 
