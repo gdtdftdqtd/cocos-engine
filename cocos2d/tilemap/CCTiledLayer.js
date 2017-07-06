@@ -567,7 +567,7 @@ var TiledLayer = cc.Class({
         // cc.log("setupTilesBeyondPos", pos, distance)
         if (!this._sgNode) return;
         // cc.log("setupTilesBeyondPos", pos, distance)
-        this._sgNode.showTilesBeyond(pos, distance);        
+        this._sgNode.showTilesBeyond(pos, distance);
     },
     /**
     *   移除跟离超过pos distance的格子
@@ -576,6 +576,16 @@ var TiledLayer = cc.Class({
         // cc.log("removeTilesAwayPos", pos, distance)
         // cc.log(this._sgNode)
         if (!this._sgNode) return;
+        this._sgNode.removeTilesAway(pos, distance);
+    },
+    /**
+    *   移除pos格子
+    */
+    removeBigMapTileAt:function(pos){
+        // cc.log("removeBigMapTileAt", pos)
+        // cc.log(this._sgNode)
+        if (!this._sgNode) return;
+        this._sgNode.removeBigMapTileAt(pos);
     },
 
     inArray:function(val, array){
