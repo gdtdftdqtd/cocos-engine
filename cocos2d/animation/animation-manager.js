@@ -14,12 +14,29 @@ var AnimationManager = cc.Class({
     update: function (dt) {
         var iterator = this._animators;
         var array = iterator.array;
+        var removeAnimators = [];
         for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
             var animator = array[iterator.i];
+            if(!cc.isValid(animator.target)){
+                removeAnimators.push(animator);
+                continue;
+            }
+            else{
+                var spr = animator.target.getComponent(cc.Sprite);
+                if(spr && !spr._sgNode){
+                    removeAnimators.push(animator);
+                    continue;
+                }
+            }
             if (animator._isPlaying && !animator._isPaused) {
                 animator.update(dt);
             }
         }
+
+        for(var x = 0;x<removeAnimators.length;++x){
+            this.removeAnimator(removeAnimators[x]);
+        }
+        removeAnimators.length = 0;
 
         var events = this._delayEvents;
         for (i = 0, l = events.length; i < l; i++) {
