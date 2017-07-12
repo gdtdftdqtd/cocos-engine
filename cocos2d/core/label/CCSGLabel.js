@@ -203,6 +203,7 @@ _ccsg.Label = _ccsg.Node.extend({
     _overFlow: 0, //see _ccsg.Label.Overflow
     _isWrapText: true,
     _spacingX: 0,
+    _wordSpacing: 0,
 
     _blendFunc: null,
     _labelType: 0, //0 is ttf, 1 is bmfont.
@@ -532,6 +533,17 @@ _ccsg.Label = _ccsg.Node.extend({
 
     getLineHeight: function() {
         return this._lineHeight;
+    },
+
+    setWordSpacing: function(width) {
+        if (this._wordSpacing === width) return;
+
+        this._wordSpacing = width;
+        this._notifyLabelSkinDirty();
+    },
+
+    getWordSpacing: function() {
+        return this._wordSpacing;
     },
 
     getBMFontLineHeight : function() {
@@ -956,7 +968,7 @@ _ccsg.Label = _ccsg.Node.extend({
                 this._recordLetterInfo(letterPosition, character, letterIndex, lineIndex);
 
                 if (letterIndex + 1 < this._horizontalKernings.length && letterIndex < textLen - 1) {
-                    nextLetterX += this._horizontalKernings[letterIndex + 1];
+                    nextLetterX += this._horizontalKernings[letterIndex + 1]  + this._wordSpacing;
                 }
 
                 nextLetterX += letterDef._xAdvance * this._bmfontScale + this._spacingX;

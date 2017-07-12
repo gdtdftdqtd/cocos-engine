@@ -434,6 +434,24 @@ var Label = cc.Class({
             animatable: false
         },
 
+        worldSpace: {
+            get: function(){
+                if (this._sgNode) {
+                    this._wordSpace = this._sgNode.getWordSpacing();
+                }
+                return this._wordSpace;
+            },
+            set: function(value){
+                this._wordSpace = value;
+
+                if (this._sgNode) {
+                    this._sgNode.setWordSpacing(value);
+                    this._updateNodeSize();
+                }
+            },
+            tooltip: CC_DEV && 'i18n:COMPONENT.label.font_size',
+        },
+
         _isSystemFontUsed: true,
 
         /**
