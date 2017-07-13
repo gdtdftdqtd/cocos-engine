@@ -190,6 +190,17 @@ var RichText = cc.Class({
             }
         },
 
+        wordSpace: {
+            default: 0,
+            tooltip: CC_DEV && 'i18n:COMPONENT.richtext.line_height',
+            notify: function (oldValue) {
+                if(this.wordSpace === oldValue) return;
+
+                this._layoutDirty = true;
+                this._updateRichTextStatus();
+            }
+        },
+
         /**
          * !#en The image atlas for the img tag. For each src value in the img tag, there should be a valid spriteFrame in the image atlas.
          * !#zh 对于 img 标签里面的 src 属性名称，都需要在 imageAtlas 里面找到一个有效的 spriteFrame，否则 img tag 会判定为无效。
@@ -719,6 +730,7 @@ var RichText = cc.Class({
         var index = label._styleIndex;
         label.setLineHeight(this.lineHeight);
         label.setVerticalAlign(VerticalAlign.CENTER);
+        label.setWordSpacing(this.wordSpace);
 
         var textStyle = null;
         if (this._textArray[index]) {
