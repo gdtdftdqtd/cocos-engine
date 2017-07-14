@@ -376,7 +376,7 @@ js.getClassName = function (objOrCtor) {
     return '';
 };
 
-function isTempClassId_DEV (id) {
+function isTempClassId (id) {
     return typeof id !== 'string' || id.startsWith(tempCIDGenerater.prefix);
 }
 
@@ -512,7 +512,7 @@ cc.js.unregisterClass to remove the id of unused class';
         var res;
         if (typeof obj === 'function' && obj.prototype.hasOwnProperty('__cid__')) {
             res = obj.prototype.__cid__;
-            if (!allowTempId && CC_DEV && isTempClassId_DEV(res)) {
+            if (!allowTempId && (CC_DEV || CC_EDITOR) && isTempClassId(res)) {
                 return '';
             }
             return res;
@@ -521,7 +521,7 @@ cc.js.unregisterClass to remove the id of unused class';
             var prototype = obj.constructor.prototype;
             if (prototype && prototype.hasOwnProperty('__cid__')) {
                 res = obj.__cid__;
-                if (!allowTempId && CC_DEV && isTempClassId_DEV(res)) {
+                if (!allowTempId && (CC_DEV || CC_EDITOR) && isTempClassId(res)) {
                     return '';
                 }
                 return res;
@@ -574,7 +574,7 @@ cc.js.unregisterClass to remove the id of unused class';
  * @param {Boolean} [writable=false]
  */
 js.obsolete = function (obj, obsoleted, newPropName, writable) {
-    var oldName = obsoleted.split('.').slice(-1);
+    var oldName = obsoleted.split('.').slice(-1)[0];
     function get () {
         if (CC_DEV) {
             cc.warnID(5400, obsoleted, newPropName);
@@ -688,7 +688,7 @@ js.shiftArguments = function () {
     var len = arguments.length - 1;
     var args = new Array(len);
     for(var i = 0; i < len; ++i) {
-        args[i] = arguments[i + i];
+        args[i] = arguments[i + 1];
     }
     return args;
 };
@@ -985,6 +985,20 @@ Pool.prototype.put = function (obj) {
         }
         pool[this.count] = obj;
         ++this.count;
+    }
+};
+
+/**
+ * !#en Resize the pool.
+ * !#zh 设置对象池容量。
+ * @method resize
+ */
+Pool.prototype.resize = function (length) {
+    if (length >= 0) {
+        this._pool.length = length;
+        if (this.count > length) {
+            this.count = length;
+        }
     }
 };
 

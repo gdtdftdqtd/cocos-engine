@@ -76,7 +76,7 @@ Details.prototype.reset = function () {
     //this.rawObjList.length = 0;
     //this.rawPropList.length = 0;
 };
-if (CC_DEV) {
+if (CC_EDITOR) {
     Details.prototype.assignAssetsBy = function (getter) {
         for (var i = 0, len = this.uuidList.length; i < len; i++) {
             var uuid = this.uuidList[i];
@@ -421,8 +421,7 @@ var _Deserializer = (function () {
     //         var propName = props[p];
     //         var rawType = attrs[propName + RAW_TYPE];
     //         if (!rawType) {
-    //             if (((CC_EDITOR && self._ignoreEditorOnly) || (!CC_EDITOR && CC_DEV && !CC_TEST))
-    //                 && attrs[propName + EDITOR_ONLY]) {
+    //             if (((CC_EDITOR && self._ignoreEditorOnly) || CC_PREVIEW) && attrs[propName + EDITOR_ONLY]) {
     //                 var mayUsedInPersistRoot = (cc.Node.isNode(obj) && propName === '_id');
     //                 if ( !mayUsedInPersistRoot ) {
     //                     continue;   // skip editor only if in preview
@@ -486,8 +485,7 @@ var _Deserializer = (function () {
             var propNameLiteral;
             var rawType = attrs[propName + RAW_TYPE];
             if (!rawType) {
-                if (((CC_EDITOR && self._ignoreEditorOnly) || (!CC_EDITOR && CC_DEV && !CC_TEST))
-                    && attrs[propName + EDITOR_ONLY]) {
+                if ((CC_PREVIEW || (CC_EDITOR && self._ignoreEditorOnly)) && attrs[propName + EDITOR_ONLY]) {
                     var mayUsedInPersistRoot = (propName === '_id' && cc.isChildClassOf(klass, cc.Node));
                     if (!mayUsedInPersistRoot) {
                         continue;   // skip editor only if in preview
@@ -508,8 +506,8 @@ var _Deserializer = (function () {
                 }
 
                 sources.push('prop=d' + accessor + ';');
-                sources.push('if(typeof prop!=="undefined"){');
-                sources.push(    'if(typeof prop!=="object"){' +
+                sources.push(`if(typeof ${CC_JSB ? '(prop)' : 'prop'}!=="undefined"){`);
+                sources.push(    `if(typeof ${CC_JSB ? '(prop)' : 'prop'}!=="object"){` +
                                      'o' + accessor + '=prop;');
                 sources.push(    '}else{' +
                                      'if(prop){');
@@ -593,8 +591,8 @@ var _Deserializer = (function () {
             JS.value(klass, '__deserialize__', deserialize, true);
         }
         deserialize(self, obj, serialized, klass, target);
-        // if preview or build
-        if (CC_DEV && (!CC_EDITOR || self._ignoreEditorOnly)) {
+        // if preview or build worker
+        if (CC_PREVIEW || (CC_EDITOR && self._ignoreEditorOnly)) {
             if (klass === cc._PrefabInfo && !obj.sync) {
                 unlinkUnusedPrefab(self, serialized, obj);
             }

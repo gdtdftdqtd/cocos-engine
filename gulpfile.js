@@ -56,7 +56,6 @@ var jsbSkipModules = [
     '../../cocos2d/core/CCGame',
     '../../cocos2d/core/textures/CCTexture2D',
     '../../cocos2d/core/sprites/CCSpriteFrame',
-    '../../cocos2d/core/event/event',
     '../../cocos2d/core/load-pipeline/audio-downloader',
     '../../cocos2d/audio/CCAudio',
     '../../extensions/spine/SGSkeleton',
@@ -108,21 +107,18 @@ var jsbSkipModules = [
 gulp.task('build-jsb-dev', function (done) {
     Engine.buildJsb([
         './jsb/index.js',
-        './extends.js'
     ], './bin/jsb_polyfill.dev.js', jsbSkipModules, done);
 });
 
 gulp.task('build-jsb-min', function (done) {
     Engine.buildJsbMin([
         './jsb/index.js',
-        './extends.js'
     ], './bin/jsb_polyfill.js', jsbSkipModules, done);
 });
 
 gulp.task('build-jsb-preview',  function (done) {
     Engine.buildJsbPreview([
         './jsb/index.js',
-        './extends.js'
     ], './bin/jsb_polyfill-for-preview.js', jsbSkipModules, done);
 });
 
@@ -177,8 +173,7 @@ gulp.task('test-no-build', function (done) {
 
 // fast build, only for develop
 gulp.task('build-dev', ['build-html5-preview', 'build-jsb-preview'], function (done) {
-    // make dist version dirty
-    Del(['./bin/.cache'], done);
+    Del(['./bin/jsb_polyfill.js', './bin/jsb_polyfill.dev.js', './bin/.cache'], done);
 });
 
 // only build preview for html5 since it will built by editor
@@ -204,7 +199,6 @@ gulp.task('watch-preview', function () {
 gulp.task('watch-jsb-polyfill', function () {
     Watch.jsbPolyfill([
         './jsb/index.js',
-        './extends.js'
     ], './bin/jsb_polyfill.dev.js', jsbSkipModules);
 });
 

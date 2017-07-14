@@ -28,6 +28,8 @@ var callInNextTick = require('./utils').callInNextTick;
 var Loader = require('../load-pipeline/CCLoader');
 var PackDownloader = require('../load-pipeline/pack-downloader');
 var AutoReleaseUtils = require('../load-pipeline/auto-release-utils');
+var decodeUuid = require('../utils/decode-uuid');
+var MD5Pipe = require('../load-pipeline/md5-pipe');
 
 /**
  * The asset library which managing loading/unloading assets in project.
@@ -44,6 +46,13 @@ var _uuidToRawAsset = {};
 
 function isScene (asset) {
     return asset && (asset.constructor === cc.SceneAsset || asset instanceof cc.Scene);
+}
+
+// types
+
+function RawAssetEntry (url, type) {
+    this.url = url;
+    this.type = type;
 }
 
 // publics
@@ -104,7 +113,10 @@ var AssetLibrary = {
     },
 
     getImportedDir: function (uuid) {
-        return _libraryBase + uuid.slice(0, 2)/* + cc.path.sep + uuid*/;
+        if (CC_BUILD) {
+            uuid = decodeUuid(uuid);
+        }
+        return _libraryBase + uuid.slice(0, 2) + '/' + uuid;
     },
 
     _queryAssetInfoInEditor: function (uuid, callback) {
@@ -131,16 +143,15 @@ var AssetLibrary = {
     },
 
     _getAssetInfoInRuntime: function (uuid, result) {
-        if (!result) {
-            result = {url: null, raw: false};
-        }
+        result = result || {url: null, raw: false};
         var info = _uuidToRawAsset[uuid];
         if (info && !cc.isChildClassOf(info.type, cc.Asset)) {
             result.url = _rawAssetsBase + info.url;
             result.raw = true;
         }
         else {
-            result.url = this.getImportedDir(uuid) + '/' + uuid + '.json';
+            result.url = this.getImportedDir(uuid) + '.json';
+            result.raw = false;
         }
         return result;
     },
@@ -264,6 +275,11 @@ var AssetLibrary = {
             return;
         }
 
+        var md5AssetsMap = options.md5AssetsMap;
+        if (md5AssetsMap) {
+            cc.loader.insertPipeAfter(cc.loader.assetLoader, new MD5Pipe(md5AssetsMap));
+        }
+
         // 这里将路径转 url，不使用路径的原因是有的 runtime 不能解析 "\" 符号。
         // 不使用 url.format 的原因是 windows 不支持 file:// 和 /// 开头的协议，所以只能用 replace 操作直接把路径转成 URL。
         var libraryPath = options.libraryPath;
@@ -290,10 +306,7 @@ var AssetLibrary = {
                         cc.error('Cannot get', typeId);
                         continue;
                     }
-                    _uuidToRawAsset[uuid] = {
-                        url: mountPoint + '/' + url,
-                        type: type,
-                    };
+                    _uuidToRawAsset[uuid] = new RawAssetEntry(mountPoint + '/' + url, type);
                     // init resources
                     if (mountPoint === 'assets' && url.startsWith(RES_DIR)) {
                         if (cc.isChildClassOf(type, Asset)) {

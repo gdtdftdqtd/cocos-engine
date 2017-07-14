@@ -22,8 +22,8 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-require('../label/CCHtmlTextParser.js');
-require('../label/CCTextUtils.js');
+require('../label/CCHtmlTextParser');
+require('../label/CCTextUtils');
 
 var HorizontalAlign = cc.TextAlignment;
 var VerticalAlign = cc.VerticalTextAlignment;
@@ -213,12 +213,14 @@ var RichText = cc.Class({
         VerticalAlign: VerticalAlign
     },
 
-    __preload: function () {
+    onEnable: function () {
         this._super();
+        this.node.on(cc.Node.EventType.TOUCH_END, this._onTouchEnded, this);
+    },
 
-        if (!CC_EDITOR) {
-            this._registerEvents();
-        }
+    onDisable: function () {
+        this._super();
+        this.node.off(cc.Node.EventType.TOUCH_END, this._onTouchEnded, this);
     },
 
     _createSgNode: function () {
@@ -250,7 +252,7 @@ var RichText = cc.Class({
     },
 
     _createFontLabel: function (string) {
-        return  new _ccsg.Label(string, this._getFontRawUrl());
+        return  _ccsg.Label.pool.get(string, this.font);
     },
 
     _getFontRawUrl: function() {
@@ -319,10 +321,6 @@ var RichText = cc.Class({
         var myRect = label.getBoundingBoxToWorld();
 
         return cc.rectContainsPoint(myRect, point);
-    },
-
-    _registerEvents: function () {
-        this.node.on(cc.Node.EventType.TOUCH_END, this._onTouchEnded, this);
     },
 
     _resetState: function () {
@@ -427,7 +425,6 @@ var RichText = cc.Class({
 
             this._addLabelSegment(labelString, styleIndex);
         }
-
     },
 
     _isLastComponentCR: function(stringToken) {
@@ -764,8 +761,16 @@ var RichText = cc.Class({
                 label._clickHandler = textStyle.event.click;
             }
         }
-    }
+    },
 
+    onDestroy: function () {
+        this._super();
+        for (var i = 0; i < this._labelSegments.length; ++i) {
+            this._labelSegments[i].removeFromParent(true);
+            _ccsg.Label.pool.put(this._labelSegments[i]);
+        }
+        this._resetState();
+    }
  });
 
  cc.RichText = module.exports = RichText;

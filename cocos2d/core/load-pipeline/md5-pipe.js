@@ -1,5 +1,5 @@
 /****************************************************************************
- Copyright (c) 2013-2016 Chukong Technologies Inc.
+ Copyright (c) 2017 Chukong Technologies Inc.
 
  http://www.cocos.com
 
@@ -23,49 +23,33 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-if (!cc.ClassManager) {
-    cc.ClassManager = window.ClassManager || {
-        id : (0|(Math.random()*998)),
-        instanceId : (0|(Math.random()*998)),
-        getNewID : function(){
-            return this.id++;
-        },
-        getNewInstanceId : function(){
-            return this.instanceId++;
+var Pipeline = require('./pipeline');
+
+var ID = 'MD5Pipe';
+var ExtnameRegex = /(\.[^.\n\\/]*)$/;
+
+var MD5Pipe = function (md5AssetsMap) {
+    this.id = ID;
+    this.async = false;
+    this.pipeline = null;
+    this.md5AssetsMap = md5AssetsMap;
+};
+MD5Pipe.ID = ID;
+
+MD5Pipe.prototype.handle = function(item) {
+    let hashValue = this.md5AssetsMap[item.url];
+    if (hashValue) {
+        var matched = false;
+        item.url  = item.url.replace(ExtnameRegex, function(match, p1) {
+            matched = true;
+            return '.' + hashValue + p1;
+        });
+        if (!matched) {
+            item.url = item.url + '.' + hashValue;
         }
-    };
-}
+    }
+    return item;
+};
 
-if (CC_DEV) {
-    /**
-     * contains internal apis for unit tests
-     * @expose
-     */
-    cc._Test = {};
-}
 
-// polyfills
-if (!(CC_EDITOR && Editor.isMainProcess)) {
-    require('../polyfill/typescript');
-}
-
-// predefine some modules for cocos
-require('../cocos2d/core/platform/js');
-require('../cocos2d/core/value-types');
-require('../cocos2d/core/utils/find');
-require('../cocos2d/core/utils/mutable-forward-iterator');
-require('../cocos2d/core/event');
-require('../cocos2d/core/event-manager/CCSystemEvent');
-require('../CCDebugger');
-
-if (CC_DEV) {
-    //Debug Info ID map
-    require('../DebugInfos');
-}
-
-// Mark memory model
-var macro = require('../cocos2d/core/platform/CCMacro');
-
-if (window.__ENABLE_GC_FOR_NATIVE_OBJECTS__ !== undefined) {
-    macro.ENABLE_GC_FOR_NATIVE_OBJECTS = window.__ENABLE_GC_FOR_NATIVE_OBJECTS__;
-}
+Pipeline.MD5Pipe = module.exports = MD5Pipe;

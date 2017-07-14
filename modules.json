@@ -45,13 +45,15 @@
   {
     "name": "ParticleSystem",
     "entries": [
-      "./cocos2d/particle/CCParticleSystem.js"
+      "./cocos2d/particle/CCParticleSystem.js",
+      "./cocos2d/particle/CCParticleAsset.js"
     ]
   },
   {
     "name": "TiledMap",
     "entries": [
-      "./cocos2d/tilemap/CCTiledMap.js"
+      "./cocos2d/tilemap/CCTiledMap.js",
+      "./cocos2d/tilemap/CCTiledMapAsset.js"
     ]
   },
   {
@@ -203,7 +205,8 @@
     "name": "Physics",
     "entries": [
       "./cocos2d/core/physics/index.js"
-    ]
+    ],
+    "dependencies": ["Collider"]
   },
   {
     "name": "StudioComponent",
@@ -229,6 +232,12 @@
     "name": "Camera",
     "entries": [
       "./cocos2d/core/camera/CCCamera.js"
+    ]
+  },
+  {
+    "name": "Intersection",
+    "entries": [
+      "./cocos2d/core/collider/CCIntersection.js"
     ]
   }
 ]

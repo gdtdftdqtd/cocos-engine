@@ -22,7 +22,12 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-require('./CCSGTMXTiledMap.js');
+
+require('./CCTiledMapAsset');
+require('./CCTiledLayer');
+require('./CCTiledObjectGroup');
+require('./CCSGTMXTiledMap');
+
 /**
  * !#en The orientation of tiled map.
  * !#zh Tiled Map 地图方向。
