@@ -194,7 +194,7 @@ cc._initDebugSetting = function (mode) {
          * - 在 Chrome 中，错误信息有红色的图标以及红色的消息文本。<br/>
          *
          * @method error
-         * @param {any} obj - A JavaScript string containing zero or more substitution strings.
+         * @param {any} msg - A JavaScript string containing zero or more substitution strings.
          * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
          */
         if (CC_EDITOR) {
@@ -209,13 +209,7 @@ cc._initDebugSetting = function (mode) {
                 return console.error.apply(console, arguments);
             };
         }
-        cc.assert = CC_JSB ? function (cond, ...args) {
-            var msg = args[0];
-            if (!cond && msg) {
-                msg = cc.js.formatStr.apply(null, args);
-                throw new Error(msg);
-            }
-        } : function (cond, msg) {
+        cc.assert = function (cond, msg) {
             if (!cond) {
                 if (msg) {
                     msg = cc.js.formatStr.apply(null, cc.js.shiftArguments.apply(null, arguments));
@@ -243,7 +237,7 @@ cc._initDebugSetting = function (mode) {
          * - 在 Cocos Creator 中，警告信息显示是黄色的。<br/>
          * - 在 Chrome 中，警告信息有着黄色的图标以及黄色的消息文本。<br/>
          * @method warn
-         * @param {any} obj - A JavaScript string containing zero or more substitution strings.
+         * @param {any} msg - A JavaScript string containing zero or more substitution strings.
          * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
          */
         if (CC_EDITOR) {
@@ -268,7 +262,7 @@ cc._initDebugSetting = function (mode) {
          * !#en Outputs a message to the Cocos Creator Console (editor) or Web Console (runtime).
          * !#zh 输出一条消息到 Cocos Creator 编辑器的 Console 或运行时 Web 端的 Console 中。
          * @method log
-         * @param {String|any} obj - A JavaScript string containing zero or more substitution strings.
+         * @param {String|any} msg - A JavaScript string containing zero or more substitution strings.
          * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
          */
         if (CC_JSB) {
@@ -293,7 +287,7 @@ cc._initDebugSetting = function (mode) {
          * - 在 Cocos Creator 中，Info 信息显示是蓝色的。<br/>
          * - 在 Firefox 和  Chrome 中，Info 信息有着小 “i” 图标。
          * @method info
-         * @param {any} obj - A JavaScript string containing zero or more substitution strings.
+         * @param {any} msg - A JavaScript string containing zero or more substitution strings.
          * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
          */
         cc.info = CC_JSB ? jsbLog : function () {
@@ -312,12 +306,7 @@ cc._initDebugSetting = function (mode) {
         }
         cc.assert.apply(null, argsArr);
     }, 'Assert');
-    cc.assertID = CC_JSB ? function (cond, ...args) {
-        if (cond) {
-            return;
-        }
-        assertFailed.apply(null, args);
-    } : function (cond) {
+    cc.assertID = function (cond) {
         'use strict';
         if (cond) {
             return;
@@ -338,25 +327,7 @@ cc._throw = CC_EDITOR ? Editor.error : function (error) {
 var errorMapUrl = 'https://github.com/cocos-creator/engine/blob/master/EngineErrorMap.md';
 
 function genLogFunc(func, type) {
-    return CC_JSB ? function (...args) {
-        var id = args[0];
-        if (args.length === 1) {
-            CC_DEBUG ? func(cc._LogInfos[id]) : func(type + ' ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details.');
-            return;
-        }
-        if (CC_DEBUG) {
-            args[0] = cc._LogInfos[id];
-            func.apply(cc, args);
-        } else {
-            var msg = '';
-            if (args.length === 2) {
-                msg = 'Arguments: ' + args[1];
-            } else if (args.length > 2) {
-                msg = 'Arguments: ' + args.slice(1).join(', ');
-            }
-            func(type + ' ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details. ' + msg);
-        }
-    } : function (id) {
+    return function (id) {
         'use strict';
         if (arguments.length === 1) {
             CC_DEBUG ? func(cc._LogInfos[id]) : func(type + ' ' + id + ', please go to ' + errorMapUrl + '#' + id + ' to see details.');

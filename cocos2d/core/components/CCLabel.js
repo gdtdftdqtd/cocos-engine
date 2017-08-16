@@ -124,17 +124,7 @@ var Overflow = _ccsg.Label.Overflow;
 // leading edge, instead of the trailing.
 function debounce (func, wait, immediate) {
     var timeout;
-    return CC_JSB ? function (...args) {
-        var context = this;
-        var later = function() {
-            timeout = null;
-            if (!immediate) func.apply(context, args);
-        };
-        var callNow = immediate && !timeout;
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
-    } : function () {
+    return function () {
         var context = this;
         var later = function() {
             timeout = null;
@@ -529,17 +519,17 @@ var Label = cc.Class({
                         sgNode = this._sgNode = new _ccsg.Label(this.string, JSON.stringify(font._fntConfig), font.spriteFrame);
                     } else {
                         cc.warnID(4012, font.name);
-                        sgNode = this._sgNode = new _ccsg.Label(this.string);
+                        sgNode = this._sgNode = new _ccsg.Label(this.string, null, null, this._fontSize);
                     }
                 } else {
                     sgNode = this._sgNode = _ccsg.Label.pool.get(this.string, font);
                 }
             } else {
                 cc.warnID(4011, font.name);
-                sgNode = this._sgNode = new _ccsg.Label(this.string);
+                sgNode = this._sgNode = _ccsg.Label.pool.get(this.string);
             }
         } else {
-            sgNode = this._sgNode = _ccsg.Label.pool.get(this.string, font);
+            sgNode = this._sgNode = _ccsg.Label.pool.get(this.string, font, null, this._fontSize);
         }
 
         if (CC_JSB) {

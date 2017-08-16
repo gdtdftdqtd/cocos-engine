@@ -145,13 +145,13 @@ Audio.State = {
             this._element = new WebAudioElement(elem, this);
             this._audioType = Audio.Type.WEBAUDIO;
         }
-        this._bindEnded();
         this._state = Audio.State.INITIALZING;
         this._loaded = true;
     };
 
     proto.play = function () {
         if (!this._element) return;
+        this._bindEnded();
         this._element.play();
         this.emit('play');
         this._state = Audio.State.PLAYING;
@@ -201,7 +201,7 @@ Audio.State = {
                 break;
             }
         }
-        this.emit('ended');
+        this._unbindEnded();
         this.emit('stop');
         this._state = Audio.State.PAUSED;
     };
@@ -228,7 +228,18 @@ Audio.State = {
         this._bindEnded(function () {
             this._bindEnded();
         }.bind(this));
-        this._element.currentTime = num;
+        try {
+            this._element.currentTime = num;
+        } catch (err) {
+            var _element = this._element;
+            if (_element.addEventListener) {
+                var func = function () {
+                    _element.removeEventListener('loadedmetadata', func);
+                    _element.currentTime = num;
+                };
+                _element.addEventListener('loadedmetadata', func);
+            }
+        }
     };
     proto.getCurrentTime = function () {
         return this._element ? this._element.currentTime : 0;

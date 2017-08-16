@@ -75,7 +75,8 @@ function createItem (id, queueId) {
         result = {
             queueId: queueId,
             id: id.url,
-            url: urlItem.url,
+            url: urlItem.url, // real download url, maybe changed
+            rawUrl: urlItem.url, // url used in scripts
             urlParam: urlItem.param,
             error: null,
             content: null,
@@ -90,7 +91,8 @@ function createItem (id, queueId) {
         result = {
             queueId: queueId,
             id: id,
-            url: urlItem.url,
+            url: urlItem.url, // real download url, maybe changed
+            rawUrl: urlItem.url, // url used in scripts
             urlParam: urlItem.param,
             type: Path.extname(id).toLowerCase().substr(1),
             error: null,
@@ -595,7 +597,7 @@ proto.getContent = function (id) {
             ret = item.content;
         }
         else if (item.alias) {
-            ret = this.getContent(item.alias);
+            ret = item.alias.content;
         }
     }
 
@@ -616,7 +618,7 @@ proto.getError = function (id) {
         if (item.error) {
             ret = item.error;
         } else if (item.alias) {
-            ret = this.getError(item.alias);
+            ret = item.alias.error;
         }
     }
 
@@ -688,8 +690,8 @@ proto.removeItem = function (url) {
     delete this.completed[url];
     delete this.map[url];
     if (item.alias) {
-        delete this.completed[item.alias];
-        delete this.map[item.alias];
+        delete this.completed[item.alias.id];
+        delete this.map[item.alias.id];
     }
 
     this.completedCount--;

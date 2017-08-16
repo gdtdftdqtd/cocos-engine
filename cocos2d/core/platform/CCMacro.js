@@ -1871,7 +1871,7 @@ cc.macro = {
      * 最大可以被单次批处理渲染的顶点数量。
      * @property {Number} BATCH_VERTEX_COUNT
      */
-    BATCH_VERTEX_COUNT: 2000,
+    BATCH_VERTEX_COUNT: 20000,
 
     /**
      * !#en 
@@ -1888,10 +1888,8 @@ cc.macro = {
     /**
      * !#en 
      * Whether or not enabled tiled map auto culling.
-     * If you use cc.Camera as tiled map's camera, please disable this macro.
      * !#zh
      * 是否开启瓦片地图的自动裁减功能。
-     * 如果需要使用 cc.Camera 来作为瓦片地图的摄像机的话，那么请关闭此宏
      * @property {Boolean} ENABLE_TILEDMAP_CULLING
      * @default true
      */
@@ -2073,7 +2071,7 @@ cc.incrementGLDraws = function (addNumber) {
  * @method checkGLErrorDebug
  */
 cc.checkGLErrorDebug = function () {
-    if (cc.renderMode === cc.game.RENDER_TYPE_WEBGL) {
+    if (cc._renderType === cc.game.RENDER_TYPE_WEBGL) {
         var _error = cc._renderContext.getError();
         if (_error) {
             cc.logID(2400, _error);

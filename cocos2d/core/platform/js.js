@@ -84,24 +84,7 @@ var js = {
      * @return {Object} the result obj
      * @deprecated
      */
-    addon: CC_JSB ? function (obj, ...args) {
-        obj = obj || {};
-        for (var i = 0, length = args.length; i < length; i++) {
-            var source = args[i];
-            if (source) {
-                if (typeof source !== 'object') {
-                    cc.errorID(5402, source);
-                    continue;
-                }
-                for ( var name in source) {
-                    if ( !(name in obj) ) {
-                        _copyprop( name, source, obj);
-                    }
-                }
-            }
-        }
-        return obj;
-    } : function (obj) {
+    addon: function (obj) {
         'use strict';
         obj = obj || {};
         for (var i = 1, length = arguments.length; i < length; i++) {
@@ -128,22 +111,7 @@ var js = {
      * @param {Object} ...sourceObj
      * @return {Object} the result obj
      */
-    mixin: CC_JSB ? function (obj, ...args) {
-        obj = obj || {};
-        for (var i = 0, length = args.length; i < length; i++) {
-            var source = args[i];
-            if (source) {
-                if (typeof source !== 'object') {
-                    cc.errorID(5403, source);
-                    continue;
-                }
-                for ( var name in source) {
-                    _copyprop( name, source, obj);
-                }
-            }
-        }
-        return obj;
-    } : function (obj) {
+    mixin: function (obj) {
         'use strict';
         obj = obj || {};
         for (var i = 1, length = arguments.length; i < length; i++) {
@@ -451,19 +419,7 @@ cc.js.unregisterClass to remove the id of unused class';
      * @method unregisterClass
      * @param {Function} ...constructor - the class you will want to unregister, any number of classes can be added
      */
-    js.unregisterClass = CC_JSB ? function (...args) {
-        for (var i = 0; i < args.length; i++) {
-            var p = args[i].prototype;
-            var classId = p.__cid__;
-            if (classId) {
-                delete _idToClass[classId];
-            }
-            var classname = p.__classname__;
-            if (classname) {
-                delete _nameToClass[classname];
-            }
-        }
-    } : function () {
+    js.unregisterClass = function () {
         for (var i = 0; i < arguments.length; i++) {
             var p = arguments[i].prototype;
             var classId = p.__cid__;
@@ -574,7 +530,7 @@ cc.js.unregisterClass to remove the id of unused class';
  * @param {Boolean} [writable=false]
  */
 js.obsolete = function (obj, obsoleted, newPropName, writable) {
-    var oldName = obsoleted.split('.').slice(-1)[0];
+    var oldName = /([^.]+)$/.exec(obsoleted)[0];
     function get () {
         if (CC_DEV) {
             cc.warnID(5400, obsoleted, newPropName);
@@ -612,75 +568,46 @@ js.obsoletes = function (obj, objName, props, writable) {
     }
 };
 
+var REGEXP_NUM_OR_STR = /(%d)|(%s)/;
+var REGEXP_STR = /%s/;
+
 /**
  * A string tool to construct a string with format string.
- * for example:
- *      cc.js.formatStr("a: %s, b: %s", a, b);
- *      cc.js.formatStr(a, b, c);
  * @method formatStr
+ * @param {String|any} msg - A JavaScript string containing zero or more substitution strings.
+ * @param {any} ...subst - JavaScript objects with which to replace substitution strings within msg. This gives you additional control over the format of the output.
  * @returns {String}
+ * @example
+ * cc.js.formatStr("a: %s, b: %s", a, b);
+ * cc.js.formatStr(a, b, c);
  */
-js.formatStr = CC_JSB ? function (...args) {
-    var l = args.length;
-    if (l < 1) return '';
-    var REGEXP_NUM_OR_STR = /(%d)|(%s)/;
+js.formatStr = function () {
+    var argLen = arguments.length;
+    if (argLen === 0) {
+        return '';
+    }
+    var msg = arguments[0];
+    if (argLen === 1) {
+        return '' + msg;
+    }
 
-    var i = 1;
-    var str = args[0];
-    var hasSubstitution = typeof str === 'string' && REGEXP_NUM_OR_STR.test(str);
+    var hasSubstitution = typeof msg === 'string' && REGEXP_NUM_OR_STR.test(msg);
     if (hasSubstitution) {
-        var REGEXP_STR = /%s/;
-        for (; i < l; ++i) {
-            var arg = args[i];
+        for (let i = 1; i < argLen; ++i) {
+            var arg = arguments[i];
             var regExpToTest = typeof arg === 'number' ? REGEXP_NUM_OR_STR : REGEXP_STR;
-            if (regExpToTest.test(str))
-                str = str.replace(regExpToTest, arg);
+            if (regExpToTest.test(msg))
+                msg = msg.replace(regExpToTest, arg);
             else
-                str += ' ' + arg;
+                msg += ' ' + arg;
         }
     }
     else {
-        if (l > 1) {
-            for (; i < l; ++i) {
-                str += ' ' + args[i];
-            }
-        }
-        else {
-            str = '' + str;
+        for (let i = 1; i < argLen; ++i) {
+            msg += ' ' + arguments[i];
         }
     }
-    return str;
-} : function () {
-    var args = arguments;
-    var l = args.length;
-    if (l < 1) return '';
-    var REGEXP_NUM_OR_STR = /(%d)|(%s)/;
-
-    var i = 1;
-    var str = args[0];
-    var hasSubstitution = typeof str === 'string' && REGEXP_NUM_OR_STR.test(str);
-    if (hasSubstitution) {
-        var REGEXP_STR = /%s/;
-        for (; i < l; ++i) {
-            var arg = args[i];
-            var regExpToTest = typeof arg === 'number' ? REGEXP_NUM_OR_STR : REGEXP_STR;
-            if (regExpToTest.test(str))
-                str = str.replace(regExpToTest, arg);
-            else
-                str += ' ' + arg;
-        }
-    }
-    else {
-        if (l > 1) {
-            for (; i < l; ++i) {
-                str += ' ' + args[i];
-            }
-        }
-        else {
-            str = '' + str;
-        }
-    }
-    return str;
+    return msg;
 };
 
 // see https://github.com/petkaantonov/bluebird/issues/1389
