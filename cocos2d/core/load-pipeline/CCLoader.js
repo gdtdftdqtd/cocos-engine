@@ -126,7 +126,8 @@ JS.extend(CCLoader, Pipeline);
 var proto = CCLoader.prototype;
 
 /**
- * Get XMLHttpRequest.
+ * Gets a new XMLHttpRequest instance.
+ * @method getXMLHttpRequest
  * @returns {XMLHttpRequest}
  */
 proto.getXMLHttpRequest = getXMLHttpRequest;
@@ -225,7 +226,7 @@ proto.load = function(resources, progressCallback, completeCallback) {
         var res = getResWithUrl(resource);
         if (!res.url && !res.uuid)
             continue;
-        var item = this.getItem(res.url);
+        var item = this._cache[res.url];
         _sharedResources.push(item || res);
     }
 
@@ -264,7 +265,7 @@ proto.flowInDeps = function (owner, urlList, callback) {
         var res = getResWithUrl(urlList[i]);
         if (!res.url && ! res.uuid)
             continue;
-        var item = this.getItem(res.url);
+        var item = this._cache[res.url];
         if (item) {
             _sharedList.push(item);
         }
@@ -646,7 +647,7 @@ proto.getRes = function (url, type) {
         }
     }
     if (item && item.alias) {
-        item = this._cache[item.alias];
+        item = item.alias;
     }
     return (item && item.complete) ? item.content : null;
 };

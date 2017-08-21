@@ -425,6 +425,7 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
      */
     purgeCachedData: function () {
         cc.textureCache._clear();
+        cc.loader.releaseAll();
     },
 
     /**
@@ -464,7 +465,8 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
         // Clear all caches
         this.purgeCachedData();
 
-        cc.checkGLErrorDebug();
+        if (CC_DEV)
+            cc.checkGLErrorDebug();
     },
 
     /**
@@ -534,16 +536,19 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
      * @param {Function} [onLaunched] - The function invoked at the scene after launch.
      */
     runSceneImmediate: function (scene, onBeforeLoadScene, onLaunched) {
-        var id, node, game = cc.game;
-        var persistNodes = game._persistRootNodes;
-
         if (scene instanceof cc.Scene) {
+            CC_DEBUG && console.time('InitScene');
             scene._load();  // ensure scene initialized
+            CC_DEBUG && console.timeEnd('InitScene');
         }
 
         // detach persist nodes
-        for (id in persistNodes) {
-            node = persistNodes[id];
+        var game = cc.game;
+        var persistNodeList = Object.keys(game._persistRootNodes).map(function (x) {
+            return game._persistRootNodes[x];
+        });
+        for (let i = 0; i < persistNodeList.length; i++) {
+            let node = persistNodeList[i];
             game._ignoreRemovePersistNode = node;
             node.parent = null;
             game._ignoreRemovePersistNode = null;
@@ -553,11 +558,14 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
 
         if (!CC_EDITOR) {
             // auto release assets
+            CC_DEBUG && console.time('AutoRelease');
             var autoReleaseAssets = oldScene && oldScene.autoReleaseAssets && oldScene.dependAssets;
-            AutoReleaseUtils.autoRelease(cc.loader, autoReleaseAssets, scene.dependAssets);
+            AutoReleaseUtils.autoRelease(autoReleaseAssets, scene.dependAssets, persistNodeList);
+            CC_DEBUG && console.timeEnd('AutoRelease');
         }
 
         // unload scene
+        CC_DEBUG && console.time('Destroy');
         if (cc.isValid(oldScene)) {
             oldScene.destroy();
         }
@@ -566,6 +574,7 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
 
         // purge destroyed nodes belongs to old scene
         cc.Object._deferredDestroy();
+        CC_DEBUG && console.timeEnd('Destroy');
 
         if (onBeforeLoadScene) {
             onBeforeLoadScene();
@@ -580,9 +589,10 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
             sgScene = scene._sgNode;
 
             // Re-attach or replace persist nodes
-            for (id in persistNodes) {
-                node = persistNodes[id];
-                var existNode = scene.getChildByUuid(id);
+            for (let i = 0; i < persistNodeList.length; i++) {
+                let node = persistNodeList[i];
+            CC_DEBUG && console.time('AttachPersist');
+                var existNode = scene.getChildByUuid(node.uuid);
                 if (existNode) {
                     // scene also contains the persist node, select the old one
                     var index = existNode.getSiblingIndex();
@@ -593,7 +603,10 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
                     node.parent = scene;
                 }
             }
+            CC_DEBUG && console.timeEnd('AttachPersist');
+            CC_DEBUG && console.time('Activate');
             scene._activate();
+            CC_DEBUG && console.timeEnd('Activate');
         }
 
         // Run or replace rendering scene
@@ -783,7 +796,9 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
             }
         }
         //cc.AssetLibrary.unloadAsset(uuid);     // force reload
+        console.time('LoadScene ' + uuid);
         cc.AssetLibrary.loadAsset(uuid, function (error, sceneAsset) {
+            console.timeEnd('LoadScene ' + uuid);
             var self = cc.director;
             self._loadingScene = '';
             if (error) {
@@ -865,9 +880,11 @@ cc.Director = Class.extend(/** @lends cc.Director# */{
 
     /**
      * !#en
-     * set color for clear screen.<br/>
-     * Implementation can be found in CCDirectorCanvas.js/CCDirectorWebGL.js
-     * !#zh 设置场景的默认擦除颜色（支持白色全透明，但不支持透明度为中间值）。
+     * Set color for clear screen.<br/>
+     * (Implementation can be found in CCDirectorCanvas.js/CCDirectorWebGL.js)
+     * !#zh
+     * 设置场景的默认擦除颜色。<br/>
+     * 支持全透明，但不支持透明度为中间值。要支持全透明需手工开启 cc.macro.ENABLE_TRANSPARENT_CANVAS。
      * @method setClearColor
      * @param {Color} clearColor
      */

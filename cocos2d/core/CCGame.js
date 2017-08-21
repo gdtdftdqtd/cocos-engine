@@ -293,13 +293,19 @@ var game = {
      * @method restart
      */
     restart: function () {
-        cc.director.popToSceneStackLevel(0);
-        // Clean up audio
-        if (cc.audioEngine) {
-            cc.audioEngine.uncacheAll();
-        }
+        cc.director.once(cc.Director.EVENT_AFTER_DRAW, function () {
+            // Clear scene
+            cc.director.getScene().destroy();
+            cc.Object._deferredDestroy();
+            cc.director.purgeDirector();
+            // Clean up audio
+            if (cc.audioEngine) {
+                cc.audioEngine.uncacheAll();
+            }
 
-        game.onStart();
+            cc.director.reset();
+            game.onStart();
+        });
     },
 
     /**
@@ -636,8 +642,8 @@ var game = {
 
         var el = this.config[game.CONFIG_KEY.id],
             win = window,
-            element = cc.$(el) || cc.$('#' + el),
-            localCanvas, localContainer, localConStyle;
+            element = (el instanceof HTMLElement) ? el : (document.querySelector(el) || document.querySelector('#' + el)),
+            localCanvas, localContainer;
 
         if (element.tagName === "CANVAS") {
             width = width || element.width;
@@ -663,7 +669,16 @@ var game = {
         localContainer.appendChild(localCanvas);
         this.frame = (localContainer.parentNode === document.body) ? document.documentElement : localContainer.parentNode;
 
-        localCanvas.addClass("gameCanvas");
+        function addClass (element, name) {
+            var hasClass = (' ' + element.className + ' ').indexOf(' ' + name + ' ') > -1;
+            if (!hasClass) {
+                if (element.className) {
+                    element.className += " ";
+                }
+                element.className += name;
+            }
+        }
+        addClass(localCanvas, "gameCanvas");
         localCanvas.setAttribute("width", width || 480);
         localCanvas.setAttribute("height", height || 320);
         localCanvas.setAttribute("tabindex", 99);

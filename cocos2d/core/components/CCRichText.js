@@ -35,17 +35,7 @@ var VerticalAlign = cc.VerticalTextAlignment;
 // leading edge, instead of the trailing.
 function debounce (func, wait, immediate) {
     var timeout;
-    return CC_JSB ? function (...args) {
-        var context = this;
-        var later = function() {
-            timeout = null;
-            if (!immediate) func.apply(context, args);
-        };
-        var callNow = immediate && !timeout;
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
-    } : function () {
+    return function () {
         var context = this;
         var later = function() {
             timeout = null;
@@ -252,7 +242,7 @@ var RichText = cc.Class({
     },
 
     _createFontLabel: function (string) {
-        return  _ccsg.Label.pool.get(string, this.font);
+        return  _ccsg.Label.pool.get(string, this.font, null, this.fontSize);
     },
 
     _getFontRawUrl: function() {
@@ -515,23 +505,38 @@ var RichText = cc.Class({
 
             var spriteRect = spriteFrame.getRect();
             var scaleFactor = 1;
-            if(spriteRect.height > this.lineHeight) {
-                scaleFactor = this.lineHeight / spriteRect.height;
+            var spriteWidth = spriteRect.width;
+            var spriteHeight = spriteRect.height;
+            var expectWidth = richTextElement.style.imageWidth;
+            var expectHeight = richTextElement.style.imageHeight;
+
+            //follow the original rule, expectHeight must less then lineHeight
+            if(expectHeight > 0 && expectHeight < this.lineHeight ) {
+                scaleFactor = expectHeight / spriteHeight;
+                spriteWidth = spriteWidth * scaleFactor;
+                spriteHeight = spriteHeight * scaleFactor;
+            } else {
+                scaleFactor = this.lineHeight / spriteHeight;
+                spriteWidth = spriteWidth * scaleFactor;
+                spriteHeight = spriteHeight * scaleFactor;
             }
+
+            if(expectWidth > 0) spriteWidth = expectWidth;
+
             if(this.maxWidth > 0) {
-                if(this._lineOffsetX + spriteRect.width * scaleFactor > this.maxWidth) {
+                if(this._lineOffsetX + spriteWidth > this.maxWidth) {
                     this._updateLineInfo();
                 }
-                this._lineOffsetX += spriteRect.width * scaleFactor;
+                this._lineOffsetX += spriteWidth;
 
             } else {
-                this._lineOffsetX += spriteRect.width * scaleFactor;
+                this._lineOffsetX += spriteWidth;
                 if(this._lineOffsetX > this._labelWidth) {
                     this._labelWidth = this._lineOffsetX;
                 }
             }
             this._applySpriteFrame(spriteFrame);
-            sprite.setContentSize(spriteRect.width * scaleFactor, spriteRect.height * scaleFactor);
+            sprite.setContentSize(spriteWidth, spriteHeight);
             sprite._lineCount = this._lineCount;
 
             if(richTextElement.style.event) {

@@ -44,12 +44,14 @@ var getAudioFromPath = function (path) {
     }
 
     audio = new Audio(path);
-    audio.on('ended', function () {
+    var callback = function () {
         var id = this.instanceId;
         delete id2audio[id];
         var index = list.indexOf(id);
         cc.js.array.fastRemoveAt(list, index);
-    });
+    };
+    audio.on('ended', callback);
+    audio.on('stop', callback);
     id2audio[id] = audio;
 
     audio.instanceId = id;
@@ -97,10 +99,18 @@ var audioEngine = {
      * var audioID = cc.audioEngine.play(path, false, 0.5);
      */
     play: function (filePath, loop, volume/*, profile*/) {
+        if (CC_DEBUG && (typeof filePath !== 'string')) {
+            cc.errorID(8400);
+            return;
+        }
+
         var audio = getAudioFromPath(filePath);
         var callback = function () {
             audio.setLoop(loop || false);
-            audio.setVolume(volume || 1);
+            if (typeof volume != 'number' || isNaN(volume)) {
+                volume = 1;
+            }
+            audio.setVolume(volume);
             audio.play();
         };
         audio.__callback = callback;
@@ -368,7 +378,6 @@ var audioEngine = {
             return false;
         audio.off('load', audio.__callback);
         audio.stop();
-        audio.emit('ended');
         return true;
     },
 
@@ -386,7 +395,6 @@ var audioEngine = {
             if (audio && audio.stop) {
                 audio.stop();
                 audio.off('load', audio.__callback);
-                audio.emit('ended');
             }
         }
     },
