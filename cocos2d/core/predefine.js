@@ -23,7 +23,26 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-require('./ZipUtils');
-require('./base64');
-require('./gzip');
-require('./zlib.min');
+// predefine some modules for cocos
+require('./platform/js');
+require('./value-types');
+require('./utils');
+require('./platform/CCInputManager');
+require('./platform/CCInputExtension');
+require('./event');
+require('./platform/CCSys');
+require('./platform/CCMacro');
+require('./load-pipeline');
+require('./textures');
+require('./CCDirector');
+require('./CCDirectorWebGL');
+require('./CCDirectorCanvas');
+
+if (!(CC_EDITOR && Editor.isMainProcess)) {
+    require('./platform/CCSAXParser');
+    require('./platform/CCView');
+    require('./platform/CCScreen');
+    require('./CCScheduler');
+    require('./event-manager');
+    require('./renderer');
+}

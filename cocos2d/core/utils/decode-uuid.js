@@ -23,15 +23,31 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-'use strict';
+var Base64Values = require('./misc').BASE64_VALUES;
 
-// Overwrite main loop
-var scheduleTarget = {
-    update: function (dt) {
-        // Call start for new added components
-        cc.director.emit(cc.Director.EVENT_BEFORE_UPDATE);
-        // Update for components
-        cc.director.emit(cc.Director.EVENT_COMPONENT_UPDATE, dt);
+var HexChars = '0123456789abcdef'.split('');
+
+var _t = ['', '', '', ''];
+var UuidTemplate = _t.concat(_t, '-', _t, '-', _t, '-', _t, '-', _t, _t, _t);
+var Indices = UuidTemplate.map(function (x, i) { return x === '-' ? NaN : i; }).filter(isFinite);
+
+// fcmR3XADNLgJ1ByKhqcC5Z -> fc991dd7-0033-4b80-9d41-c8a86a702e59
+module.exports = function (base64) {
+    if (base64.length !== 22) {
+        return base64;
     }
+    UuidTemplate[0] = base64[0];
+    UuidTemplate[1] = base64[1];
+    for (var i = 2, j = 2; i < 22; i += 2) {
+        var lhs = Base64Values[base64.charCodeAt(i)];
+        var rhs = Base64Values[base64.charCodeAt(i + 1)];
+        UuidTemplate[Indices[j++]] = HexChars[lhs >> 2];
+        UuidTemplate[Indices[j++]] = HexChars[((lhs & 3) << 2) | rhs >> 4];
+        UuidTemplate[Indices[j++]] = HexChars[rhs & 0xF];
+    }
+    return UuidTemplate.join('');
 };
-cc.Director.getInstance().getScheduler().scheduleUpdateForTarget(scheduleTarget, -1000, false);
+
+if (CC_TEST) {
+    cc._Test.decodeUuid = module.exports;
+}

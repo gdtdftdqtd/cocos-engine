@@ -60,7 +60,7 @@ jsbLabel.prototype.getOverflow = function() {
 
 jsbLabel.prototype._enableBold = jsbLabel.prototype.enableBold;
 jsbLabel.prototype.enableBold = function(enabled) {
-    if(enabled) {
+    if (enabled) {
         this._enableBold();
     } else {
         this.disableEffect(5);
@@ -69,7 +69,7 @@ jsbLabel.prototype.enableBold = function(enabled) {
 
 jsbLabel.prototype._enableItalics = jsbLabel.prototype.enableItalics;
 jsbLabel.prototype.enableItalics = function(enabled) {
-    if(enabled) {
+    if (enabled) {
         this._enableItalics();
     } else {
         this.disableEffect(4);
@@ -78,7 +78,7 @@ jsbLabel.prototype.enableItalics = function(enabled) {
 
 jsbLabel.prototype._enableUnderline = jsbLabel.prototype.enableUnderline;
 jsbLabel.prototype.enableUnderline = function(enabled) {
-    if(enabled) {
+    if (enabled) {
         this._enableUnderline();
     } else {
         this.disableEffect(6);
@@ -117,7 +117,7 @@ jsbLabel.prototype.setLineHeight = function (height) {
 jsbLabel.prototype._setColor = jsbLabel.prototype.setColor;
 
 jsbLabel.prototype.setColor = function(color) {
-    if(this._labelType === _ccsg.Label.Type.BMFont) {
+    if (this._labelType === _ccsg.Label.Type.BMFont) {
         this._setColor(color);
     } else {
         this.setTextColor(color);
@@ -141,7 +141,7 @@ jsbLabel.prototype.setContentSize = function (size, height) {
     var newWidth = (typeof size.width === 'number') ? size.width : size;
     var newHeight = (typeof size.height === 'number') ? size.height : height;
 
-    if(this.getOverflow() === cc.Label.Overflow.NONE) {
+    if (this.getOverflow() === cc.Label.Overflow.NONE) {
         newWidth = 0;
         newHeight = 0;
     } else {
@@ -150,44 +150,55 @@ jsbLabel.prototype.setContentSize = function (size, height) {
     this.setDimensions(newWidth, newHeight);
 };
 
-
-jsbLabel.prototype.setFontFileOrFamily = function (fontHandle, spriteFrame) {
-    fontHandle = fontHandle || '';
+jsbLabel.prototype.setFontAsset = function (fontAsset) {
+    this._fontAsset = fontAsset;
+    var isAsset = fontAsset instanceof cc.Font;
+    if (!isAsset) {
+        this.setFontFamily('Arial');
+        return;
+    }
+    var fontHandle =  isAsset ? fontAsset.rawUrl : '';
     var extName = cc.path.extname(fontHandle);
-    //specify font family name directly
-    if (!extName && !spriteFrame) {
-        this._labelType = _ccsg.Label.Type.SystemFont;
-        this.setSystemFontName(fontHandle);
-        this._isSystemFontUsed = true;
-    }
-    else {
-        if (extName === '.ttf') {
-            if(!this._ttfConfig) {
-                this._ttfConfig = {
-                    fontFilePath: fontHandle,
-                    fontSize: this._fontSize,
-                    outlineSize: 0,
-                    glyphs: 0,
-                    customGlyphs: "",
-                    distanceFieldEnable: false
-                };
-            }
-            this._labelType = _ccsg.Label.Type.TTF;
-            this._ttfConfig.fontFilePath = fontHandle;
-            this.setTTFConfig(this._ttfConfig);
-        } else if (spriteFrame) {
-            this._labelType = _ccsg.Label.Type.BMFont;
-            this.setBMFontFilePath(fontHandle, spriteFrame);
-            this.setFontSize(this.getFontSize());
+
+    if (extName === '.ttf') {
+        var outlineWidth = this.isOutlined() ? this.getOutlineWidth() : 0;
+        if (!this._ttfConfig) {
+            this._ttfConfig = {
+                fontFilePath: fontHandle,
+                fontSize: this._fontSize,
+                outlineSize: outlineWidth,
+                glyphs: 0,
+                customGlyphs: "",
+                distanceFieldEnable: false
+            };
         }
+        else {
+            this._ttfConfig.outlineSize = outlineWidth;
+            this._ttfConfig.fontFilePath = fontHandle;
+        }
+        this._labelType = _ccsg.Label.Type.TTF;
+        this.setTTFConfig(this._ttfConfig);
+    } else if (fontAsset.spriteFrame) {
+        this._labelType = _ccsg.Label.Type.BMFont;
+        this.setBMFontFilePath(JSON.stringify(fontAsset._fntConfig), fontAsset.spriteFrame);
+        this.setFontSize(this.getFontSize());
     }
+    //FIXME: hack for bmfont crash. remove this line when it fixed in native
+    this.getContentSize();
+};
+
+jsbLabel.prototype.setFontFamily = function (fontFamily) {
+    fontFamily = fontFamily || '';
+    this._labelType = _ccsg.Label.Type.SystemFont;
+    this.setSystemFontName(fontFamily);
+    this._isSystemFontUsed = true;
     //FIXME: hack for bmfont crash. remove this line when it fixed in native
     this.getContentSize();
 };
 
 jsbLabel.prototype.setOutlined = function(value) {
     this._outlined = !!value;
-    if(this._outlined) {
+    if (this._outlined) {
         this.enableOutline(this.getOutlineColor(), this.getOutlineWidth());
     } else {
         //1 equals cpp outline effect
@@ -197,14 +208,24 @@ jsbLabel.prototype.setOutlined = function(value) {
 
 jsbLabel.prototype.setOutlineWidth = function(value) {
     this._outlineWidth = value;
-    if(this._outlined) {
-        this.enableOutline(this.getOutlineColor(), this.getOutlineWidth());
+    if (this._outlined) {
+        var outlineWidth = this.getOutlineWidth();
+        if (this._labelType === _ccsg.Label.Type.TTF) {
+            var ttfConfig = this.getTTFConfig();
+            if (ttfConfig.outlineSize !== outlineWidth) {
+                ttfConfig.outlineSize = outlineWidth;
+                this.setTTFConfig(ttfConfig);
+            }
+        }
+        else {
+            this.enableOutline(this.getOutlineColor(), outlineWidth);
+        }
     }
 };
 
 jsbLabel.prototype.setOutlineColor = function(value) {
     this._outlineColor = cc.color(value);
-    if(this._outlined) {
+    if (this._outlined) {
         this.enableOutline(this.getOutlineColor(), this.getOutlineWidth());
     }
 };
@@ -262,12 +283,12 @@ jsbLabel.prototype.getShadowColor = function() {
 };
 
 
-cc.Label = function (string, fontHandle, spriteFrame) {
+cc.Label = function (string, fontHandle, spriteFrame, fontSize) {
     fontHandle = fontHandle || "Arial";
     var extName = cc.path.extname(fontHandle);
 
     var type = _ccsg.Label.Type.TTF;
-    this._fontSize = 40;
+    this._fontSize = fontSize;
 
     var label;
     if (extName === ".ttf") {
@@ -305,3 +326,15 @@ cc.Label.Overflow = cc.Enum({
     SHRINK: 2,
     RESIZE_HEIGHT: 3
 });
+
+cc.Label.pool = new cc.js.Pool(0);
+//Note: The pool.get method only used for creating TTF and SystemFont
+cc.Label.pool.get = function (string, fontAsset, spriteFrame, fontSize) {
+    this._fontAsset = fontAsset;
+    var isAsset = fontAsset instanceof cc.Font;
+    if (!isAsset) {
+        return new _ccsg.Label(string, null, null, fontSize);
+    }
+    var fontHandle =  isAsset ? fontAsset.rawUrl : '';
+    return new _ccsg.Label(string, fontHandle, spriteFrame, fontSize);
+};

@@ -24,7 +24,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-require('../editbox/CCSGEditBox.js');
+require('../editbox/CCSGEditBox');
 /**
  * !#en Enum for keyboard return types
  * !#zh 键盘的返回键类型
@@ -516,6 +516,11 @@ var EditBox = cc.Class({
     editBoxEditingReturn: function() {
         cc.Component.EventHandler.emitEvents(this.editingReturn, this);
         this.node.emit('editing-return', this);
+    },
+
+    onDestroy: function () {
+        this._sgNode.setDelegate(null);
+        this._super();
     },
 
     __preload: function() {

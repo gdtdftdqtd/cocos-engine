@@ -24,8 +24,9 @@
  ****************************************************************************/
 
 var JS = require('../platform/js');
+var sys = require('../platform/CCSys');
 
-var misc = {};
+var misc = exports;
 
 misc.propertyDefine = function (ctor, sameNameGetSets, diffNameGetSets) {
     function define (np, propName, getter, setter) {
@@ -123,9 +124,20 @@ misc.imagePool.get = function () {
     return this._get() || new Image();
 };
 misc.imagePool._smallImg = "data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=";
+// Avoid problems on windows IE kernels, Edge, Firefox and Linux Firefox
+if ((sys.os === sys.OS_WINDOWS || sys.os === sys.OS_LINUX) && sys.browser !== sys.BROWSER_TYPE_CHROME) {
+    misc.imagePool.resize(0);
+}
 
 misc.isBuiltinClassId = function (id) {
     return id.startsWith('cc.') || id.startsWith('dragonBones.') || id.startsWith('sp.') || id.startsWith('ccsg.');
 };
 
-module.exports = misc;
+
+var BASE64_KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+var BASE64_VALUES = new Array(123); // max char code in base64Keys
+for (let i = 0; i < 123; ++i) BASE64_VALUES[i] = 64; // fill with placeholder('=') index
+for (let i = 0; i < 64; ++i) BASE64_VALUES[BASE64_KEYS.charCodeAt(i)] = i;
+
+// decoded value indexed by base64 char code
+misc.BASE64_VALUES = BASE64_VALUES;

@@ -24,6 +24,9 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+require('../compression/ZipUtils');
+var Zlib = require('../compression/zlib.min');
+
 function uint8ArrayToUint32Array (uint8Arr) {
     if(uint8Arr.length % 4 !== 0)
         return null;
@@ -35,7 +38,7 @@ function uint8ArrayToUint32Array (uint8Arr) {
         retArr[i] = uint8Arr[offset]  + uint8Arr[offset + 1] * (1 << 8) + uint8Arr[offset + 2] * (1 << 16) + uint8Arr[offset + 3] * (1<<24);
     }
     return retArr;
-};
+}
 
 // Bits on the far end of the 32-bit global tile ID (GID's) are used for tile flags
 
@@ -674,6 +677,7 @@ cc.TMXMapInfo = cc.SAXParser.extend(/** @lends cc.TMXMapInfo# */{
                 } else {
                     tileset.sourceImage = this._resources + (this._resources ? "/" : "") + imagename;
                 }
+
                 this.setTilesets(tileset);
 
                 // parse tile offset

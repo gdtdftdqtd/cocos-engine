@@ -25,14 +25,16 @@
 
 'use strict';
 
-const Utils = require('./utils');
+const Utils = require('../util/utils');
+const createBundler = require('../util/create-bundler');
 const Path = require('path');
 
 const Source = require('vinyl-source-stream');
 const Gulp = require('gulp');
 const Buffer = require('vinyl-buffer');
-const Minifier = require('gulp-uglify/minifier');
-const UglifyHarmony = require('uglify-js-harmony');
+const Composer = require('gulp-uglify/composer');
+const Uglify = require('uglify-es');
+const Minify = Composer(Uglify, console);
 const Sourcemaps = require('gulp-sourcemaps');
 const EventStream = require('event-stream');
 const Chalk = require('chalk');
@@ -42,24 +44,19 @@ const Optimizejs = require('gulp-optimize-js');
 exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
     var outDir = Path.dirname(outputFile);
     var outFile = Path.basename(outputFile);
-    var bundler = Utils.createBundler(sourceFile);
+    var bundler = createBundler(sourceFile);
 
     excludes && excludes.forEach(function (file) {
         bundler.ignore(file);
     });
 
-    var uglifyOption = Utils.uglifyOptions(false, {
-        CC_EDITOR: false,
-        CC_DEV: true,
-        CC_TEST: false,
-        CC_JSB: false
-    });
+    var uglifyOption = Utils.getUglifyOptions('build', false, true);
 
     bundler = bundler.bundle();
     bundler = bundler.pipe(Source(outFile));
     bundler = bundler.pipe(Buffer());
     bundler = bundler.pipe(Sourcemaps.init({loadMaps: true}));
-    bundler = bundler.pipe(Minifier(uglifyOption, UglifyHarmony));
+    bundler = bundler.pipe(Minify(uglifyOption));
     bundler = bundler.pipe(Optimizejs({
         sourceMap: false
     }));
@@ -75,18 +72,13 @@ exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
 exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, callback, createMap) {
     var outDir = Path.dirname(outputFile);
     var outFile = Path.basename(outputFile);
-    var bundler = Utils.createBundler(sourceFile);
+    var bundler = createBundler(sourceFile);
 
     excludes && excludes.forEach(function (file) {
         bundler.ignore(file);
     });
 
-    var uglifyOption = Utils.uglifyOptions(true, {
-        CC_EDITOR: false,
-        CC_DEV: false,
-        CC_TEST: false,
-        CC_JSB: false
-    });
+    var uglifyOption = Utils.getUglifyOptions('build', false, false);
 
     var Size = null;
     try {
@@ -107,7 +99,7 @@ exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, callback, 
         console.error('Can not use sourcemap with optimize-js');
         bundler = bundler.pipe(Sourcemaps.init({loadMaps: true}));
     }
-    bundler = bundler.pipe(Minifier(uglifyOption, UglifyHarmony));
+    bundler = bundler.pipe(Minify(uglifyOption));
     bundler = bundler.pipe(Optimizejs({
         sourceMap: false
     }));
@@ -138,19 +130,14 @@ exports.buildPreview = function (sourceFile, outputFile, callback) {
     var outFile = Path.basename(outputFile);
     var outDir = Path.dirname(outputFile);
 
-    var bundler = Utils.createBundler(sourceFile);
+    var bundler = createBundler(sourceFile);
     bundler.bundle()
         .on('error', HandleErrors.handler)
         .pipe(HandleErrors())
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(Sourcemaps.init({loadMaps: true}))
-        .pipe(Minifier(Utils.uglifyOptions(false, {
-            CC_EDITOR: false,
-            CC_DEV: true,
-            CC_TEST: false,
-            CC_JSB: false
-        }), UglifyHarmony))
+        .pipe(Minify(Utils.getUglifyOptions('preview', false, false)))
         .pipe(Optimizejs({
             sourceMap: false
         }))
@@ -163,11 +150,11 @@ exports.buildPreview = function (sourceFile, outputFile, callback) {
         .on('end', callback);
 };
 
-exports.buildJsb = function (sourceFile, outputFile, jsbSkipModules, callback) {
+exports.buildJsbPreview = function (sourceFile, outputFile, jsbSkipModules, callback) {
     var outFile = Path.basename(outputFile);
     var outDir = Path.dirname(outputFile);
 
-    var bundler = Utils.createBundler(sourceFile);
+    var bundler = createBundler(sourceFile);
     jsbSkipModules.forEach(function (module) {
         bundler.ignore(require.resolve(module));
     });
@@ -176,12 +163,31 @@ exports.buildJsb = function (sourceFile, outputFile, jsbSkipModules, callback) {
         .pipe(HandleErrors())
         .pipe(Source(outFile))
         .pipe(Buffer())
-        .pipe(Minifier(Utils.uglifyOptions(false, {
-            CC_EDITOR: false,
-            CC_DEV: false,  // CC_DEV should be false after build
-            CC_TEST: false,
-            CC_JSB: true
-        }), UglifyHarmony))
+        .pipe(Minify(Utils.getUglifyOptions('preview', true, false)))
+        .pipe(Optimizejs({
+            sourceMap: false
+        }))
+        .pipe(Gulp.dest(outDir))
+        .on('end', callback);
+};
+
+exports.buildJsb = function (sourceFile, outputFile, jsbSkipModules, callback) {
+    var FixJavaScriptCore = require('../util/fix-jsb-javascriptcore');
+
+    var outFile = Path.basename(outputFile);
+    var outDir = Path.dirname(outputFile);
+
+    var bundler = createBundler(sourceFile);
+    jsbSkipModules.forEach(function (module) {
+        bundler.ignore(require.resolve(module));
+    });
+    bundler.bundle()
+        .on('error', HandleErrors.handler)
+        .pipe(HandleErrors())
+        .pipe(Source(outFile))
+        .pipe(Buffer())
+        .pipe(FixJavaScriptCore())
+        .pipe(Minify(Utils.getUglifyOptions('build', true, true)))
         .pipe(Optimizejs({
             sourceMap: false
         }))
@@ -190,10 +196,12 @@ exports.buildJsb = function (sourceFile, outputFile, jsbSkipModules, callback) {
 };
 
 exports.buildJsbMin = function (sourceFile, outputFile, jsbSkipModules, callback) {
+    var FixJavaScriptCore = require('../util/fix-jsb-javascriptcore');
+
     var outFile = Path.basename(outputFile);
     var outDir = Path.dirname(outputFile);
 
-    var bundler = Utils.createBundler(sourceFile);
+    var bundler = createBundler(sourceFile);
     jsbSkipModules.forEach(function (module) {
         bundler.ignore(require.resolve(module));
     });
@@ -202,12 +210,8 @@ exports.buildJsbMin = function (sourceFile, outputFile, jsbSkipModules, callback
         .pipe(HandleErrors())
         .pipe(Source(outFile))
         .pipe(Buffer())
-        .pipe(Minifier(Utils.uglifyOptions(true, {
-            CC_EDITOR: false,
-            CC_DEV: false,
-            CC_TEST: false,
-            CC_JSB: true
-        }), UglifyHarmony))
+        .pipe(FixJavaScriptCore())
+        .pipe(Minify(Utils.getUglifyOptions('build', true, false)))
         .pipe(Optimizejs({
             sourceMap: false
         }))

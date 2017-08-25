@@ -23,13 +23,12 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-const GEN_SOURCE_MAPS = false;
+const UGLIFY = false;
 
 'use strict';
 
 const Path = require('path');
 const Fs = require('fs');
-const Del = require('del');
 const Source = require('vinyl-source-stream');
 const Gulp = require('gulp');
 const Fb = require('gulp-fb');
@@ -38,51 +37,59 @@ const Buffer = require('vinyl-buffer');
 const HandleErrors = require('../util/handleErrors');
 const Es = require('event-stream');
 
-const Minifier = require('gulp-uglify/minifier');
 const Sourcemaps = require('gulp-sourcemaps');
-const UglifyHarmony = require('uglify-js-harmony');
+const Composer = require('gulp-uglify/composer');
+const Uglify = require('uglify-es');
+const Minify = Composer(Uglify, console);
 
-const Utils = require('./utils');
+const Utils = require('../util/utils');
+const createBundler = require('../util/create-bundler');
 
-exports.build = function (sourceFile, outputFile, sourceFileForExtends, outputFileForExtends, callback) {
-    var engine = Utils.createBundler(sourceFile, null, GEN_SOURCE_MAPS)
+exports.build = function (sourceFile, outputFile, sourceFileForExtends, outputFileForExtends, sourcemaps, callback) {
+    var cacheDir = Path.resolve(Path.dirname(outputFile), '.cache/test-compile-cache');
+    var engine = createBundler(sourceFile, {
+        sourcemaps: sourcemaps,
+        cacheDir: cacheDir
+    })
         .bundle()
         .on('error', HandleErrors.handler)
         .pipe(HandleErrors())
         .pipe(Source(Path.basename(outputFile)))
         .pipe(Buffer());
 
-    if (GEN_SOURCE_MAPS) {
-        engine = engine.pipe(Sourcemaps.init({loadMaps: true}));
-    }
+    if (UGLIFY) {
+        if (sourcemaps) {
+            engine = engine.pipe(Sourcemaps.init({loadMaps: true}));
+        }
 
-    // remove `..args` used in CC_JSB
-    engine = engine.pipe(Minifier(Utils.uglifyOptions(false, {
-            CC_EDITOR: false,
-            CC_DEV: true,
-            CC_TEST: true,
-            CC_JSB: false
-        }), UglifyHarmony));
+        // remove `...args` used in CC_JSB
+        engine = engine.pipe(Minify(Utils.getUglifyOptions('test', false, false)));
 
-    if (GEN_SOURCE_MAPS) {
-        engine = engine.pipe(Sourcemaps.write('./', {
-            sourceRoot: '../',
-            includeContent: false,
-            addComment: true
-        }));
+        if (sourcemaps) {
+            engine = engine.pipe(Sourcemaps.write('./', {
+                sourceRoot: '../',
+                includeContent: false,
+                addComment: true
+            }));
+        }
     }
 
     engine = engine.pipe(Gulp.dest(Path.dirname(outputFile)));
 
     if (Fs.existsSync(sourceFileForExtends)) {
-        var engineExtends = Utils.createBundler(sourceFileForExtends, {
-                presets: ['env'],
-                ast: false,
-                babelrc: false,
-                highlightCode: false,
-                sourceMaps: true,
-                compact: false
-            }, GEN_SOURCE_MAPS)
+        var engineExtends = createBundler(sourceFileForExtends,
+            {
+                sourcemaps: sourcemaps,
+                babelifyOpt: {
+                    presets: ['env'],
+                    ast: false,
+                    babelrc: false,
+                    highlightCode: false,
+                    sourceMaps: true,
+                    compact: false
+                },
+                cacheDir: cacheDir
+            })
             .bundle()
             .on('error', HandleErrors.handler)
             .pipe(HandleErrors())

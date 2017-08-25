@@ -22,9 +22,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-require('../label/CCSGLabel.js');
-require('../label/CCSGLabelCanvasRenderCmd.js');
-require('../label/CCSGLabelWebGLRenderCmd.js');
+require('../label/CCSGLabel');
+require('../label/CCSGLabelCanvasRenderCmd');
+require('../label/CCSGLabelWebGLRenderCmd');
 /**
  * !#en Enum for text alignment.
  * !#zh 文本横向对齐类型
@@ -124,17 +124,7 @@ var Overflow = _ccsg.Label.Overflow;
 // leading edge, instead of the trailing.
 function debounce (func, wait, immediate) {
     var timeout;
-    return CC_JSB ? function (...args) {
-        var context = this;
-        var later = function() {
-            timeout = null;
-            if (!immediate) func.apply(context, args);
-        };
-        var callNow = immediate && !timeout;
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
-    } : function () {
+    return function () {
         var context = this;
         var later = function() {
             timeout = null;
@@ -297,7 +287,7 @@ var Label = cc.Class({
             tooltip: CC_DEV && 'i18n:COMPONENT.label.font_family',
             notify: function () {
                 if (this._sgNode) {
-                    this._sgNode.setFontFileOrFamily(this.fontFamily);
+                    this._sgNode.setFontFamily(this.fontFamily);
                 }
             },
             animatable: false
@@ -404,24 +394,22 @@ var Label = cc.Class({
                     if (font instanceof cc.BitmapFont) {
                         if (font.spriteFrame) {
                             if (!CC_JSB) {
-                                this._sgNode.setFontFileOrFamily(font.fntDataStr, font.spriteFrame, font);
+                                this._sgNode.setFontAsset(font);
                             } else {
                                 if (font.spriteFrame.textureLoaded()) {
-                                    this._sgNode.setFontFileOrFamily(font.fntDataStr, font.spriteFrame);
+                                    this._sgNode.setFontAsset(font);
                                 }
                                 else {
                                     cc.warnID(4012, font.name);
-                                    this._sgNode.setFontFileOrFamily('');
+                                    this._sgNode.setFontFamily('');
                                 }
                             }
                         } else {
                             cc.warnID(4011, font.name);
-                            this._sgNode.setFontFileOrFamily('');
+                            this._sgNode.setFontFamily('');
                         }
                     } else {
-                        var isAsset = value instanceof cc.Font;
-                        var ttfName = isAsset ? value.rawUrl : '';
-                        this._sgNode.setFontFileOrFamily(ttfName);
+                        this._sgNode.setFontAsset(font);
                     }
                 }
 
@@ -476,7 +464,7 @@ var Label = cc.Class({
                 if (value) {
                     this.font = null;
                     if (this._sgNode) {
-                        this._sgNode.setFontFileOrFamily(this.fontFamily);
+                        this._sgNode.setFontFamily(this.fontFamily);
                     }
                 }
 
@@ -519,16 +507,12 @@ var Label = cc.Class({
     __preload: function () {
         this._super();
 
-        var sgSizeInitialized = this._sgNode._isUseSystemFont;
-        if (sgSizeInitialized) {
-            this._updateNodeSize();
-        }
-
         // node should be resize whenever font changed, needed only on web
         if (!CC_JSB) {
             this._sgNode.on('load', this._updateNodeSize, this);
         }
 
+        this._updateNodeSize();
     },
 
     _createSgNode: function () {
@@ -546,22 +530,20 @@ var Label = cc.Class({
             if (font.spriteFrame) {
                 if (CC_JSB) {
                     if (font.spriteFrame.textureLoaded()) {
-                        sgNode = this._sgNode = new _ccsg.Label(this.string, font.fntDataStr, font.spriteFrame);
+                        sgNode = this._sgNode = new _ccsg.Label(this.string, JSON.stringify(font._fntConfig), font.spriteFrame);
                     } else {
                         cc.warnID(4012, font.name);
-                        sgNode = this._sgNode = new _ccsg.Label(this.string);
+                        sgNode = this._sgNode = new _ccsg.Label(this.string, null, null, this._fontSize);
                     }
                 } else {
-                    sgNode = this._sgNode = new _ccsg.Label(this.string, font.fntDataStr, font.spriteFrame, font);
+                    sgNode = this._sgNode = _ccsg.Label.pool.get(this.string, font);
                 }
             } else {
                 cc.warnID(4011, font.name);
-                sgNode = this._sgNode = new _ccsg.Label(this.string);
+                sgNode = this._sgNode = _ccsg.Label.pool.get(this.string);
             }
         } else {
-            var isAsset = font instanceof cc.Font;
-            var ttfName = isAsset ? font.rawUrl : '';
-            sgNode = this._sgNode = new _ccsg.Label(this.string, ttfName);
+            sgNode = this._sgNode = _ccsg.Label.pool.get(this.string, font, null, this._fontSize);
         }
 
         if (CC_JSB) {
@@ -577,7 +559,7 @@ var Label = cc.Class({
         sgNode.setVerticalAlign( this.verticalAlign );
         sgNode.setFontSize( this._fontSize );
         if (this.useSystemFont) {
-            sgNode.setFontFileOrFamily(this.fontFamily);
+            sgNode.setFontFamily(this.fontFamily);
         }
         sgNode.setOverflow( this.overflow );
         sgNode.enableWrapText( this._enableWrapText );
@@ -609,6 +591,15 @@ var Label = cc.Class({
             if (this.overflow === Overflow.NONE || this.overflow === Overflow.RESIZE_HEIGHT) {
                 this.node.setContentSize(this._sgNode.getContentSize());
             }
+        }
+    },
+
+    onDestroy: function () {
+        var sgNodeBeforeDestroy = this._sgNode;
+        this._super();
+        if (sgNodeBeforeDestroy) {
+            sgNodeBeforeDestroy.removeFromParent(true);
+            _ccsg.Label.pool.put(sgNodeBeforeDestroy);
         }
     }
  });

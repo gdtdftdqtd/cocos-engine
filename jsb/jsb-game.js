@@ -40,6 +40,9 @@ cc.game = {
     EVENT_SHOW: "game_on_show",
     EVENT_RESIZE: "game_on_resize",
 
+    _onShowListener: null,
+    _onHideListener: null,
+
     // states
     _paused: false, //whether the game is paused
     _prepareCalled: false,//whether the prepare function has been called
@@ -72,7 +75,7 @@ cc.game = {
     CONFIG_KEY: {
         width: 'width',
         height: 'height',
-        engineDir: 'engineDir',
+        // engineDir: 'engineDir',
         modules: 'modules',
         debugMode: 'debugMode',
         showFPS: 'showFPS',
@@ -299,7 +302,7 @@ cc.game = {
             config[CONFIG_KEY.renderMode] = 0;
         }
         config[CONFIG_KEY.showFPS] = (CONFIG_KEY.showFPS in config) ? (!!config[CONFIG_KEY.showFPS]) : true;
-        config[CONFIG_KEY.engineDir] = config[CONFIG_KEY.engineDir] || 'frameworks/cocos2d-html5';
+        // config[CONFIG_KEY.engineDir] = config[CONFIG_KEY.engineDir] || 'frameworks/cocos2d-html5';
 
         // Group List and Collide Map
         this.groupList = config.groupList || [];
@@ -319,10 +322,10 @@ cc.game = {
 cc.EventTarget.call(cc.game);
 cc.js.addon(cc.game, cc.EventTarget.prototype);
 
-cc.eventManager.addCustomListener(cc.game.EVENT_HIDE, function () {
+cc.game._onHideListener = cc.eventManager.addCustomListener(cc.game.EVENT_HIDE, function () {
     cc.game.emit(cc.game.EVENT_HIDE, cc.game);
 });
-cc.eventManager.addCustomListener(cc.game.EVENT_SHOW, function () {
+cc.game._onShowListener = cc.eventManager.addCustomListener(cc.game.EVENT_SHOW, function () {
     cc.game.emit(cc.game.EVENT_SHOW, cc.game);
 });
 

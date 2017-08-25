@@ -169,6 +169,7 @@ function defineGetSet (cls, name, propName, val, es6) {
     var setter = val.set;
     var proto = cls.prototype;
     var d = Object.getOwnPropertyDescriptor(proto, propName);
+    var setterUndefined = !d;
 
     if (getter) {
         if (CC_DEV && !es6 && d && d.get) {
@@ -192,32 +193,23 @@ function defineGetSet (cls, name, propName, val, es6) {
         }
 
         if (!es6) {
-            var setterUndefined = !d;
             JS.get(proto, propName, getter, setterUndefined, setterUndefined);
         }
 
-        if (CC_DEV) {
+        if (CC_EDITOR || CC_DEV) {
             Attr.setClassAttr(cls, propName, 'hasGetter', true); // 方便 editor 做判断
         }
     }
 
     if (setter) {
-        if (CC_DEV) {
-            if (!es6) {
-                if (d && d.set) {
-                    return cc.errorID(3640, name, propName);
-                }
-                JS.set(proto, propName, setter, true, true);
+        if (!es6) {
+            if (CC_DEV && d && d.set) {
+                return cc.errorID(3640, name, propName);
             }
-            Attr.setClassAttr(cls, propName, 'hasSetter', true); // 方便 editor 做判断
+            JS.set(proto, propName, setter, setterUndefined, setterUndefined);
         }
-        else if (!es6) {
-            if (d) {
-                JS.set(proto, propName, setter);
-            }
-            else {
-                JS.set(proto, propName, setter, true, true);
-            }
+        if (CC_EDITOR || CC_DEV) {
+            Attr.setClassAttr(cls, propName, 'hasSetter', true); // 方便 editor 做判断
         }
     }
 }
@@ -387,18 +379,9 @@ function define (className, baseClass, mixins, options) {
 function normalizeClassName_DEV (className) {
     var DefaultName = 'CCClass';
     if (className) {
-        className = Array.prototype.map.call(className, function (x) {
-            return /^[a-zA-Z0-9_$]/.test(x) ? x : '_';
-        }).join('');
+        className = className.replace(/^[^$A-Za-z_]/, '_').replace(/[^0-9A-Za-z_$]/g, '_');
         try {
             // validate name
-            Function('function ' + className + '(){}')();
-            return className;
-        }
-        catch (e) {
-            className = DefaultName + '_' + className;
-        }
-        try {
             Function('function ' + className + '(){}')();
             return className;
         }
@@ -533,9 +516,8 @@ function _createCtor (ctors, baseClass, className, options) {
     // bound super calls
     var superCallBounded = baseClass && boundSuperCalls(baseClass, options, className);
 
-    var args = CC_JSB ? '...args' : '';
     var ctorName = CC_DEV ? normalizeClassName_DEV(className) : 'CCClass';
-    var body = 'return function ' + ctorName + '(' + args + '){\n';
+    var body = 'return function ' + ctorName + '(){\n';
 
     if (superCallBounded) {
         body += 'this._super=null;\n';
@@ -551,7 +533,7 @@ function _createCtor (ctors, baseClass, className, options) {
         if (useTryCatch) {
             body += 'try{\n';
         }
-        var SNIPPET = CC_JSB ? '].apply(this,args);\n' : '].apply(this,arguments);\n';
+        var SNIPPET = '].apply(this,arguments);\n';
         if (ctorLen === 1) {
             body += ctorName + '.__ctors__[0' + SNIPPET;
         }
@@ -583,12 +565,7 @@ function _validateCtor_DEV (ctor, baseClass, className, options) {
             else {
                 cc.warnID(3600, className);
                 // suppresss super call
-                ctor = CC_JSB ? function (...args) {
-                    this._super = function () {};
-                    var ret = originCtor.apply(this, args);
-                    this._super = null;
-                    return ret;
-                } : function () {
+                ctor = function () {
                     this._super = function () {};
                     var ret = originCtor.apply(this, arguments);
                     this._super = null;
@@ -680,13 +657,7 @@ function boundSuperCalls (baseClass, options, className) {
                     hasSuperCall = true;
                     // boundSuperCall
                     options[funcName] = (function (superFunc, func) {
-                        return CC_JSB ? function (...args) {
-                            var tmp = this._super;
-                            this._super = superFunc;
-                            var ret = func.apply(this, args);
-                            this._super = tmp;
-                            return ret;
-                        } : function () {
+                        return function () {
                             var tmp = this._super;
 
                             // Add a new ._super() method that is the same method but on the super-Class

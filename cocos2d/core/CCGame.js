@@ -89,7 +89,7 @@ var game = {
     CONFIG_KEY: {
         width: "width",
         height: "height",
-        engineDir: "engineDir",
+        // engineDir: "engineDir",
         debugMode: "debugMode",
         exposeClassName: "exposeClassName",
         showFPS: "showFPS",
@@ -293,13 +293,19 @@ var game = {
      * @method restart
      */
     restart: function () {
-        cc.director.popToSceneStackLevel(0);
-        // Clean up audio
-        if (cc.audioEngine) {
-            cc.audioEngine.uncacheAll();
-        }
+        cc.director.once(cc.Director.EVENT_AFTER_DRAW, function () {
+            // Clear scene
+            cc.director.getScene().destroy();
+            cc.Object._deferredDestroy();
+            cc.director.purgeDirector();
+            // Clean up audio
+            if (cc.audioEngine) {
+                cc.audioEngine.uncacheAll();
+            }
 
-        game.onStart();
+            cc.director.reset();
+            game.onStart();
+        });
     },
 
     /**
@@ -611,7 +617,7 @@ var game = {
             config[CONFIG_KEY.registerSystemEvent] = true;
         }
         config[CONFIG_KEY.showFPS] = (CONFIG_KEY.showFPS in config) ? (!!config[CONFIG_KEY.showFPS]) : true;
-        config[CONFIG_KEY.engineDir] = config[CONFIG_KEY.engineDir] || 'frameworks/cocos2d-html5';
+        // config[CONFIG_KEY.engineDir] = config[CONFIG_KEY.engineDir] || 'frameworks/cocos2d-html5';
 
         // Scene parser
         this._sceneInfos = config[CONFIG_KEY.scenes] || [];
