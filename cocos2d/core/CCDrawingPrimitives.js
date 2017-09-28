@@ -1,5 +1,5 @@
 /****************************************************************************
- Copyright (c) 2013-2016 Chukong Technologies Inc.
+ Copyright (c) 2013-2017 Chukong Technologies Inc.
 
  http://www.cocos.com
 
@@ -23,5 +23,19 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-require('./CCTexture2D');
-require('./CCTextureCache');
+var game = require('./CCGame');
+
+/**
+ * @property {DrawingPrimitive} _drawingUtil - drawing primitive of game engine
+ * @private
+ */
+cc._drawingUtil = null;
+
+game.once(game.EVENT_RENDERER_INITED, function () {
+    if (cc._renderType === game.RENDER_TYPE_WEBGL) {
+        cc._drawingUtil = new (require('./CCDrawingPrimitivesWebGL'))(cc._renderContext);
+    }
+    else {
+        cc._drawingUtil = new (require('./CCDrawingPrimitivesCanvas'))(cc._renderContext);
+    }
+});

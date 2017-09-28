@@ -23,10 +23,10 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var transformDirtyFlag;
+var cullingDirtyFlag;
 
 if (!CC_JSB) {
-    transformDirtyFlag = _ccsg.Node._dirtyFlags.transformDirty;
+    cullingDirtyFlag = _ccsg.Node._dirtyFlags.cullingDirty;
     require('./CCSGCameraNode');
 }
 
@@ -109,7 +109,11 @@ let Camera = cc.Class({
         }
     },
 
-    _initSgNode: function () {},
+    _initSgNode: function () {
+        // sgNode is the sizeProvider of the node so we should sync its size with the node,
+        // otherwise the node size will become zero.
+        this._sgNode.setContentSize(this.node.getContentSize(true));
+    },
 
     _addSgTargetInSg: function (target) {
         var sgNode;
@@ -131,7 +135,7 @@ let Camera = cc.Class({
 
         if (!CC_JSB) {
             var cmd = sgNode._renderCmd;
-            cmd.setDirtyFlag(transformDirtyFlag);
+            cmd.setDirtyFlag(cullingDirtyFlag);
             cmd._cameraFlag = Camera.flags.InCamera;
 
             cc.renderer.childrenOrderDirty = true;
@@ -156,7 +160,7 @@ let Camera = cc.Class({
         
         if (!CC_JSB) {
             var cmd = sgNode._renderCmd;
-            cmd.setDirtyFlag(transformDirtyFlag);
+            cmd.setDirtyFlag(cullingDirtyFlag);
             cmd._cameraFlag = 0;
 
             cc.renderer.childrenOrderDirty = true;
@@ -242,6 +246,7 @@ let Camera = cc.Class({
      * Returns the matrix that transform the node's (local) space coordinates into the camera's space coordinates.
      * !#zh
      * 返回一个将节点坐标系转换到摄像机坐标系下的矩阵
+     * @method getNodeToCameraTransform
      * @param {Node} node - the node which should transform
      * @return {AffineTransform}
      */
@@ -257,7 +262,8 @@ let Camera = cc.Class({
      * !#en
      * Conver a camera coordinates point to world coordinates.
      * !#zh
-     * 讲一个摄像机坐标系下的点转换到世界坐标系下。
+     * 将一个摄像机坐标系下的点转换到世界坐标系下。
+     * @method getCameraToWorldPoint
      * @param {Node} point - the point which should transform
      * @return {Vec2}
      */
@@ -273,6 +279,7 @@ let Camera = cc.Class({
      * Check whether the node is in the camera.
      * !#zh
      * 检测节点是否被此摄像机影响
+     * @method containsNode
      * @param {Node} node - the node which need to check
      * @return {Boolean}
      */
@@ -292,14 +299,14 @@ let Camera = cc.Class({
         return false;
     },
 
-    _setSgNodesTransformDirty: function () {
+    _setSgNodesCullingDirty: function () {
         let sgTarges = this._sgTarges;
         for (let i = 0; i < sgTarges.length; i++) {
             if (CC_JSB) {
                 sgTarges[i].markTransformUpdated();    
             }
             else {
-                sgTarges[i]._renderCmd.setDirtyFlag(transformDirtyFlag);
+                sgTarges[i]._renderCmd.setDirtyFlag(cullingDirtyFlag);
             }
         }
     },
@@ -400,7 +407,7 @@ let Camera = cc.Class({
             lvm.tx !== m.tx ||
             lvm.ty !== m.ty
             ) {
-            this._setSgNodesTransformDirty();
+            this._setSgNodesCullingDirty();
             
             lvm.a = m.a;
             lvm.b = m.b;

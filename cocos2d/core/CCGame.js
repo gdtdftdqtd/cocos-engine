@@ -30,6 +30,7 @@ if (!(CC_EDITOR && Editor.isMainProcess)) {
 }
 
 require('../audio/CCAudioEngine');
+var inputManager = require('./platform/CCInputManager');
 
 /**
  * !#en An object to boot the game.
@@ -294,10 +295,16 @@ var game = {
      */
     restart: function () {
         cc.director.once(cc.Director.EVENT_AFTER_DRAW, function () {
+            for (var id in game._persistRootNodes) {
+                game.removePersistRootNode(game._persistRootNodes[id]);
+            }
+
             // Clear scene
             cc.director.getScene().destroy();
             cc.Object._deferredDestroy();
+
             cc.director.purgeDirector();
+
             // Clean up audio
             if (cc.audioEngine) {
                 cc.audioEngine.uncacheAll();
@@ -557,15 +564,13 @@ var game = {
 
         callback = function () {
             if (!self._paused) {
+                self._intervalId = window.requestAnimFrame(callback);
                 if (frameRate === 30) {
                     if (skip = !skip) {
-                        self._intervalId = window.requestAnimFrame(callback);
                         return;
                     }
                 }
-
                 director.mainLoop();
-                self._intervalId = window.requestAnimFrame(callback);
             }
         };
 
@@ -688,7 +693,6 @@ var game = {
              = cc.create3DContext(localCanvas, {
                 'stencil': true,
                 'alpha': cc.macro.ENABLE_TRANSPARENT_CANVAS,
-                'antialias': cc.sys.isMobile
             });
         }
         // WebGL context created successfully
@@ -696,17 +700,11 @@ var game = {
             cc.renderer = cc.rendererWebGL;
             win.gl = this._renderContext; // global variable declared in CCMacro.js
             cc.renderer.init();
-            cc._drawingUtil = new cc.DrawingPrimitiveWebGL(this._renderContext);
-            cc.textureCache._initializingRenderer();
-            cc.glExt = {};
-            cc.glExt.instanced_arrays = win.gl.getExtension("ANGLE_instanced_arrays");
-            cc.glExt.element_uint = win.gl.getExtension("OES_element_index_uint");
         } else {
             cc._renderType = game.RENDER_TYPE_CANVAS;
             cc.renderer = cc.rendererCanvas;
             cc.renderer.init();
             this._renderContext = cc._renderContext = new cc.CanvasContextWrapper(localCanvas.getContext("2d"));
-            cc._drawingUtil = cc.DrawingPrimitiveCanvas ? new cc.DrawingPrimitiveCanvas(this._renderContext) : null;
         }
 
         cc._gameDiv = localContainer;
@@ -724,7 +722,7 @@ var game = {
 
         // register system events
         if (this.config[this.CONFIG_KEY.registerSystemEvent])
-            cc.inputManager.registerSystemEvent(this.canvas);
+            inputManager.registerSystemEvent(this.canvas);
 
         if (typeof document.hidden !== 'undefined') {
             hidden = "hidden";
