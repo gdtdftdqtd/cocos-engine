@@ -130,8 +130,8 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
         }
         var tw = tileset._tileSize.width,
             th = tileset._tileSize.height,
-            imageW = tex._contentSize.width,
-            imageH = tex._contentSize.height,
+            imageW = tex.width,
+            imageH = tex.height,
             spacing = tileset.spacing,
             margin = tileset.margin,
 
@@ -144,7 +144,7 @@ _ccsg.TMXLayer = _ccsg.Node.extend(/** @lends _ccsg.TMXLayer# */{
             grids = this._texGrids,
             grid = null,
             override = grids[gid] ? true : false,
-            texelCorrect = cc.macro.FIX_ARTIFACTS_BY_STRECHING_TEXEL ? 0.5 : 0;
+            texelCorrect = cc.macro.FIX_ARTIFACTS_BY_STRECHING_TEXEL_TMX ? 0.5 : 0;
 
         for (; gid < maxGid; ++gid) {
             // Avoid overlapping
