@@ -563,20 +563,24 @@ var TiledLayer = cc.Class({
     *   pos中的x y 是指地图中的x, y指第几个格子 
     *   distance pos周边的多少格内会被显示
     */
-    setupTilesBeyondPos:function(pos, distance){
-        // cc.log("setupTilesBeyondPos", pos, distance)
+    setupTilesBeyondPos:function(pos, w, h){
         if (!this._sgNode) return;
-        // cc.log("setupTilesBeyondPos", pos, distance)
-        this._sgNode.showTilesBeyond(pos, distance);
+        if (undefined == h) {
+            h = w;
+        }
+        this._sgNode.showTilesBeyond(pos, w, h);
     },
     /**
     *   移除跟离超过pos distance的格子
     */
-    removeTilesAwayPos:function(pos, distance){
+    removeTilesAwayPos:function(pos,  w, h){
         // cc.log("removeTilesAwayPos", pos, distance)
         // cc.log(this._sgNode)
         if (!this._sgNode) return;
-        this._sgNode.removeTilesAway(pos, distance);
+        if (undefined == h) {
+            h = w;
+        }
+        this._sgNode.removeTilesAway(pos, w, h);
     },
     /**
     *   移除pos格子
