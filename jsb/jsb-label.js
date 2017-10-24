@@ -300,7 +300,7 @@ cc.Label = function (string, fontHandle, spriteFrame, fontSize) {
             customGlyphs: "",
             distanceFieldEnable: false
         };
-        label = jsbLabel.createWithTTF(ttfConfig, string, this._fontSize);
+        label = jsbLabel.createWithTTF(ttfConfig, string);
         label._ttfConfig = ttfConfig;
     }
     else if (spriteFrame) {
@@ -331,6 +331,7 @@ cc.Label.pool = new cc.js.Pool(0);
 //Note: The pool.get method only used for creating TTF and SystemFont
 cc.Label.pool.get = function (string, fontAsset, spriteFrame, fontSize) {
     this._fontAsset = fontAsset;
+    fontSize = fontSize || 40;
     var isAsset = fontAsset instanceof cc.Font;
     if (!isAsset) {
         return new _ccsg.Label(string, null, null, fontSize);

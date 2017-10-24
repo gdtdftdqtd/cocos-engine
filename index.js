@@ -168,7 +168,6 @@ if (!(CC_EDITOR && Editor.isMainProcess)) {
 require('./cocos2d/kazmath');
 require('./cocos2d/core/predefine');
 
-ccui = {};
 ccs = {};
 cp = {};
 
@@ -188,10 +187,6 @@ else {
 require('./extends');
 
 if (CC_EDITOR) {
-    // In editor, in addition to the modules defined in cc scope, you can also access to the internal modules by using _require.
-    // var isDomNode = cc._require('./cocos2d/core/platform/utils').isDomNode;
-    cc._require = require;
-
     if (Editor.isMainProcess) {
         Editor.versions['cocos2d'] = require('./package.json').version;
     }
