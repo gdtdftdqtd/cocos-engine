@@ -347,17 +347,18 @@ dragonBones.ArmatureDisplay = cc.Class({
     },
 
     _parseDragonAtlasAsset : function() {
-        if (this.dragonAtlasAsset) {
+        var asset = this.dragonAtlasAsset;
+        if (asset) {
             if (CC_JSB) {
                 // TODO parse the texture atlas data from json string & texture path
-                this._factory.parseTextureAtlasData(this.dragonAtlasAsset.atlasJson, this.dragonAtlasAsset.texture);
+                this._factory.parseTextureAtlasData(asset.atlasJson, asset.texture && asset.texture.url);
             } else {
-                var atlasJsonObj = JSON.parse(this.dragonAtlasAsset.atlasJson);
+                var atlasJsonObj = JSON.parse(asset.atlasJson);
                 var atlasName = atlasJsonObj.name;
                 var existedAtlasData = null;
                 var atlasDataList = this._factory.getTextureAtlasData(atlasName);
-                var texturePath = this.dragonAtlasAsset.texture;
                 if (atlasDataList && atlasDataList.length > 0) {
+                    var texturePath = asset.texture && asset.texture.url;
                     for (var idx in atlasDataList) {
                         var data = atlasDataList[idx];
                         if (data && data.texture && data.texture.url === texturePath) {
@@ -367,11 +368,10 @@ dragonBones.ArmatureDisplay = cc.Class({
                     }
                 }
 
-                var texture = cc.textureCache.getTextureForKey(texturePath);
                 if (existedAtlasData) {
-                    existedAtlasData.texture = texture;
+                    existedAtlasData.texture = asset.texture;
                 } else {
-                    this._factory.parseTextureAtlasData(atlasJsonObj, texture);
+                    this._factory.parseTextureAtlasData(atlasJsonObj, asset.texture);
                 }
             }
         }
@@ -381,9 +381,10 @@ dragonBones.ArmatureDisplay = cc.Class({
         var self = this;
 
         // discard exists sgNode
-        var listenersBefore = null;
+        var listenersBefore = null, listenerCacheBefore = null;
         if (self._sgNode) {
             listenersBefore = self._sgNode._bubblingListeners; // get the listeners added before
+            listenerCacheBefore = self._sgNode._hasListenerCache;
             if ( self.node._sizeProvider === self._sgNode ) {
                 self.node._sizeProvider = null;
             }
@@ -403,6 +404,7 @@ dragonBones.ArmatureDisplay = cc.Class({
 
             if (listenersBefore) {
                 sgNode._bubblingListeners = listenersBefore; // using the listeners added before
+                sgNode._hasListenerCache = listenerCacheBefore;
                 if (CC_JSB && !sgNode.hasEventCallback()) {
                     // In JSB, should set event callback of the new sgNode
                     // to make the listeners work well.

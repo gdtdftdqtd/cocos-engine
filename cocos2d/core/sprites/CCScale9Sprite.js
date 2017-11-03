@@ -26,7 +26,7 @@ var EventTarget = require("../event/event-target");
 
 function sortIndex (a, b) {
     return a - b;
-};
+}
 
 var dataPool = {
     _pool: {},
@@ -60,8 +60,7 @@ var dataPool = {
 };
 
 var macro = cc.macro,
-    webgl,
-    vl, vb, vt, vr;
+    webgl;
 
 /*
  * <p>
@@ -86,8 +85,8 @@ var macro = cc.macro,
  */
 var simpleQuadGenerator = {
     _rebuildQuads_base: function (sprite) {
-        var spriteFrame = sprite._spriteFrame, 
-            contentSize = sprite._contentSize, 
+        var spriteFrame = sprite._spriteFrame,
+            contentSize = sprite._contentSize,
             isTrimmedContentSize = sprite._isTrimmedContentSize;
 
         //build vertices
@@ -130,9 +129,9 @@ var simpleQuadGenerator = {
         if (webgl) {
             var wt = sprite._renderCmd._worldTransform;
             var wta = wt.a, wtb = wt.b, wtc = wt.c, wtd = wt.d, wtx = wt.tx, wty = wt.ty;
-            
+
             var la = l * wta, lb = l * wtb, ra = r * wta, rb = r * wtb,
-                tcx = t * wtc + wtx, tdy = t * wtd + wty, 
+                tcx = t * wtc + wtx, tdy = t * wtd + wty,
                 bcx = b * wtc + wtx, bdy = b * wtd + wty;
             vertices[0] = la + bcx;
             vertices[1] = lb + bdy;
@@ -210,27 +209,24 @@ var scale9QuadGenerator = {
     x: new Array(4),
     y: new Array(4),
     _rebuildQuads_base: function (sprite) {
-        var spriteFrame = sprite._spriteFrame, 
-            contentSize = sprite._contentSize, 
-            insetLeft = sprite._insetLeft, 
-            insetRight = sprite._insetRight, 
-            insetTop = sprite._insetTop, 
+        var spriteFrame = sprite._spriteFrame,
+            contentSize = sprite._contentSize,
+            insetLeft = sprite._insetLeft,
+            insetRight = sprite._insetRight,
+            insetTop = sprite._insetTop,
             insetBottom = sprite._insetBottom;
 
         //build vertices
         var vertices = sprite._vertices;
         var wt = sprite._renderCmd._worldTransform;
-        var leftWidth, centerWidth, rightWidth;
-        var topHeight, centerHeight, bottomHeight;
-        var rect = spriteFrame._rect;
+        var leftWidth, rightWidth;
+        var topHeight, bottomHeight;
         var corner = sprite._corner;
 
         leftWidth = insetLeft;
         rightWidth = insetRight;
-        centerWidth = rect.width - leftWidth - rightWidth;
         topHeight = insetTop;
         bottomHeight = insetBottom;
-        centerHeight = rect.height - topHeight - bottomHeight;
 
         var preferSize = contentSize;
         var sizableWidth = preferSize.width - leftWidth - rightWidth;
@@ -362,7 +358,7 @@ var scale9QuadGenerator = {
 var tiledQuadGenerator = {
     _rebuildQuads_base: function (sprite, spriteFrame, contentSize) {
 
-        var spriteFrame = sprite._spriteFrame, 
+        var spriteFrame = sprite._spriteFrame,
             contentSize = sprite._contentSize,
             vertices = sprite._vertices,
             corner = sprite._corner,
@@ -481,15 +477,15 @@ var fillQuadGeneratorBar = {
     _rebuildQuads_base : function (sprite) {
         var spriteFrame = sprite._spriteFrame,
             contentSize = sprite._contentSize;
-    
+
         var fillStart = sprite._fillStart;
         var fillRange = sprite._fillRange;
-        
+
         if (fillRange < 0) {
             fillStart += fillRange;
             fillRange = -fillRange;
         }
-        
+
         fillRange = fillStart + fillRange;
         fillStart = fillStart > 1.0 ? 1.0 : fillStart;
         fillStart = fillStart < 0.0 ? 0.0 : fillStart;
@@ -649,14 +645,14 @@ var fillQuadGeneratorRadial = {
     _rebuildQuads_base : function (sprite) {
         var spriteFrame = sprite._spriteFrame,
             contentSize = sprite._contentSize;
-        
+
         var fillStart = sprite._fillStart;
         var fillRange = sprite._fillRange;
         if (fillRange < 0) {
             fillStart += fillRange;
             fillRange = -fillRange;
         }
-        
+
         sprite._isTriangle = true;
         if (!sprite._rawVerts) {
             sprite._rawVerts = dataPool.get(8) || new Float32Array(8);
@@ -1004,8 +1000,8 @@ var meshQuadGenerator = {
             return;
         }
 
-        var spriteFrame = sprite._spriteFrame, 
-            polygonInfo = sprite._meshPolygonInfo
+        var
+            polygonInfo = sprite._meshPolygonInfo;
 
         if (!polygonInfo) {
             return;
@@ -1101,7 +1097,7 @@ cc.Scale9Sprite = _ccsg.Node.extend({
     _distortionTiling: null,
     _meshPolygonInfo: null,
 
-    ctor: function (textureOrSpriteFrame) {
+    ctor: function (spiteFrame) {
         _ccsg.Node.prototype.ctor.call(this);
         this._renderCmd.setState(this._brightState);
         this._blendFunc = cc.BlendFunc._alphaNonPremultiplied();
@@ -1113,11 +1109,8 @@ cc.Scale9Sprite = _ccsg.Node.extend({
         this._vertices = dataPool.get(8) || new Float32Array(8);
         this._uvs = dataPool.get(8) || new Float32Array(8);
         // Init sprite frame
-        if (typeof textureOrSpriteFrame === 'string' || textureOrSpriteFrame instanceof cc.Texture2D) {
-            this.initWithTexture(textureOrSpriteFrame);
-        }
-        else if (textureOrSpriteFrame instanceof cc.SpriteFrame) {
-            this.initWithSpriteFrame(textureOrSpriteFrame);
+        if (spiteFrame) {
+            this.setSpriteFrame(spiteFrame);
         }
 
         if (webgl === undefined) {
@@ -1133,23 +1126,6 @@ cc.Scale9Sprite = _ccsg.Node.extend({
         } else {
             return this._spriteFrame.textureLoaded();
         }
-    },
-
-    /**
-     * Initializes a 9-slice sprite with a texture file
-     *
-     * @param textureOrTextureFile The name of the texture file.
-     */
-    initWithTexture: function (textureOrTextureFile) {
-        this.setTexture(textureOrTextureFile);
-    },
-
-    /**
-     * Initializes a 9-slice sprite with an sprite frame
-     * @param spriteFrameOrSFName The sprite frame object.
-     */
-    initWithSpriteFrame: function (spriteFrameOrSFName) {
-        this.setSpriteFrame(spriteFrameOrSFName);
     },
 
     /**
@@ -1174,13 +1150,13 @@ cc.Scale9Sprite = _ccsg.Node.extend({
             this._uvsDirty = true;
             this._renderCmd._needDraw = false;
             var self = this;
-            var onResourceDataLoaded = function () {
-                if (cc.sizeEqualToSize(self._contentSize, cc.size(0, 0))) {
+            function onResourceDataLoaded () {
+                if (self._contentSize.width === 0 && self._contentSize.height === 0) {
                     self.setContentSize(self._spriteFrame._rect);
                 }
                 self._renderCmd._needDraw = true;
                 self._renderCmd.setDirtyFlag(_ccsg.Node._dirtyFlags.contentDirty);
-            };
+            }
             if (spriteFrame.textureLoaded()) {
                 onResourceDataLoaded();
             } else {
@@ -1238,9 +1214,6 @@ cc.Scale9Sprite = _ccsg.Node.extend({
         }
     },
 
-    isTrimmedContentSizeEnabled: function () {
-        return this._isTrimmedContentSize;
-    },
     /**
      * Change the state of 9-slice sprite.
      * @see `State`
@@ -1426,7 +1399,7 @@ cc.Scale9Sprite = _ccsg.Node.extend({
     },
 
     _rebuildQuads: function () {
-        if (!this._spriteFrame || !this._spriteFrame._textureLoaded) {
+        if (!this._spriteFrame || !this._spriteFrame.textureLoaded()) {
             this._renderCmd._needDraw = false;
             return;
         }
@@ -1444,7 +1417,7 @@ cc.Scale9Sprite = _ccsg.Node.extend({
             quadGenerator = tiledQuadGenerator;
             break;
         case RenderingType.FILLED:
-            if (this._fillType === FillType.RADIAL) { 
+            if (this._fillType === FillType.RADIAL) {
                 quadGenerator = fillQuadGeneratorRadial;
             }
             else {
@@ -1455,7 +1428,7 @@ cc.Scale9Sprite = _ccsg.Node.extend({
             quadGenerator = meshQuadGenerator;
             break;
         }
-    
+
         if (quadGenerator) {
             quadGenerator._rebuildQuads_base(this);
         }
@@ -1465,7 +1438,7 @@ cc.Scale9Sprite = _ccsg.Node.extend({
             this._renderCmd._needDraw = false;
             cc.errorID(2627);
         }
-
+        
         this._quadsDirty = false;
         this._uvsDirty = false;
     },
