@@ -55,6 +55,12 @@ var MaskType = cc.Enum({
      * @property {Number} IMAGE_STENCIL
      */
     IMAGE_STENCIL: 2,
+    /**
+     * !#en Rect polygon.
+     * !#zh 使用多边形作为遮罩
+     * @property {Number} RECT
+     */
+     POLYGON: 3,
 });
 
 const SEGEMENTS_MIN = 3;
@@ -196,7 +202,27 @@ var Mask = cc.Class({
                     this._resizeNodeToTargetNode();
                 }
             }
-        }
+        },
+        _polygon:[],
+        polygon: {
+            get: function () {
+                if (!this._polygon) {
+                    this._polygon = [];
+                }
+                return this._polygon;
+            },
+            set: function (value) {
+                if (value[0] instanceof cc.Vec2){
+                    this._polygon = value;
+                }
+                else {
+                    for (var i = 0; i < value.length; ++i) {
+                        this._polygon.push(cc.v2(value[i][0], value[i][1]));
+                    }
+                }
+                this._refreshStencil();
+            },
+        },
     },
 
     statics: {
@@ -239,6 +265,9 @@ var Mask = cc.Class({
             var px = point.x - cx, py = point.y - cy;
 
             return px * px / (a * a) + py * py / (b * b) < 1;
+        }
+        else if (this.type === MaskType.POLYGON) {
+            return false;
         }
     },
 
@@ -292,35 +321,82 @@ var Mask = cc.Class({
             this._sgNode.setAlphaThreshold(this.alphaThreshold);
         }
         else {
-            var isDrawNode = stencil instanceof cc.DrawNode;
-            if (!isDrawNode) {
-                stencil = new cc.DrawNode();
-                if (CC_JSB) {
-                    stencil.retain();
-                }
-                this._sgNode.setStencil(stencil);
-            }
             var width = contentSize.width;
             var height = contentSize.height;
             var x = - width * anchorPoint.x;
             var y = - height * anchorPoint.y;
             var color = cc.color(255, 255, 255, 0);
-            stencil.clear();
-            if (this._type === MaskType.RECT) {
-                var rectangle = [cc.v2(x, y),
+            if (this.type === MaskType.POLYGON) {
+                var isGraphicsNode = stencil instanceof cc.GraphicsNode;
+                if (!isGraphicsNode) {
+                    if (stencil){
+                        stencil.release();
+                    }
+                    stencil = new cc.GraphicsNode();
+                    if (CC_JSB) {
+                        stencil.retain();
+                    }
+                    stencil.lineCap = 1;
+                    stencil.lineJoin = 1;
+                    stencil.lineWidth = 1;
+                    stencil.strokeColor = color;
+                    stencil.fillColor = color;
+                    this._sgNode.setStencil(stencil);
+                }
+                stencil.clear();
+                if (this._polygon.length < 3) {
+                    var rectangle = [cc.v2(x, y),
                     cc.v2(x + width, y),
                     cc.v2(x + width, y + height),
                     cc.v2(x, y + height)];
-                stencil.drawPoly(rectangle, color, 0, color);
+                    stencil.fillPolygon(rectangle,rectangle.length);
+                }
+                else{
+                    stencil.fillPolygon(this._polygon,this._polygon.length);
+                }
             }
-            else if (this._type === MaskType.ELLIPSE) {
-                var center = cc.v2(x + width / 2, y + height / 2);
-                var radius = {
-                    x: width / 2,
-                    y: height / 2
-                };
-                stencil.drawPoly(this._calculateCircle(center, radius, this._segements), color, 0, color);
+            else{
+                var isDrawNode = stencil instanceof cc.DrawNode;
+                if (!isDrawNode) {
+                    if (stencil){
+                        stencil.release();
+                    }
+                    stencil = new cc.DrawNode();
+                    if (CC_JSB) {
+                        stencil.retain();
+                    }
+                    this._sgNode.setStencil(stencil);
+                }
+                stencil.clear();
+                if (this._type === MaskType.RECT) {
+                    var rectangle = [cc.v2(x, y),
+                        cc.v2(x + width, y),
+                        cc.v2(x + width, y + height),
+                        cc.v2(x, y + height)];
+                    stencil.drawPoly(rectangle, color, 0, color);
+                }
+                else if (this._type === MaskType.ELLIPSE) {
+                    var center = cc.v2(x + width / 2, y + height / 2);
+                    var radius = {
+                        x: width / 2,
+                        y: height / 2
+                    };
+                    stencil.drawPoly(this._calculateCircle(center, radius, this._segements), color, 0, color);
+                }
+                // else if (this.type === MaskType.POLYGON) {
+                //     if (this._polygon.length < 3) {
+                //         var rectangle = [cc.v2(x, y),
+                //         cc.v2(x + width, y),
+                //         cc.v2(x + width, y + height),
+                //         cc.v2(x, y + height)];
+                //         stencil.drawPoly(rectangle, color, 0, color);
+                //     }
+                //     else{
+                //         stencil.drawPoly(this._polygon, color, 0, color);
+                //     }
+                // }
             }
+
         }
         this._sgNode.setInverted(this.inverted);
         this._clippingStencil = stencil;
