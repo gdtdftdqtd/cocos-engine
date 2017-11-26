@@ -203,7 +203,10 @@ var Mask = cc.Class({
                 }
             }
         },
-        _polygon:[],
+        _polygon:{
+            default: [],
+            type: cc.Vec2
+        },
         polygon: {
             get: function () {
                 if (!this._polygon) {
