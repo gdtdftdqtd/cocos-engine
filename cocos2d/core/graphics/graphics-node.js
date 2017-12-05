@@ -177,4 +177,8 @@ _p.fill = function () {
     this._renderCmd.fill();
 };
 
-module.exports = GraphicsNode;
+_p.fillPolygon = function (rectangle,length) {
+
+}
+
+module.exports = cc.GraphicsNode = GraphicsNode;

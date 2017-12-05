@@ -56,7 +56,7 @@ _p._updateCurrentRegions = function() {
 _p.rendering = function (ctx, scaleX, scaleY) {
     var wrapper = ctx || cc._renderContext, context = wrapper.getContext();
     wrapper.setTransform(this._worldTransform, scaleX, scaleY);
-    
+
     context.save();
     context.scale(1, -1);
 
