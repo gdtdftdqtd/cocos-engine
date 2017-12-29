@@ -56,4 +56,5 @@ module.exports = [
     require('./CCToggleGroup'),
     require('./CCToggle'),
     require('./CCBlockInputEvents'),
+    require('./CCGraphicsOpacity'),
 ];

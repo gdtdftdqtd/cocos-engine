@@ -178,7 +178,11 @@ _p.fill = function () {
 };
 
 _p.fillPolygon = function (rectangle,length) {
+    // this._renderCmd.fillPolygon(rectangle,length);
+}
 
+_p.setGraphicsOpacity = function (opacity) {
+    // this._renderCmd.setGraphicsOpacity(opacity);
 }
 
 module.exports = cc.GraphicsNode = GraphicsNode;

@@ -60,7 +60,7 @@ var MaskType = cc.Enum({
      * !#zh 使用多边形作为遮罩
      * @property {Number} RECT
      */
-     POLYGON: 3,
+    POLYGON: 3,
 });
 
 const SEGEMENTS_MIN = 3;
@@ -226,6 +226,18 @@ var Mask = cc.Class({
                 this._refreshStencil();
             },
         },
+        _lineWidth: 1,
+        lineWidth: {
+            get: function () {
+                return this._lineWidth;
+            },
+            set: function (value) {
+                if (this._lineWidth !== value){
+                    this._lineWidth = value;
+                    this._refreshStencil();
+                }
+            },
+        },
     },
 
     statics: {
@@ -270,6 +282,7 @@ var Mask = cc.Class({
             return px * px / (a * a) + py * py / (b * b) < 1;
         }
         else if (this.type === MaskType.POLYGON) {
+            //todo 点击区域判断，暂时返回 false，等需要了再加上相关判断
             return false;
         }
     },
@@ -347,6 +360,7 @@ var Mask = cc.Class({
                 this._sgNode.setStencil(stencil);
             }
             stencil.clear();
+            stencil.lineWidth = this._lineWidth;
             if (this._type === MaskType.RECT) {
                 var rectangle = [cc.v2(x, y),
                     cc.v2(x + width, y),
