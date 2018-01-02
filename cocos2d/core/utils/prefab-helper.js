@@ -25,11 +25,13 @@
 
 cc._PrefabInfo = cc.Class({
     name: 'cc.PrefabInfo',
+    // extends: require('../platform/CCObject'),
     properties: {
         // the most top node of this prefab in the scene
         root: null,
 
         // 所属的 prefab 资源对象 (cc.Prefab)
+        // In Editor, only asset._uuid is usable because asset will be changed.
         asset: null,
 
         // 用来标识别该节点在 prefab 资源中的位置，因此这个 ID 只需要保证在 Assets 里不重复就行
@@ -43,7 +45,18 @@ cc._PrefabInfo = cc.Class({
             default: false,
             serializable: false
         },
-    }
+    },
+    // _instantiate (cloned) {
+    //     if (!cloned) {
+    //         cloned = new cc._PrefabInfo();
+    //     }
+    //     cloned.root = this.root;
+    //     cloned.asset = this.asset;
+    //     cloned.fileId = this.fileId;
+    //     cloned.sync = this.sync;
+    //     cloned._synced = this._synced;
+    //     return cloned;
+    // }
 });
 
 // prefab helper function
@@ -81,7 +94,20 @@ module.exports = {
 
         // instantiate prefab
         cc.game._isCloning = true;
-        _prefab.asset._doInstantiate(node);
+        if (cc.supportJit) {
+            _prefab.asset._doInstantiate(node);
+        }
+        else {
+            // root in prefab asset is always synced
+            var prefabRoot = _prefab.asset.data;
+            prefabRoot._prefab._synced = true;
+
+            // use node as the instantiated prefabRoot to make references to prefabRoot in prefab redirect to node
+            prefabRoot._iN$t = node;
+
+            // instantiate prefab and apply to node
+            cc.instantiate._clone(prefabRoot, prefabRoot);
+        }
         cc.game._isCloning = false;
 
         // restore preserved props

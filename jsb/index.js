@@ -76,13 +76,7 @@ require('../cocos2d/core/utils/find');
 require('../cocos2d/core/utils/mutable-forward-iterator');
 require('../cocos2d/core/event');
 require('../cocos2d/core/event-manager/CCEvent');
-require('../cocos2d/core/event-manager/CCSystemEvent');
 require('../CCDebugger');
-
-if (CC_DEBUG) {
-    //Debug Info ID map
-    require('../DebugInfos');
-}
 
 // Mark memory model
 var macro = require('../cocos2d/core/platform/CCMacro');

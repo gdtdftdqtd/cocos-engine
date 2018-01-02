@@ -136,11 +136,10 @@ proto.updateClearColor = function(clearColor){ };
 proto.initWithWidthAndHeight = function(width, height, format, depthStencilFormat){
     var node = this._node;
     if(format === cc.Texture2D.PixelFormat.A8)
-        cc.log( "cc.RenderTexture._initWithWidthAndHeightForWebGL() : only RGB and RGBA formats are valid for a render texture;");
+        cc.logID(7601);
 
     var gl = cc._renderContext;
     this._fullRect = new cc.Rect(0,0, width, height);
-    this._fullViewport = new cc.Rect(0,0, width, height);
 
     width = 0 | width;
     height = 0 | height;
@@ -157,6 +156,8 @@ proto.initWithWidthAndHeight = function(width, height, format, depthStencilForma
         powW = misc.NextPOT(width);
         powH = misc.NextPOT(height);
     }
+
+    this._fullViewport = new cc.Rect(0,0, powW, powH);
 
     //void *data = malloc(powW * powH * 4);
     var dataLen = powW * powH * 4;
@@ -205,7 +206,7 @@ proto.initWithWidthAndHeight = function(width, height, format, depthStencilForma
 
     // check if it worked (probably worth doing :) )
     if(gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
-        cc.log("Could not attach texture to the framebuffer");
+        cc.logID(7602);
 
     locTexture.setAliasTexParameters();
 
@@ -244,6 +245,7 @@ proto.begin = function(){
 
     var orthoMatrix = cc.math.Matrix4.createOrthographicProjection(-1.0 / widthRatio, 1.0 / widthRatio,
         -1.0 / heightRatio, 1.0 / heightRatio, -1, 1);
+    cc.math.glMatrixMode(cc.math.KM_GL_PROJECTION);
     cc.math.glMultMatrix(orthoMatrix);
 
     //calculate viewport

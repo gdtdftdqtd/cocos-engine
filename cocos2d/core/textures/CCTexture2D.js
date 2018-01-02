@@ -261,10 +261,6 @@ var Texture2D = cc.Class({
             set (image) {
                 this.initWithElement(image);
                 this.handleLoadedTexture();
-                if (cc._renderType === cc.game.RENDER_TYPE_WEBGL) {
-                    // Image element no longer needed
-                    misc.imagePool.put(image);
-                }
             },
             override: true
         },
@@ -905,6 +901,7 @@ JS.get(_p, "pixelHeight", _p.getPixelHeight);
             var gl = this._gl;
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
             if (
+                sys.platform === sys.WECHAT_GAME ||
                 img instanceof HTMLCanvasElement ||
                 img instanceof HTMLImageElement ||
                 img instanceof HTMLVideoElement
@@ -995,7 +992,6 @@ JS.get(_p, "pixelHeight", _p.getPixelHeight);
             opts.minFilter = opts.magFilter = filter;
             this.update(opts);
 
-            this._image = null;
             this.loaded = true;
             this.emit("load");
         };
