@@ -46,6 +46,21 @@ require('../videoplayer/CCSGVideoPlayer');
  * !#zh 播放结束
  * @property {Number} COMPLETED
  */
+/**
+ * !#en meta data is loaded
+ * !#zh 视频的元信息已加载完成，你可以调用 getDuration 来获取视频总时长
+ * @property {Number} META_LOADED
+ */
+/**
+ * !#en clicked by the user
+ * !#zh 视频被用户点击了
+ * @property {Number} CLICKED
+ */
+/**
+ * !#en ready to play
+ * !#zh 视频准备好了，可以开始播放了
+ * @property {Number} READY_TO_PLAY
+ */
 var EventType = _ccsg.VideoPlayer.EventType;
 
 
@@ -369,6 +384,21 @@ var VideoPlayer = cc.Class({
         }
         return false;
     }
+
+    /**
+     * !#en if you don't need the VideoPlayer and it isn't in any running Scene, you should
+     * call the destroy method on this component or the associated node explicitly.
+     * Otherwise, the created DOM element won't be removed from web page.
+     * !#zh
+     * 如果你不再使用 VideoPlayer，并且组件未添加到场景中，那么你必须手动对组件或所在节点调用 destroy。
+     * 这样才能移除网页上的 DOM 节点，避免 Web 平台内存泄露。
+     * @example
+     * videoplayer.node.parent = null;  // or  videoplayer.node.removeFromParent(false);
+     * // when you don't need videoplayer anymore
+     * videoplayer.node.destroy();
+     * @method destroy
+     * @return {Boolean} whether it is the first time the destroy being called
+     */
 });
 
 cc.VideoPlayer = module.exports = VideoPlayer;
@@ -442,18 +472,4 @@ cc.VideoPlayer = module.exports = VideoPlayer;
  * @event completed
  * @param {Event.EventCustom} event
  * @param {VideoPlayer} event.detail - The VideoPlayer component.
- */
-
-/**
- * !#en if you don't need the VideoPlayer and it isn't in any running Scene, you should
- * call the destroy method on this component or the associated node explicitly.
- * Otherwise, the created DOM element won't be removed from web page.
- * !#zh
- * 如果你不再使用 VideoPlayer，并且组件未添加到场景中，那么你必须手动对组件或所在节点调用 destroy。
- * 这样才能移除网页上的 DOM 节点，避免 Web 平台内存泄露。
- * @example
- * videoplayer.node.parent = null;  // or  videoplayer.node.removeFromParent(false);
- * // when you don't need videoplayer anymore
- * videoplayer.node.destroy();
- * @method destroy
  */

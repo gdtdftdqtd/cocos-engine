@@ -318,6 +318,10 @@ var Button = cc.Class({
             type: cc.SpriteFrame,
             displayName: 'Pressed',
             tooltip: CC_DEV && 'i18n:COMPONENT.button.pressed_sprite',
+            formerlySerializedAs: 'pressedSprite',
+            notify: function () {
+                this._updateState();
+            }
         },
 
         /**
@@ -330,6 +334,10 @@ var Button = cc.Class({
             type: cc.SpriteFrame,
             displayName: 'Hover',
             tooltip: CC_DEV && 'i18n:COMPONENT.button.hover_sprite',
+            formerlySerializedAs: 'hoverSprite',
+            notify: function () {
+                this._updateState();
+            }
         },
 
         /**

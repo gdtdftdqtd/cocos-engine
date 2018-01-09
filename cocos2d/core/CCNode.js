@@ -146,17 +146,22 @@ var _mouseEvents = [
 var _currentHovered = null;
 
 var _touchStartHandler = function (touch, event) {
-    if (CC_JSB) {
-        event = Event.EventTouch.pool.get(event);
-    }
     var pos = touch.getLocation();
     var node = this.owner;
 
     if (node._hitTest(pos, this)) {
+        if (CC_JSB) {
+            event = Event.EventTouch.pool.get(event);
+        }
         event.type = EventType.TOUCH_START;
         event.touch = touch;
         event.bubbles = true;
         node.dispatchEvent(event);
+        if (CC_JSB) {
+            event.touch = null;
+            event._touches = null;
+            Event.EventTouch.pool.put(event);
+        }
         return true;
     }
     return false;
@@ -170,6 +175,11 @@ var _touchMoveHandler = function (touch, event) {
     event.touch = touch;
     event.bubbles = true;
     node.dispatchEvent(event);
+    if (CC_JSB) {
+        event.touch = null;
+        event._touches = null;
+        Event.EventTouch.pool.put(event);
+    }
 };
 var _touchEndHandler = function (touch, event) {
     if (CC_JSB) {
@@ -187,6 +197,11 @@ var _touchEndHandler = function (touch, event) {
     event.touch = touch;
     event.bubbles = true;
     node.dispatchEvent(event);
+    if (CC_JSB) {
+        event.touch = null;
+        event._touches = null;
+        Event.EventTouch.pool.put(event);
+    }
 };
 
 var _mouseDownHandler = function (event) {
@@ -195,20 +210,31 @@ var _mouseDownHandler = function (event) {
 
     if (node._hitTest(pos, this)) {
         if (CC_JSB) {
+            // jsb event will be replaced so can be stopped immediately
+            event.stopPropagation();
             event = Event.EventMouse.pool.get(event);
         }
         event.type = EventType.MOUSE_DOWN;
         event.bubbles = true;
         node.dispatchEvent(event);
+        if (CC_JSB) {
+            Event.EventMouse.pool.put(event);
+        }
+        else {
+            event.stopPropagation();
+        }
     }
 };
 var _mouseMoveHandler = function (event) {
     var pos = event.getLocation();
     var node = this.owner;
-    if (node._hitTest(pos, this)) {
-        if (CC_JSB) {
-            event = Event.EventMouse.pool.get(event);
-        }
+    var hit = node._hitTest(pos, this);
+    if (CC_JSB && (hit || this._previousIn)) {
+        // jsb event will be replaced so can be stopped immediately
+        event.stopPropagation();
+        event = Event.EventMouse.pool.get(event);
+    }
+    if (hit) {
         if (!this._previousIn) {
             // Fix issue when hover node switched, previous hovered node won't get MOUSE_LEAVE notification
             if (_currentHovered) {
@@ -226,25 +252,44 @@ var _mouseMoveHandler = function (event) {
         node.dispatchEvent(event);
     }
     else if (this._previousIn) {
-        if (CC_JSB) {
-            event = Event.EventMouse.pool.get(event);
-        }
         event.type = EventType.MOUSE_LEAVE;
         node.dispatchEvent(event);
         this._previousIn = false;
         _currentHovered = null;
+    }
+    else {
+        // continue dispatching
+        return;
+    }
+
+    // Event processed, cleanup
+    if (CC_JSB) {
+        Event.EventMouse.pool.put(event);
+    }
+    else {
+        event.stopPropagation();
     }
 };
 var _mouseUpHandler = function (event) {
     var pos = event.getLocation();
     var node = this.owner;
 
-    if (CC_JSB) {
-        event = Event.EventMouse.pool.get(event);
+    if (node._hitTest(pos, this)) {
+        if (CC_JSB) {
+            // jsb event will be replaced so can be stopped immediately
+            event.stopPropagation();
+            event = Event.EventMouse.pool.get(event);
+        }
+        event.type = EventType.MOUSE_UP;
+        event.bubbles = true;
+        node.dispatchEvent(event);
+        if (CC_JSB) {
+            Event.EventMouse.pool.put(event);
+        }
+        else {
+            event.stopPropagation();
+        }
     }
-    event.type = EventType.MOUSE_UP;
-    event.bubbles = true;
-    node.dispatchEvent(event);
 };
 var _mouseWheelHandler = function (event) {
     var pos = event.getLocation();
@@ -253,11 +298,19 @@ var _mouseWheelHandler = function (event) {
     if (node._hitTest(pos, this)) {
         //FIXME: separate wheel event and other mouse event.
         if (CC_JSB) {
+            // jsb event will be replaced so can be stopped immediately
+            event.stopPropagation();
             event = Event.EventMouse.pool.get(event);
         }
         event.type = EventType.MOUSE_WHEEL;
         event.bubbles = true;
         node.dispatchEvent(event);
+        if (CC_JSB) {
+            Event.EventMouse.pool.put(event);
+        }
+        else {
+            event.stopPropagation();
+        }
     }
 };
 
@@ -954,7 +1007,11 @@ var Node = cc.Class({
                 parent._sgNode.removeChild(this._sgNode, false);
                 if (index + 1 < siblings.length) {
                     var nextSibling = siblings[index + 1];
+                    var oldZOrder = this._sgNode.getLocalZOrder();
                     parent._sgNode.insertChildBefore(this._sgNode, nextSibling._sgNode);
+                    if (oldZOrder !== this._sgNode.getLocalZOrder()) {
+                        this._sgNode.setLocalZOrder(oldZOrder);
+                    }
                 }
                 else {
                     parent._sgNode.addChild(this._sgNode);
@@ -1018,8 +1075,7 @@ var Node = cc.Class({
                 this._parent = null;
             }
         }
-        else if (CC_TEST ? (/* make CC_JSB mockable*/ Function('return CC_JSB'))() : CC_JSB) {
-            this._sgNode.release();
+        else if (CC_JSB) {
             this._sgNode._entity = null;
             this._sgNode = null;
         }
@@ -1924,8 +1980,10 @@ var Node = cc.Class({
      * Returns the displayed color of Node,
      * the difference between displayed color and color is that displayed color is calculated based on color and parent node's color when cascade color enabled.
      * !#zh
-     * 获取节点的显示透明度，
-     * 显示透明度和透明度之间的不同之处在于显示透明度是基于透明度和父节点透明度启用级连透明度时计算的。
+     * 获取节点的显示颜色，
+     * 显示颜色和颜色之间的不同之处在于当启用级连颜色时，
+     * 显示颜色是基于自身颜色和父节点颜色计算的。
+     *
      * @method getDisplayedColor
      * @returns {Color}
      * @example

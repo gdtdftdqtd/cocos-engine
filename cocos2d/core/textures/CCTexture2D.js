@@ -803,6 +803,7 @@ game.once(game.EVENT_RENDERER_INITED, function () {
             var gl = this._gl;
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
             if (
+                sys.platform === sys.WECHAT_GAME ||
                 img instanceof HTMLCanvasElement ||
                 img instanceof HTMLImageElement ||
                 img instanceof HTMLVideoElement
@@ -890,7 +891,6 @@ game.once(game.EVENT_RENDERER_INITED, function () {
             opts.minFilter = opts.magFilter = filter;
             this.update(opts);
 
-            this._image = null;
             this.loaded = true;
             this.emit("load");
         };

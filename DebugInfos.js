@@ -50,6 +50,7 @@ if (CC_DEBUG) {
         "1402": "The 'visible' property of %s is deprecated, use 'enabled' instead please.", //visible
         "1403": "Sorry, cc.audioEngine.willPlayMusic is removed.", //willPlayMusicError
         "1404": "cc.spriteFrameCache is removed, please use cc.loader to load and cache sprite frames of atlas format.",
+        "1405": "The '%s' will be removed in v2.0, please use '%s' instead. \uD83D\uDE30",
         //Scheduler: 1500
         "1500": "cc.Scheduler#schedule: Callback already scheduled. Updating interval from:%s to %s", //scheduleCallbackForTarget
         "1501": "cc.Scheduler#scheduleCallbackForTarget(): callback_fn should be non-null.", //scheduleCallbackForTarget_2
@@ -340,7 +341,7 @@ if (CC_DEBUG) {
         "3700": "internal error: _prefab is undefined", //_doInstantiate
         "3701": "Failed to load prefab asset for node '%s'", //syncWithPrefab
         //Game: 3800
-        "3800": "The target can not be made persist because it\'s not a cc.Node or it doesn\'t have _id property.", //addPersistRootNode
+        "3800": "The target can not be made persist because it\'s invalid or it doesn\'t have _id property.", //addPersistRootNode
         "3801": "The node can not be made persist because it\'s not under root node.", //addPersistRootNode_2
         "3802": "The node can not be made persist because it\'s not in current scene.", //addPersistRootNode_3
         "3803": "The target can not be made persist because it\'s not a cc.Node or it doesn\'t have _id property.", //addPersistRootNode_4
@@ -387,6 +388,7 @@ if (CC_DEBUG) {
         "4010": "cc.LabelBMFont.setFntFile() : Impossible to create font. Please check file", //BMFont.setFntFile
         "4011": "Property spriteFrame of Font '%s' is invalid. Using system font instead.", // BMFont spriteFrame is invalid.
         "4012": "The texture of Font '%s' must be already loaded on JSB. Using system font instead.",
+        "4013": "Sorry, lineHeight of system font not supported on JSB.",
         //Layout: 4100
         "4100": "Property padding is deprecated, please use paddingLeft, paddingRight, paddingTop and paddingBottom instead", //padding
         //Mask: 4200
@@ -558,6 +560,7 @@ if (CC_DEBUG) {
         "7217": "cocos2d: TMXFomat: Unsupported orientation: %s", //parseXMLFile
         "7218": "cc.TMXMapInfo.parseXMLFile(): unsupported compression method", //_parseLayer
         "7219": "cc.TMXMapInfo.parseXMLFile(): Only base64 and/or gzip/zlib maps are supported", //_parseLayer
+        "7220": "TMX Parser: please load the xml resource first: %s", // parseXMLFile
         //Wrapper: 7300
         "7300": "The new selected must be number", //CheckBox.selected
         "7301": "The new bake must be boolean", //layer
@@ -618,8 +621,6 @@ if (CC_DEBUG) {
         "8301": "Camera does not support Canvas Mode.", //cc.Camera.enabled
         // AudioEngine: 8400
         "8400": "Wrong type arguments, 'filePath' must be a String.", // cc.audioEngine.play
-        // ToggleGroup: 8500
-        "8500": "The ToggleGroup.toggleItems api will be removed in v2.0, please obtain toggles in other ways. \uD83D\uDE30",
     };
     cc._LogInfos = logs;
 }
