@@ -322,6 +322,11 @@ var Mask = cc.Class({
             return;
         }
 
+        if (!CC_JSB) {
+            this._refreshWebStencil();
+            return;
+        }
+
         var contentSize = this.node.getContentSize();
         var anchorPoint = this.node.getAnchorPoint();
         var stencil = this._clippingStencil;
@@ -389,6 +394,59 @@ var Mask = cc.Class({
                 else{
                     stencil.fillPolygon(this._polygon,this._polygon.length);
                 }
+            }
+        }
+        this._sgNode.setInverted(this.inverted);
+        this._clippingStencil = stencil;
+        if (!CC_JSB) {
+            cc.renderer.childrenOrderDirty = true;
+        }
+    },
+
+    _refreshWebStencil: function () {
+        var contentSize = this.node.getContentSize();
+        var anchorPoint = this.node.getAnchorPoint();
+        var stencil = this._clippingStencil;
+        if (this._type === MaskType.IMAGE_STENCIL) {
+            var isSgSprite = stencil instanceof cc.Scale9Sprite;
+            if (!isSgSprite || stencil._spriteFrame !== this.spriteFrame) {
+                stencil = new cc.Scale9Sprite();
+                stencil.setSpriteFrame(this.spriteFrame);
+                this._sgNode.setStencil(stencil);
+            }
+            stencil.setContentSize(contentSize);
+            stencil.setAnchorPoint(anchorPoint);
+            this._sgNode.setAlphaThreshold(this.alphaThreshold);
+        }
+        else {
+            var isDrawNode = stencil instanceof cc.DrawNode;
+            if (!isDrawNode) {
+                stencil = new cc.DrawNode();
+                if (CC_JSB) {
+                    stencil.retain();
+                }
+                this._sgNode.setStencil(stencil);
+            }
+            var width = contentSize.width;
+            var height = contentSize.height;
+            var x = - width * anchorPoint.x;
+            var y = - height * anchorPoint.y;
+            var color = cc.color(255, 255, 255, 0);
+            stencil.clear();
+            if (this._type === MaskType.RECT) {
+                var rectangle = [cc.v2(x, y),
+                    cc.v2(x + width, y),
+                    cc.v2(x + width, y + height),
+                    cc.v2(x, y + height)];
+                stencil.drawPoly(rectangle, color, 0, color);
+            }
+            else if (this._type === MaskType.ELLIPSE) {
+                var center = cc.v2(x + width / 2, y + height / 2);
+                var radius = {
+                    x: width / 2,
+                    y: height / 2
+                };
+                stencil.drawPoly(this._calculateCircle(center, radius, this._segements), color, 0, color);
             }
         }
         this._sgNode.setInverted(this.inverted);
