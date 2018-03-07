@@ -61,6 +61,12 @@ var MaskType = cc.Enum({
      * @property {Number} RECT
      */
     POLYGON: 3,
+    /**
+     * !#en Rect polygon.
+     * !#zh 使用多边形作为遮罩
+     * @property {Number} RECT
+     */
+    MORE_POLYGON: 4,
 });
 
 const SEGEMENTS_MIN = 3;
@@ -226,6 +232,21 @@ var Mask = cc.Class({
                 this._refreshStencil();
             },
         },
+        _morePolygon:{
+            default: null,
+        },
+        morePolygon: {
+            get: function () {
+                if (!this._morePolygon) {
+                    this._morePolygon = [];
+                }
+                return this._morePolygon;
+            },
+            set: function (value) {//value is [[cc.Vec2],[cc.Vec2],...]
+                this._morePolygon = value;
+                this._refreshStencil();
+            },
+        },
         _lineWidth: 1,
         lineWidth: {
             get: function () {
@@ -285,6 +306,10 @@ var Mask = cc.Class({
             //todo 点击区域判断，暂时返回 false，等需要了再加上相关判断
             return false;
         }
+        else if (this.type === MaskType.MORE_POLYGON) {
+            //todo 点击区域判断，暂时返回 false，等需要了再加上相关判断
+            return false;
+        }
     },
 
     onEnable: function () {
@@ -301,6 +326,31 @@ var Mask = cc.Class({
         this._super();
         this.node.off('size-changed', this._refreshStencil, this);
         this.node.off('anchor-changed', this._refreshStencil, this);
+    },
+
+    appendPolygon: function (points) {
+        if (CC_JSB) {
+            if (this._type === MaskType.MORE_POLYGON) {
+                var polygon = [];
+                if (points[0] instanceof cc.Vec2) {
+                    polygon = points;
+                }
+                else {
+                    for (var i = 0; i < points.length; ++i) {
+                        polygon.push(cc.v2(points[i][0], points[i][1]));
+                    }
+                }
+                this._morePolygon.push(polygon);
+                this._refreshStencil();
+                //下面的不会刷新，等有时间研究一下，暂时先使用上面的 this._refreshStencil() 刷新
+                // if (this._clippingStencil && this._clippingStencil instanceof cc.GraphicsNode) {
+                //     this._clippingStencil.fillPolygon(polygon, polygon.length);
+                // }
+                // else {
+                //     this._refreshStencil();
+                // }
+            }
+        }
     },
 
     _calculateCircle: function (center, radius, segements) {
@@ -383,7 +433,6 @@ var Mask = cc.Class({
                 stencil.fillPolygon(polygon, polygon.length);
             }
             else if (this._type === MaskType.POLYGON) {
-                stencil.clear();
                 if (this._polygon.length < 3) {
                     var rectangle = [cc.v2(x, y),
                         cc.v2(x + width, y),
@@ -393,6 +442,20 @@ var Mask = cc.Class({
                 }
                 else{
                     stencil.fillPolygon(this._polygon,this._polygon.length);
+                }
+            }
+            else if (this._type === MaskType.MORE_POLYGON) {
+                if (!this._morePolygon || this._morePolygon.length <= 0) {
+                    var rectangle = [cc.v2(x, y),
+                        cc.v2(x + width, y),
+                        cc.v2(x + width, y + height),
+                        cc.v2(x, y + height)];
+                    stencil.fillPolygon(rectangle,rectangle.length);
+                }
+                else {
+                    for (let i=0;i<this._morePolygon.length;++i) {
+                        stencil.fillPolygon(this._morePolygon[i], this._morePolygon[i].length);
+                    }
                 }
             }
         }
@@ -447,6 +510,20 @@ var Mask = cc.Class({
                     y: height / 2
                 };
                 stencil.drawPoly(this._calculateCircle(center, radius, this._segements), color, 0, color);
+            }
+            else if (this._type === MaskType.POLYGON) {
+                var rectangle = [cc.v2(x, y),
+                    cc.v2(x + width, y),
+                    cc.v2(x + width, y + height),
+                    cc.v2(x, y + height)];
+                stencil.drawPoly(rectangle, color, 0, color);
+            }
+            else if (this._type === MaskType.MORE_POLYGON) {
+                var rectangle = [cc.v2(x, y),
+                    cc.v2(x + width, y),
+                    cc.v2(x + width, y + height),
+                    cc.v2(x, y + height)];
+                stencil.drawPoly(rectangle, color, 0, color);
             }
         }
         this._sgNode.setInverted(this.inverted);
