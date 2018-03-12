@@ -1,5 +1,6 @@
 /****************************************************************************
- Copyright (c) 2015 Chukong Technologies Inc.
+ Copyright (c) 2015-2016 Chukong Technologies Inc.
+ Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
  http://www.cocos2d-x.org
 
@@ -46,7 +47,10 @@ cc.Scene = cc.Class({
          * @property {Boolean} autoReleaseAssets
          * @default false
          */
-        autoReleaseAssets: undefined,
+        autoReleaseAssets: {
+            default: undefined,
+            type: cc.Boolean
+        },
 
     },
 

@@ -5,14 +5,14 @@
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
- worldwide, royalty-free, non-assignable, revocable and  non-exclusive license
+ worldwide, royalty-free, non-assignable, revocable and non-exclusive license
  to use Cocos Creator solely to develop games on your target platforms. You shall
  not use Cocos Creator software for developing other software or tools that's
  used for developing games. You are not granted to publish, distribute,
  sublicense, and/or sell copies of Cocos Creator.
 
  The software or tools in this License Agreement are licensed, not sold.
- Chukong Aipu reserves all rights not expressly granted to you.
+ Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -43,12 +43,17 @@ var jsbSkipModules = [
     '../../cocos2d/core/CCDrawingPrimitives.js',
     // '../../cocos2d/core/textures/CCTexture2D',
     // '../../cocos2d/core/sprites/CCSpriteFrame',
+    '../../cocos2d/core/event-manager/CCTouch.js',
+    '../../cocos2d/core/event-manager/CCEventListener.js',
+    '../../cocos2d/core/event-manager/CCEventManager.js',
     '../../cocos2d/core/load-pipeline/audio-downloader',
     '../../cocos2d/core/physics/platform/CCPhysicsDebugDraw.js',
     '../../cocos2d/core/physics/platform/CCPhysicsUtils.js',
+    '../../cocos2d/core/physics/platform/CCPhysicsContactListner.js',
     '../../cocos2d/core/physics/platform/CCPhysicsAABBQueryCallback.js',
     '../../cocos2d/core/physics/platform/CCPhysicsRayCastCallback.js',
-    '../../cocos2d/core/physics/platform/CCPhysicsContactListner.js',
+    '../../cocos2d/core/platform/CCInputManager.js',
+    '../../cocos2d/core/platform/CCVisibleRect.js',
     '../../cocos2d/core/camera/CCSGCameraNode.js',
     '../../cocos2d/core/label/CCSGLabel.js',
     '../../cocos2d/core/label/CCSGLabelCanvasRenderCmd.js',
@@ -61,6 +66,7 @@ var jsbSkipModules = [
     '../../cocos2d/core/graphics/graphics-canvas-cmd.js',
     '../../cocos2d/core/graphics/earcut.js',
     '../../cocos2d/core/graphics/helper.js',
+    '../../cocos2d/actions/index.js',
     '../../cocos2d/audio/CCAudio',
     '../../cocos2d/shape-nodes/CCDrawNode.js',
     '../../cocos2d/clipping-nodes/CCClippingNode.js',
@@ -81,6 +87,7 @@ var jsbSkipModules = [
     '../../cocos2d/render-texture/CCRenderTexture.js',
     '../../cocos2d/render-texture/CCRenderTextureCanvasRenderCmd.js',
     '../../cocos2d/render-texture/CCRenderTextureWebGLRenderCmd.js',
+    '../../extensions/spine/SGSkeletonTexture',
     '../../extensions/spine/SGSkeleton',
     '../../extensions/spine/SGSkeletonAnimation',
     '../../extensions/spine/SGSkeletonCanvasRenderCmd',
@@ -88,13 +95,18 @@ var jsbSkipModules = [
     '../../extensions/spine/lib/spine',
     '../../extensions/dragonbones/lib/dragonBones',
     '../../extensions/dragonbones/CCFactory',
-    '../../extensions/dragonbones/CCArmatureDisplay',
     '../../extensions/dragonbones/CCSlot',
     '../../extensions/dragonbones/CCTextureData',
+    '../../extensions/dragonbones/CCArmatureDisplay',
     '../../external/box2d/box2d.js',
 ];
 
-exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
+exports.buildCocosJs = function (sourceFile, outputFile, excludes, opt_macroFlags, callback) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var outDir = Path.dirname(outputFile);
     var outFile = Path.basename(outputFile);
     var bundler = createBundler(sourceFile);
@@ -107,7 +119,7 @@ exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
     bundler = bundler.pipe(Source(outFile));
     bundler = bundler.pipe(Buffer());
     bundler = bundler.pipe(Sourcemaps.init({loadMaps: true}));
-    bundler = bundler.pipe(Utils.uglify('build', false, true));
+    bundler = bundler.pipe(Utils.uglify('build', Object.assign({ debug: true }, opt_macroFlags)));
     bundler = bundler.pipe(Optimizejs({
         sourceMap: false
     }));
@@ -120,7 +132,12 @@ exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
     return bundler.on('end', callback);
 };
 
-exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, callback, createMap) {
+exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, opt_macroFlags, callback, createMap) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var outDir = Path.dirname(outputFile);
     var outFile = Path.basename(outputFile);
     var bundler = createBundler(sourceFile);
@@ -148,7 +165,7 @@ exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, callback, 
         console.error('Can not use sourcemap with optimize-js');
         bundler = bundler.pipe(Sourcemaps.init({loadMaps: true}));
     }
-    bundler = bundler.pipe(Utils.uglify('build', false, false));
+    bundler = bundler.pipe(Utils.uglify('build', opt_macroFlags));
     bundler = bundler.pipe(Optimizejs({
         sourceMap: false
     }));
@@ -193,7 +210,7 @@ exports.buildPreview = function (sourceFile, outputFile, callback, devMode) {
     if (!devMode) {
         bundler = bundler
             .pipe(Sourcemaps.init({loadMaps: true}))
-            .pipe(Utils.uglify('preview', false, false))
+            .pipe(Utils.uglify('preview'))
             .pipe(Optimizejs({
                 sourceMap: false
             }))
@@ -228,7 +245,7 @@ exports.buildJsbPreview = function (sourceFile, outputFile, excludes, callback) 
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(FixJavaScriptCore())
-        .pipe(Utils.uglify('preview', true, false))
+        .pipe(Utils.uglify('preview', { jsb: true }))
         .pipe(Optimizejs({
             sourceMap: false
         }))
@@ -236,7 +253,12 @@ exports.buildJsbPreview = function (sourceFile, outputFile, excludes, callback) 
         .on('end', callback);
 };
 
-exports.buildJsb = function (sourceFile, outputFile, excludes, callback) {
+exports.buildJsb = function (sourceFile, outputFile, excludes, opt_macroFlags, callback) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var FixJavaScriptCore = require('../util/fix-jsb-javascriptcore');
 
     var outFile = Path.basename(outputFile);
@@ -254,7 +276,7 @@ exports.buildJsb = function (sourceFile, outputFile, excludes, callback) {
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(FixJavaScriptCore())
-        .pipe(Utils.uglify('build', true, true))
+        .pipe(Utils.uglify('build', Object.assign({ jsb: true, debug: true }, opt_macroFlags)))
         .pipe(Optimizejs({
             sourceMap: false
         }))
@@ -262,7 +284,12 @@ exports.buildJsb = function (sourceFile, outputFile, excludes, callback) {
         .on('end', callback);
 };
 
-exports.buildJsbMin = function (sourceFile, outputFile, excludes, callback) {
+exports.buildJsbMin = function (sourceFile, outputFile, excludes, opt_macroFlags, callback) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var FixJavaScriptCore = require('../util/fix-jsb-javascriptcore');
 
     var outFile = Path.basename(outputFile);
@@ -280,7 +307,7 @@ exports.buildJsbMin = function (sourceFile, outputFile, excludes, callback) {
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(FixJavaScriptCore())
-        .pipe(Utils.uglify('build', true, false))
+        .pipe(Utils.uglify('build', Object.assign({ jsb: true }, opt_macroFlags)))
         .pipe(Optimizejs({
             sourceMap: false
         }))

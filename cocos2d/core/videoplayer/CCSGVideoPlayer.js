@@ -1,15 +1,16 @@
 /****************************************************************************
  Copyright (c) 2013-2016 Chukong Technologies Inc.
+ Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
  http://www.cocos.com
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
- worldwide, royalty-free, non-assignable, revocable and  non-exclusive license
+ worldwide, royalty-free, non-assignable, revocable and non-exclusive license
  to use Cocos Creator solely to develop games on your target platforms. You shall
  not use Cocos Creator software for developing other software or tools that's
  used for developing games. You are not granted to publish, distribute,
  sublicense, and/or sell copies of Cocos Creator.
  The software or tools in this License Agreement are licensed, not sold.
- Chukong Aipu reserves all rights not expressly granted to you.
+ Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -66,6 +67,10 @@ _ccsg.VideoPlayer = _ccsg.Node.extend(/** @lends _ccsg.VideoPlayer# */{
 
     stop: function () {
         this._renderCmd.stop();
+    },
+
+    setVolume: function (volume) {
+        this._renderCmd.setVolume(volume);
     },
 
     seekTo: function (time) {
@@ -221,7 +226,7 @@ _ccsg.VideoPlayer.EventType = {
          * so it is best to provide mp4 and webm or ogv file
          */
         var dom = document.createElement("video");
-        if (sys.platform !== sys.WECHAT_GAME) {
+        if (sys.platform !== sys.WECHAT_GAME && sys.platform !== sys.QQ_PLAY) {
             if (dom.canPlayType("video/ogg")) {
                 video._polyfill.canPlayType.push(".ogg");
                 video._polyfill.canPlayType.push(".ogv");
@@ -306,12 +311,8 @@ _ccsg.VideoPlayer.EventType = {
     };
 
     proto.updateURL = function (path) {
-        if (cc.loader.md5Pipe) {
-            path = cc.loader.md5Pipe.transformURL(path);
-        }
         var source, video, extname;
         var node = this._node;
-
 
         if (this._url === path) {
             return;
@@ -499,6 +500,13 @@ _ccsg.VideoPlayer.EventType = {
             setTimeout(function () {
                 video.play();
             }, 20);
+        }
+    };
+
+    proto.setVolume = function (volume) {
+        var video = this._video;
+        if (video) {
+            video.volume = volume;
         }
     };
 

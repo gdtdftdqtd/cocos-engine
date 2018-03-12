@@ -1,18 +1,19 @@
 /****************************************************************************
  Copyright (c) 2013-2016 Chukong Technologies Inc.
+ Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
  http://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
-  worldwide, royalty-free, non-assignable, revocable and  non-exclusive license
+  worldwide, royalty-free, non-assignable, revocable and non-exclusive license
  to use Cocos Creator solely to develop games on your target platforms. You shall
   not use Cocos Creator software for developing other software or tools that's
   used for developing games. You are not granted to publish, distribute,
   sublicense, and/or sell copies of Cocos Creator.
 
  The software or tools in this License Agreement are licensed, not sold.
- Chukong Aipu reserves all rights not expressly granted to you.
+ Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -375,7 +376,7 @@ var Texture2D = cc.Class({
      * @param {Number} pixelFormat
      * @param {Number} pixelsWidth
      * @param {Number} pixelsHeight
-     * @param {Size} contentSize
+     * @param {Size} contentSize contentSize is deprecated and ignored
      * @return {Boolean}
      */
     initWithData: function (data, pixelFormat, pixelsWidth, pixelsHeight, contentSize) {
@@ -902,6 +903,7 @@ JS.get(_p, "pixelHeight", _p.getPixelHeight);
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, premultiplyAlpha);
             if (
                 sys.platform === sys.WECHAT_GAME ||
+                sys.platform === sys.QQ_PLAY ||
                 img instanceof HTMLCanvasElement ||
                 img instanceof HTMLImageElement ||
                 img instanceof HTMLVideoElement
@@ -952,14 +954,17 @@ JS.get(_p, "pixelHeight", _p.getPixelHeight);
         };
 
         _p.initWithData = function (data, pixelFormat, pixelsWidth, pixelsHeight, contentSize) {
+            if (contentSize) {
+                cc.warnID(3118);
+            }
             var opts = _getSharedOptions();
             opts.image = data;
             opts.format = pixelFormat;
             opts.width = pixelsWidth;
             opts.height = pixelsHeight;
             this.update(opts);
-            this.width = contentSize.width;
-            this.height = contentSize.height;
+            this.width = pixelsWidth;
+            this.height = pixelsHeight;
             this.loaded = true;
             this.emit("load");
             return true;

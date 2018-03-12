@@ -1,67 +1,97 @@
 
 const PLATFORM_MACROS = ['CC_EDITOR', 'CC_PREVIEW', 'CC_BUILD', 'CC_TEST'];
+const FLAGS = ['jsb', 'wechatgame', 'qqplay', 'debug'];
 
 // generate macros for uglify's global_defs
-// platform: editor | preview | build | test
-exports.getMacros = function (platform, isJSB, isDebugBuild) {
+// available platforms: 'editor' | 'preview' | 'build' | 'test'
+// available keys of flags: 'jsb' | 'wechatgame' | 'debug'
+exports.getMacros = function (platform, flags) {
+    // platform macros
     var platformMacro = 'CC_' + platform.toUpperCase();
     if (PLATFORM_MACROS.indexOf(platformMacro) === -1) {
         throw new Error('Unknown platform: ' + platform);
     }
     var res = {};
-    for (var i = 0; i < PLATFORM_MACROS.length; i++) {
-        var macro = PLATFORM_MACROS[i];
+    for (let i = 0; i < PLATFORM_MACROS.length; i++) {
+        let macro = PLATFORM_MACROS[i];
         res[macro] = (macro === platformMacro);
     }
+
+    // flag macros
+    if (flags) {
+        for (let flag in flags) {
+            if (flags.hasOwnProperty(flag) && flags[flag]) {
+                if (FLAGS.indexOf(flag) === -1) {
+                    throw new Error('Unknown flag: ' + flag);
+                }
+            }
+        }
+    }
+    for (let i = 0; i < FLAGS.length; i++) {
+        let flag = FLAGS[i];
+        let macro = 'CC_' + flag.toUpperCase();
+        res[macro] = !!(flags && flags[flag]);
+    }
+
+    // debug macros
     res['CC_DEV'] = res['CC_EDITOR'] || res['CC_PREVIEW'] || res['CC_TEST'];
-    res['CC_DEBUG'] = res['CC_DEV'] || !!isDebugBuild;
-    res['CC_JSB'] = !!isJSB;
+    res['CC_DEBUG'] = res['CC_DEBUG'] || res['CC_DEV'];
+    res['CC_SUPPORT_JIT'] = !res['CC_WECHATGAME'];
     return res;
 };
 
 // see https://github.com/mishoo/UglifyJS2/tree/harmony#compress-options
-exports.getUglifyOptions = function (platform, isJSB, isDebugBuild) {
-    var global_defs = exports.getMacros(platform, isJSB, isDebugBuild);
+exports.getUglifyOptions = function (platform, flags) {
+    var global_defs = exports.getMacros(platform, flags);
     var releaseMode = !global_defs['CC_DEBUG'];
 
-    var optimizeForJSC = releaseMode && isJSB;
+    var optimizeForJSC = releaseMode && global_defs['CC_JSB'];
     if (optimizeForJSC) {
         return {
+            parse: {
+                bare_returns: true
+            },
+            toplevel: false,
+            compress: {
+                global_defs: global_defs,
+                negate_iife: false,
+                sequences: false,
+                keep_infinity: true,    // reduce jsc file size
+                typeofs: false,
+            },
             output: {
                 beautify: true,         // really preserve_lines
                 indent_level: 0,        // reduce jsc file size
             },
-            compress: {
-                global_defs: global_defs,
-                sequences: false,
-                keep_infinity: true,    // reduce jsc file size
-                typeofs: false,
-            }
+            rename: false,              // workaround mishoo/UglifyJS2#2821
         };
     }
 
     if (releaseMode) {
         return {
+            parse: {
+                bare_returns: true
+            },
+            toplevel: false,
             compress: {
                 global_defs: global_defs,
+                negate_iife: false,
             },
             output: {
                 ascii_only: true,
-            }
+            },
+            rename: false,              // workaround mishoo/UglifyJS2#2821
         };
     }
     else {
         return {
-            mangle: false,
-            //preserveComments: 'all',
-            output: {
-                // http://lisperator.net/uglifyjs/codegen
-                beautify: true,
-                indent_level: 2,
-                ascii_only: true,
+            parse: {
+                bare_returns: true
             },
+            toplevel: false,
             compress: {
                 global_defs: global_defs,
+                negate_iife: false,
                 sequences: false,  // join consecutive statements with the “comma operator”
                 properties: false,  // optimize property access: a["foo"] → a.foo
                 // dead_code: true,  // discard unreachable code
@@ -86,7 +116,6 @@ exports.getUglifyOptions = function (platform, isJSB, isDebugBuild) {
                 reduce_funcs: false,
                 reduce_vars: false, // Improve optimization on variables assigned with and used as constant values.
                 //warnings: true,
-                negate_iife: false,
                 pure_getters: false,
                 pure_funcs: null,
                 drop_console: false,
@@ -95,7 +124,16 @@ exports.getUglifyOptions = function (platform, isJSB, isDebugBuild) {
                 keep_fnames: true,
                 keep_infinity: true,  // Pass true to prevent Infinity from being compressed into 1/0, which may cause performance issues on Chrome.
                 side_effects: false,  // drop side-effect-free statements
-            }
+            },
+            mangle: false,
+            //preserveComments: 'all',
+            output: {
+                // http://lisperator.net/uglifyjs/codegen
+                beautify: true,
+                indent_level: 2,
+                ascii_only: true,
+            },
+            rename: false,            // workaround mishoo/UglifyJS2#2821
         };
     }
 };

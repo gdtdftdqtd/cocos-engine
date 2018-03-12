@@ -1,5 +1,6 @@
 /****************************************************************************
- Copyright (c) 2013-2017 Chukong Technologies Inc.
+ Copyright (c) 2013-2016 Chukong Technologies Inc.
+ Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
  http://www.cocos2d-x.org
 
@@ -195,6 +196,23 @@ var _touchEndHandler = function (touch, event) {
     else {
         event.type = EventType.TOUCH_CANCEL;
     }
+    event.touch = touch;
+    event.bubbles = true;
+    node.dispatchEvent(event);
+    if (CC_JSB) {
+        event.touch = null;
+        event._touches = null;
+        Event.EventTouch.pool.put(event);
+    }
+};
+var _touchCancelHandler = function (touch, event) {
+    if (CC_JSB) {
+        event = Event.EventTouch.pool.get(event);
+    }
+    var pos = touch.getLocation();
+    var node = this.owner;
+
+    event.type = EventType.TOUCH_CANCEL;
     event.touch = touch;
     event.bubbles = true;
     node.dispatchEvent(event);
@@ -1203,7 +1221,8 @@ var Node = cc.Class({
                     mask: _searchMaskInParent(this),
                     onTouchBegan: _touchStartHandler,
                     onTouchMoved: _touchMoveHandler,
-                    onTouchEnded: _touchEndHandler
+                    onTouchEnded: _touchEndHandler,
+                    onTouchCancelled: _touchCancelHandler
                 });
                 eventManager.addListener(this._touchListener, this);
                 newAdded = true;
@@ -1363,20 +1382,23 @@ var Node = cc.Class({
 
     _hitTest (point, listener) {
         var w = this.width,
-            h = this.height;
-        var rect = cc.rect(0, 0, w, h);
+            h = this.height,
+            pt = point;
         
         var Camera = cc.Camera;
         if (Camera && Camera.main && Camera.main.containsNode(this)) {
-            point = Camera.main.getCameraToWorldPoint(point);
+            pt = Camera.main.getCameraToWorldPoint(pt);
         }
         
-        var trans = this.getNodeToWorldTransform();
-        cc._rectApplyAffineTransformIn(rect, trans);
-        var left = point.x - rect.x,
-            right = rect.x + rect.width - point.x,
-            bottom = point.y - rect.y,
-            top = rect.y + rect.height - point.y;
+        var trans = cc.affineTransformInvertIn(this._sgNode.getNodeToWorldTransform());
+        pt = cc.pointApplyAffineTransform(pt, trans);
+        pt.x += this._anchorPoint.x * w;
+        pt.y += this._anchorPoint.y * h;
+
+        var left = pt.x,
+            right = w - pt.x,
+            bottom = pt.y,
+            top = h - pt.y;
         if (left >= 0 && right >= 0 && top >= 0 && bottom >= 0) {
             if (listener && listener.mask) {
                 var mask = listener.mask;

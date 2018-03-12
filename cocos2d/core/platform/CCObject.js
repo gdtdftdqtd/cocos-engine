@@ -1,3 +1,28 @@
+/****************************************************************************
+ Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+
+ http://www.cocos.com
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated engine source code (the "Software"), a limited,
+ worldwide, royalty-free, non-assignable, revocable and non-exclusive license
+ to use Cocos Creator solely to develop games on your target platforms. You shall
+ not use Cocos Creator software for developing other software or tools that's
+ used for developing games. You are not granted to publish, distribute,
+ sublicense, and/or sell copies of Cocos Creator.
+
+ The software or tools in this License Agreement are licensed, not sold.
+ Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ ****************************************************************************/
+
 var JS = require('./js');
 var CCClass = require('./CCClass');
 
@@ -12,6 +37,7 @@ var Dirty = 1 << 5;
 var DontDestroy = 1 << 6;
 var Destroying = 1 << 7;
 var Deactivating = 1 << 8;
+var LockedInEditor = 1 << 9;
 //var HideInGame = 1 << 9;
 //var HideInEditor = 1 << 10;
 
@@ -108,6 +134,15 @@ JS.value(CCObject, 'Flags', {
      * @private
      */
     Deactivating,
+
+    /**
+     * !#en The lock node, when the node is locked, cannot be clicked in the scene.
+     * !#zh 锁定节点，锁定后场景内不能点击
+     * 
+     * @property LockedInEditor
+     * @private
+     */
+    LockedInEditor,
 
     ///**
     // * !#en
@@ -341,7 +376,7 @@ function compileDestruct (obj, ctor) {
     // compile code
     var skipId = obj instanceof cc._BaseNode || obj instanceof cc.Component;
 
-    if (cc.supportJit) {
+    if (CC_SUPPORT_JIT) {
         var func = '';
         for (key in propsToReset) {
             if (skipId && key === '_id') {

@@ -1,7 +1,8 @@
 /****************************************************************************
  Copyright (c) 2008-2010 Ricardo Quesada
  Copyright (c) 2011-2012 cocos2d-x.org
- Copyright (c) 2013-2014 Chukong Technologies Inc.
+ Copyright (c) 2013-2016 Chukong Technologies Inc.
+ Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
  http://www.cocos2d-x.org
 
@@ -121,7 +122,7 @@ proto.uploadData = function (f32buffer, ui32buffer, vertexDataOffset) {
     // Use 255 because color has been set when baking label
     // premultiplied alpha is used for labelTTF and system font
     var opacity = this._displayedOpacity;
-    this._color[0] = ((opacity<<24) | (opacity<<16) | (opacity<<8) | opacity);
+    this._color[0] = ((~~opacity << 24) >>> 0) | (~~opacity << 16) | (~~opacity << 8) | ~~opacity;
 
     var z = node._vertexZ;
 
