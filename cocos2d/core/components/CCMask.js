@@ -221,6 +221,7 @@ var Mask = cc.Class({
                 return this._polygon;
             },
             set: function (value) {
+                this._polygon.length = 0;
                 if (value[0] instanceof cc.Vec2){
                     this._polygon = value;
                 }

@@ -58,4 +58,6 @@ module.exports = [
     require('./CCToggle'),
     require('./CCBlockInputEvents'),
     require('./CCGraphicsOpacity'),
+    require('./CCTexturedSpline'),
+    require('./CCEdgeSprite'),
 ];
