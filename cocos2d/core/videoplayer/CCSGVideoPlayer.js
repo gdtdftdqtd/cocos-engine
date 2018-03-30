@@ -21,6 +21,7 @@
 
 var Utils = require('../platform/utils');
 var sys = require('../platform/CCSys');
+var eventManager = require('../event-manager');
 
 /**
  * @class
@@ -172,7 +173,7 @@ _ccsg.VideoPlayer.elements = [];
 // video 在 game_hide 事件中被自动暂停的队列，用于回复的时候重新开始播放
 _ccsg.VideoPlayer.pauseElements = [];
 
-cc.eventManager.addCustomListener(cc.game.EVENT_HIDE, function () {
+eventManager.addCustomListener(cc.game.EVENT_HIDE, function () {
     var list = _ccsg.VideoPlayer.elements;
     for(var node, i=0; i<list.length; i++){
         node = list[i];
@@ -221,7 +222,7 @@ _ccsg.VideoPlayer.EventType = {
          * so it is best to provide mp4 and webm or ogv file
          */
         var dom = document.createElement("video");
-        if (sys.platform !== sys.WECHAT_GAME) {
+        if (sys.platform !== sys.WECHAT_GAME && sys.platform !== sys.QQ_PLAY) {
             if(dom.canPlayType("video/ogg")){
                 video._polyfill.canPlayType.push(".ogg");
                 video._polyfill.canPlayType.push(".ogv");

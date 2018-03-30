@@ -46,12 +46,17 @@ var jsbSkipModules = [
     '../../cocos2d/core/CCDrawingPrimitives.js',
     '../../cocos2d/core/textures/CCTexture2D',
     '../../cocos2d/core/sprites/CCSpriteFrame',
+    '../../cocos2d/core/event-manager/CCTouch.js',
+    '../../cocos2d/core/event-manager/CCEventListener.js',
+    '../../cocos2d/core/event-manager/CCEventManager.js',
     '../../cocos2d/core/load-pipeline/audio-downloader',
     '../../cocos2d/core/physics/platform/CCPhysicsDebugDraw.js',
     '../../cocos2d/core/physics/platform/CCPhysicsUtils.js',
+    '../../cocos2d/core/physics/platform/CCPhysicsContactListner.js',
     '../../cocos2d/core/physics/platform/CCPhysicsAABBQueryCallback.js',
     '../../cocos2d/core/physics/platform/CCPhysicsRayCastCallback.js',
-    '../../cocos2d/core/physics/platform/CCPhysicsContactListner.js',
+    '../../cocos2d/core/platform/CCInputManager.js',
+    '../../cocos2d/core/platform/CCVisibleRect.js',
     '../../cocos2d/core/camera/CCSGCameraNode.js',
     '../../cocos2d/core/label/CCSGLabel.js',
     '../../cocos2d/core/label/CCSGLabelCanvasRenderCmd.js',
@@ -64,6 +69,7 @@ var jsbSkipModules = [
     '../../cocos2d/core/graphics/graphics-canvas-cmd.js',
     '../../cocos2d/core/graphics/earcut.js',
     '../../cocos2d/core/graphics/helper.js',
+    '../../cocos2d/actions/index.js',
     '../../cocos2d/audio/CCAudio',
     '../../cocos2d/shape-nodes/CCDrawNode.js',
     '../../cocos2d/clipping-nodes/CCClippingNode.js',
@@ -84,6 +90,7 @@ var jsbSkipModules = [
     '../../cocos2d/render-texture/CCRenderTexture.js',
     '../../cocos2d/render-texture/CCRenderTextureCanvasRenderCmd.js',
     '../../cocos2d/render-texture/CCRenderTextureWebGLRenderCmd.js',
+    '../../extensions/spine/SGSkeletonTexture',
     '../../extensions/spine/SGSkeleton',
     '../../extensions/spine/SGSkeletonAnimation',
     '../../extensions/spine/SGSkeletonCanvasRenderCmd',
@@ -91,13 +98,19 @@ var jsbSkipModules = [
     '../../extensions/spine/lib/spine',
     '../../extensions/dragonbones/lib/dragonBones',
     '../../extensions/dragonbones/CCFactory',
-    '../../extensions/dragonbones/CCArmatureDisplay',
     '../../extensions/dragonbones/CCSlot',
     '../../extensions/dragonbones/CCTextureData',
+    '../../extensions/dragonbones/CCArmatureDisplay',
     '../../external/box2d/box2d.js',
+    '../../external/chipmunk/chipmunk.js',
 ];
 
-exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
+exports.buildCocosJs = function (sourceFile, outputFile, excludes, opt_macroFlags, callback) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var outDir = Path.dirname(outputFile);
     var outFile = Path.basename(outputFile);
     var bundler = createBundler(sourceFile);
@@ -106,7 +119,7 @@ exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
         bundler.ignore(file);
     });
 
-    var uglifyOption = Utils.getUglifyOptions('build', false, true);
+    var uglifyOption = Utils.getUglifyOptions('build', Object.assign({ debug: true }, opt_macroFlags));
 
     bundler = bundler.bundle();
     bundler = bundler.pipe(Source(outFile));
@@ -125,7 +138,12 @@ exports.buildCocosJs = function (sourceFile, outputFile, excludes, callback) {
     return bundler.on('end', callback);
 };
 
-exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, callback, createMap) {
+exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, opt_macroFlags, callback, createMap) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var outDir = Path.dirname(outputFile);
     var outFile = Path.basename(outputFile);
     var bundler = createBundler(sourceFile);
@@ -134,7 +152,7 @@ exports.buildCocosJsMin = function (sourceFile, outputFile, excludes, callback, 
         bundler.ignore(file);
     });
 
-    var uglifyOption = Utils.getUglifyOptions('build', false, false);
+    var uglifyOption = Utils.getUglifyOptions('build', opt_macroFlags);
 
     var Size = null;
     try {
@@ -193,7 +211,7 @@ exports.buildPreview = function (sourceFile, outputFile, callback) {
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(Sourcemaps.init({loadMaps: true}))
-        .pipe(Minify(Utils.getUglifyOptions('preview', false, false)))
+        .pipe(Minify(Utils.getUglifyOptions('preview')))
         .pipe(Optimizejs({
             sourceMap: false
         }))
@@ -224,7 +242,7 @@ exports.buildJsbPreview = function (sourceFile, outputFile, excludes, callback) 
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(FixJavaScriptCore())
-        .pipe(Minify(Utils.getUglifyOptions('preview', true, false)))
+        .pipe(Minify(Utils.getUglifyOptions('preview', { jsb: true })))
         .pipe(Optimizejs({
             sourceMap: false
         }))
@@ -232,7 +250,12 @@ exports.buildJsbPreview = function (sourceFile, outputFile, excludes, callback) 
         .on('end', callback);
 };
 
-exports.buildJsb = function (sourceFile, outputFile, excludes, callback) {
+exports.buildJsb = function (sourceFile, outputFile, excludes, opt_macroFlags, callback) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var FixJavaScriptCore = require('../util/fix-jsb-javascriptcore');
 
     var outFile = Path.basename(outputFile);
@@ -250,7 +273,7 @@ exports.buildJsb = function (sourceFile, outputFile, excludes, callback) {
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(FixJavaScriptCore())
-        .pipe(Minify(Utils.getUglifyOptions('build', true, true)))
+        .pipe(Minify(Utils.getUglifyOptions('build', Object.assign({ jsb: true, debug: true }, opt_macroFlags))))
         .pipe(Optimizejs({
             sourceMap: false
         }))
@@ -258,7 +281,12 @@ exports.buildJsb = function (sourceFile, outputFile, excludes, callback) {
         .on('end', callback);
 };
 
-exports.buildJsbMin = function (sourceFile, outputFile, excludes, callback) {
+exports.buildJsbMin = function (sourceFile, outputFile, excludes, opt_macroFlags, callback) {
+    if (typeof opt_macroFlags === 'function') {
+        callback = opt_macroFlags;
+        opt_macroFlags = null;
+    }
+
     var FixJavaScriptCore = require('../util/fix-jsb-javascriptcore');
 
     var outFile = Path.basename(outputFile);
@@ -276,7 +304,7 @@ exports.buildJsbMin = function (sourceFile, outputFile, excludes, callback) {
         .pipe(Source(outFile))
         .pipe(Buffer())
         .pipe(FixJavaScriptCore())
-        .pipe(Minify(Utils.getUglifyOptions('build', true, false)))
+        .pipe(Minify(Utils.getUglifyOptions('build', Object.assign({ jsb: true }, opt_macroFlags))))
         .pipe(Optimizejs({
             sourceMap: false
         }))

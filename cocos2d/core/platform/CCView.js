@@ -23,14 +23,11 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-
-function isWeChatGame () {
-    return window['wx'];
-}
+var eventManager = require('../event-manager');
 
 var __BrowserGetter = {
     init: function(){
-        if (cc.sys.platform !== cc.sys.WECHAT_GAME) {
+        if (!CC_WECHATGAME && !CC_QQPLAY) {
             this.html = document.getElementsByTagName("html")[0];
         }
     },
@@ -52,14 +49,15 @@ var __BrowserGetter = {
     adaptationType: cc.sys.browserType
 };
 
-if (window.navigator.userAgent.indexOf("OS 8_1_") > -1) //this mistake like MIUI, so use of MIUI treatment method
-    __BrowserGetter.adaptationType = cc.sys.BROWSER_TYPE_MIUI;
-
 if (cc.sys.os === cc.sys.OS_IOS) // All browsers are WebView
     __BrowserGetter.adaptationType = cc.sys.BROWSER_TYPE_SAFARI;
 
-if (isWeChatGame()) {
+if (CC_WECHATGAME) {
     __BrowserGetter.adaptationType = cc.sys.BROWSER_TYPE_WECHAT_GAME;
+}
+
+if (CC_QQPLAY) {
+    __BrowserGetter.adaptationType = cc.sys.BROWSER_TYPE_QQ_PLAY;
 }
 
 switch (__BrowserGetter.adaptationType) {
@@ -224,7 +222,7 @@ var View = cc._Class.extend({
             view.setDesignResolutionSize(width, height, view._resolutionPolicy);
         view._resizing = false;
 
-        cc.eventManager.dispatchCustomEvent('canvas-resize');
+        eventManager.dispatchCustomEvent('canvas-resize');
         if (view._resizeCallback) {
             view._resizeCallback.call();
         }
@@ -395,7 +393,7 @@ var View = cc._Class.extend({
     },
 
     _adjustViewportMeta: function () {
-        if (this._isAdjustViewPort && cc.sys.platform !== cc.sys.WECHAT_GAME) {
+        if (this._isAdjustViewPort && !CC_WECHATGAME && !CC_QQPLAY) {
             this._setViewportMeta(__BrowserGetter.meta, false);
             this._isAdjustViewPort = false;
         }
@@ -828,7 +826,7 @@ var View = cc._Class.extend({
      * @param {ResolutionPolicy|Number} resolutionPolicy The resolution policy desired
      */
     setRealPixelResolution: function (width, height, resolutionPolicy) {
-        if (cc.sys.platform !== cc.sys.WECHAT_GAME) {
+        if (!CC_WECHATGAME && !CC_QQPLAY) {
             // Set viewport's width
             this._setViewportMeta({"width": width}, true);
 
