@@ -27,7 +27,7 @@
  *  cc.NodePool is the cache pool designed for node type.<br/>
  *  It can helps you to improve your game performance for objects which need frequent release and recreate operations<br/>
  *
- * It's recommended to create cc.NodePool instances by node type, the type corresponds to node type in game design, not the class, 
+ * It's recommended to create cc.NodePool instances by node type, the type corresponds to node type in game design, not the class,
  * for example, a prefab is a specific node type. <br/>
  * When you create a node pool, you can pass a Component which contains `unuse`, `reuse` functions to control the content of node.<br/>
  *
@@ -81,6 +81,9 @@ cc.NodePool = function (poolHandlerComp) {
 cc.NodePool.prototype = {
     constructor: cc.NodePool,
 
+    setHandlerComp: function (handlerComp) {
+        this.poolHandlerComp = handlerComp;
+    },
     /**
      * !#en The current available size in the pool
      * !#zh 获取当前缓冲池的可用对象数量

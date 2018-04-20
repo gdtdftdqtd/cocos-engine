@@ -28,7 +28,7 @@ var AnimationManager = cc.Class({
         removeAnimators.length = 0;
 
         var events = this._delayEvents;
-        for (i = 0, l = events.length; i < l; i++) {
+        for (var i = 0, l = events.length; i < l; i++) {
             var event = events[i];
             event.target[event.func].apply(event.target, event.args);
         }

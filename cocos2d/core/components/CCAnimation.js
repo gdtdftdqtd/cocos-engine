@@ -36,7 +36,7 @@ function equalClips (clip1, clip2) {
 
 /**
  * !#en The animation component is used to play back animations.
- *   
+ *
  * Animation provide several events to register：
  *  - play : Emit when begin playing animation
  *  - stop : Emit when stop playing animation
@@ -46,7 +46,7 @@ function equalClips (clip1, clip2) {
  *  - finished : Emit when finish playing animation
  *
  * !#zh Animation 组件用于播放动画。
- *   
+ *
  * Animation 提供了一系列可注册的事件：
  *  - play : 开始播放时
  *  - stop : 停止播放时
@@ -54,7 +54,7 @@ function equalClips (clip1, clip2) {
  *  - resume : 恢复播放时
  *  - lastframe : 假如动画循环次数大于 1，当动画播放到最后一帧时
  *  - finished : 动画播放完成时
- * 
+ *
  * @class Animation
  * @extends Component
  * @uses EventTarget
@@ -246,7 +246,7 @@ var Animation = cc.Class({
 
         if (state) {
             this.enabled = true;
-            
+
             var animator = this._animator;
             if (animator.isPlaying && state.isPlaying) {
                 if (state.isPaused) {
@@ -412,6 +412,7 @@ var Animation = cc.Class({
             else {
                 var index = this._clips.indexOf(oldState.clip);
                 if (index !== -1) {
+                    this._animator.stopState(oldState);
                     this._clips.splice(index, 1);
                 }
             }
@@ -451,7 +452,7 @@ var Animation = cc.Class({
     //end add
 
     /**
-     * !#en 
+     * !#en
      * Remove clip from the animation list. This will remove the clip and any animation states based on it.
      * If there are animation states depand on the clip are playing or clip is defaultClip, it will not delete the clip.
      * But if force is true, then will always remove the clip and any animation states based on it. If clip is defaultClip, defaultClip will be reset to null
@@ -484,7 +485,7 @@ var Animation = cc.Class({
             else {
                 if (!CC_TEST) cc.warnID(3902);
                 return;
-            } 
+            }
         }
 
         if (state && state.isPlaying) {
@@ -500,7 +501,7 @@ var Animation = cc.Class({
         });
 
         if (state) {
-            delete this._nameToState[state.name];    
+            delete this._nameToState[state.name];
         }
     },
 
@@ -528,7 +529,7 @@ var Animation = cc.Class({
 
 
     /**
-     * !#en 
+     * !#en
      * Register animation event callback.
      * The event arguments will provide the AnimationState which emit the event.
      * When play an animation, will auto register the event callback to the AnimationState, and unregister the event callback from the AnimationState when animation stopped.
@@ -556,7 +557,7 @@ var Animation = cc.Class({
      *     var state = event.detail;    // state instanceof cc.AnimationState
      *     var type = event.type;       // type === 'play';
      * }
-     * 
+     *
      * // register event to all animation
      * animation.on('play', this.onPlay, this);
      */
@@ -622,7 +623,7 @@ var Animation = cc.Class({
 
     _createStates: function() {
         this._nameToState = {};
-        
+
         // create animation states
         var state = null;
         var defaultClipState = false;

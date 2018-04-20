@@ -27,9 +27,9 @@ var WrapModeMask = Types.WrapModeMask;
 function AnimationState (clip, name) {
     Playable.call(this);
     cc.EventTarget.call(this);
-    
+
     this._firstFramePlayed = false;
-    
+
     this._delay = 0;
     this._delayTime = 0;
 
@@ -153,13 +153,13 @@ proto.onPlay = function () {
     // replay
     this.setTime(0);
     this._delayTime = this._delay;
-    
+
     cc.director.getAnimationManager().addAnimation(this);
 
     if (this.animator) {
         this.animator.addAnimation(this);
     }
-    
+
     this.emit('play', this);
 };
 
@@ -208,7 +208,7 @@ function process () {
             lastInfo = this._lastWrappedInfo = new WrappedInfo(info);
         }
 
-        if (this.repeatCount > 1 && 
+        if (this.repeatCount > 1 &&
             ((info.iterations | 0) > (lastInfo.iterations | 0)) // another iterations
             ) {
             if ((this.wrapMode & WrapModeMask.Reverse) === WrapModeMask.Reverse) {
@@ -250,13 +250,16 @@ function simpleProcess () {
     var curves = this.curves;
     for (var i = 0, len = curves.length; i < len; i++) {
         var curve = curves[i];
+        if (!curve.target.node){
+            return;
+        }
         curve.sample(time, ratio, this);
     }
 
     var cache = this._hasListenerCache;
     if (cache && cache['lastframe']) {
         var currentIterations = time > 0 ? (time / duration) : -(time / duration);
-        
+
         var lastIterations = this._lastIterations;
         if (lastIterations === undefined) {
             lastIterations = this._lastIterations = currentIterations;
@@ -317,7 +320,7 @@ proto._needRevers = function (currentIterations) {
 
 proto.getWrappedInfo = function (time, info) {
     info = info || new WrappedInfo();
-    
+
     var stopped = false;
     var duration = this.duration;
     var repeatCount = this.repeatCount;
@@ -432,7 +435,7 @@ JS.getset(proto, 'wrapMode',
         else {
             this.repeatCount = 1;
         }
-        
+
     }
 );
 
@@ -442,7 +445,7 @@ JS.getset(proto, 'repeatCount',
     },
     function (value) {
         this._repeatCount = value;
-        
+
         var shouldWrap = this._wrapMode & WrapModeMask.ShouldWrap;
         var reverse = (this.wrapMode & WrapModeMask.Reverse) === WrapModeMask.Reverse;
         if (value === Infinity && !shouldWrap && !reverse) {
@@ -454,7 +457,7 @@ JS.getset(proto, 'repeatCount',
     }
 );
 
-JS.getset(proto, 'delay', 
+JS.getset(proto, 'delay',
     function () {
         return this._delay;
     },
