@@ -668,9 +668,9 @@ proto.getRes = function (url, type) {
 
 /**
 */
-proto.getResUrl = function (url){
+proto.getResUrl = function (url, type){
     var realUrl = url;
-    var uuid = this._getResUuid(url, cc.AudioClip);
+    var uuid = this._getResUuid(url, type, true);
     if (uuid) {
         var res = getResWithUrl({
             type: "uuid",
