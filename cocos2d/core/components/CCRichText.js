@@ -754,6 +754,11 @@ var RichText = cc.Class({
             if (label instanceof cc.Scale9Sprite) {
                 positionY += (this.lineHeight - label.getContentSize().height) / 2;
             }
+            else {//目前只有文字加图片的富文本，理论上应该中个类型判断。。。
+                if (this.font) {
+                    positionY = positionY - (this.lineHeight - label.getFontSize()) / 2 + 2 * label.getOutlineWidth();
+                }
+            }
 
             label.setPositionY(positionY);
 
