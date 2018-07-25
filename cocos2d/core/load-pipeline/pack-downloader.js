@@ -90,6 +90,19 @@ module.exports = {
         });
     },
 
+    _doPreload (packUuid, packJson) {
+        var unpackerData = globalUnpackers[packUuid];
+        if (!unpackerData) {
+            unpackerData = globalUnpackers[packUuid] = new UnpackerData();
+            unpackerData.state = PackState.Downloading;
+        }
+        if (unpackerData.state !== PackState.Loaded) {
+            unpackerData.unpacker = new Unpackers.JsonUnpacker();
+            unpackerData.unpacker.load(packIndices[packUuid], packJson);
+            unpackerData.state = PackState.Loaded;
+        }
+    },
+
     _doLoadNewPack: function (uuid, packUuid, packedJson) {
         var unpackerData = globalUnpackers[packUuid];
         // double check cache after load

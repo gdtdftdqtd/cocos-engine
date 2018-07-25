@@ -143,6 +143,13 @@ _ccsg.Label = _ccsg.Node.extend({
     _isUnderline: false,
     _fontAsset: null,
 
+    onExit: function () {
+        this._super();
+
+        this._renderCmd._texture._releaseTexture();
+        this._notifyLabelSkinDirty();
+    },
+
     //fontHandle it is a system font name, ttf file path or bmfont file path.
     ctor: function(string, fontAsset) {
         EventTarget.call(this);
@@ -158,7 +165,7 @@ _ccsg.Label = _ccsg.Node.extend({
 
         _ccsg.Node.prototype.ctor.call(this);
         this.setAnchorPoint(0.5, 0.5);
-        _ccsg.Node.prototype.setContentSize.call(this, 128, 128);
+        _ccsg.Node.prototype.setContentSize.call(this, 10, 10);
         this._blendFunc = cc.BlendFunc._alphaNonPremultiplied();
 
         this._imageOffset = cc.p(0, 0);
@@ -469,7 +476,7 @@ _ccsg.Label = _ccsg.Node.extend({
             this.setFontFamily('');
             return;
         }
-        var fontHandle =  isAsset ? fontAsset.nativeUrl : '';
+        var fontHandle = cc.loader.md5Pipe ? cc.loader.md5Pipe.transformURL(fontAsset.nativeUrl, true) : fontAsset.nativeUrl;
         var extName = cc.path.extname(fontHandle);
 
         this._resetBMFont();
@@ -491,13 +498,24 @@ _ccsg.Label = _ccsg.Node.extend({
 
     _loadTTFFont: function(fontHandle) {
         var self = this;
-
-        var fontFamilyName = cc.CustomFontLoader._getFontFamily(fontHandle);
         var callback = function () {
             self._notifyLabelSkinDirty();
             self.emit('load');
         };
-        cc.CustomFontLoader.loadTTF(fontHandle, callback);
+
+        var fontFamilyName = "";
+        if (CC_WECHATGAME) {
+            fontFamilyName = wx.loadFont(fontHandle);        
+            //avoid the error in wechat devtool platform
+            if (!fontFamilyName) {
+                fontFamilyName = cc.CustomFontLoader._getFontFamily(fontHandle);
+                cc.warn("TTF font is not supported on debugger, but it will be displayed correctly on mobile device.");
+            }
+            callback();
+        } else {
+            fontFamilyName = cc.CustomFontLoader._getFontFamily(fontHandle);
+            cc.CustomFontLoader.loadTTF(fontHandle, callback);
+        }
 
         return fontFamilyName;
     },
@@ -1174,16 +1192,16 @@ _ccsg.Label = _ccsg.Node.extend({
 
             var tempRect = locFontDict[fontDef].rect;
 
-            letterDefinition._offsetX = locFontDict[fontDef].xOffset;
-            letterDefinition._offsetY = locFontDict[fontDef].yOffset;
-            letterDefinition._width = tempRect.width;
-            letterDefinition._height = tempRect.height;
-            letterDefinition._u = tempRect.x + this._imageOffset.x;
-            letterDefinition._v = tempRect.y + this._imageOffset.y;
+            letterDefinition._offsetX = parseInt(locFontDict[fontDef].xOffset);
+            letterDefinition._offsetY = parseInt(locFontDict[fontDef].yOffset);
+            letterDefinition._width = parseInt(tempRect.width);
+            letterDefinition._height = parseInt(tempRect.height);
+            letterDefinition._u = parseInt(tempRect.x) + this._imageOffset.x;
+            letterDefinition._v = parseInt(tempRect.y) + this._imageOffset.y;
             //FIXME: only one texture supported for now
             letterDefinition._textureID = 0;
             letterDefinition._validDefinition = true;
-            letterDefinition._xAdvance = locFontDict[fontDef].xAdvance;
+            letterDefinition._xAdvance = parseInt(locFontDict[fontDef].xAdvance);
 
             this._fontAtlas.addLetterDefinitions(fontDef, letterDefinition);
         }
@@ -1260,14 +1278,11 @@ _ccsg.Label.pool = new JS.Pool(function (label) {
     label._fontHandle = "";
     label._labelType = 0;
     label._resetBMFont();
-    label._renderCmd._labelCanvas.width = 1;
-    label._renderCmd._labelCanvas.height = 1;
     if (CC_DEV) {
         cc.assert(!label._parent, 'Recycling label\'s parent should be null!');
     }
-    label._updateLabel();
     return true;
-}, 20);
+}, 10);
 
 _ccsg.Label.pool.get = function (string, fontAsset) {
     var label = this._get();
@@ -1283,7 +1298,7 @@ _ccsg.Label.pool.get = function (string, fontAsset) {
         label._position.x = 0;
         label._position.y = 0;
         label.setAnchorPoint(0.5, 0.5);
-        _ccsg.Node.prototype.setContentSize.call(label, 128, 128);
+        _ccsg.Node.prototype.setContentSize.call(label, 10, 10);
 
         if (isAsset) {
             label.setFontAsset(fontAsset);

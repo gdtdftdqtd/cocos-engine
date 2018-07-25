@@ -276,6 +276,8 @@ test('Animation Component', function () {
 
     entity.x = 400;
 
+    cc.director.getScene().addChild(entity);
+
     var clip = new cc.AnimationClip();
     clip._duration = 10;
     clip._name = 'test';
@@ -315,6 +317,11 @@ test('Animation Component', function () {
     strictEqual(animation.getAnimationState('test'), null, 'should remove state');
 
     animation.stop();
+
+    animation.addClip(clip);
+    animation.play('test');
+    cc.director.runSceneImmediate(new cc.Scene());
+    strictEqual(!!(animation._animator && animation._animator.isPlaying), false, 'animation should be stopped after load scene');
 });
 
 
@@ -450,6 +457,8 @@ test('EventAnimCurve', function () {
     var entity = new cc.Node();
     entity.addComponent(MyComp);
 
+    cc.director.getScene().addChild(entity);
+
     var animation = entity.addComponent(cc.Animation);
 
     var clip = new cc.AnimationClip();
@@ -532,6 +541,7 @@ test('EventAnimCurve', function () {
     animation.play('test');
     state.wrapMode = cc.WrapMode.Loop;
     state.repeatCount = Infinity;
+    manager.update(0);
     manager.update(1.7);
     calls = [];
     manager.update(0.3);
@@ -551,6 +561,7 @@ test('EventAnimCurve', function () {
     animation.play('test');
     state.wrapMode = cc.WrapMode.Loop;
     state.repeatCount = Infinity;
+    manager.update(0);
     manager.update(1.7);
     calls = [];
     manager.update(0.5);
@@ -570,6 +581,7 @@ test('EventAnimCurve', function () {
     animation.play('test');
     state.wrapMode = cc.WrapMode.Reverse;
     state.repeatCount = 1;
+    manager.update(0);
     calls = [];
     manager.update(0.1);
     deepEqual(calls, [], 'should triggered no events if wrapMode is Reverse');
@@ -626,6 +638,7 @@ test('EventAnimCurve', function () {
     animation.play('test');
     state.wrapMode = cc.WrapMode.PingPong;
     state.repeatCount = Infinity;
+    manager.update(0);
     manager.update(1.7);
     calls = [];
     manager.update(0.5);
@@ -653,6 +666,7 @@ test('EventAnimCurve', function () {
     animation.play('test');
     state.wrapMode = cc.WrapMode.PingPongReverse;
     state.repeatCount = Infinity;
+    manager.update(0);
     manager.update(1.7);
     calls = [];
     manager.update(0.5);
@@ -668,6 +682,7 @@ test('EventAnimCurve', function () {
     state.speed = -1;
     state.wrapMode = cc.WrapMode.Normal;
     state.repeatCount = Infinity;
+    manager.update(0);
     calls = [];
     manager.update(0.5);
     deepEqual(calls, [
@@ -684,6 +699,7 @@ test('EventAnimCurve', function () {
     state.speed = -1;
     state.wrapMode = cc.WrapMode.PingPongReverse;
     state.repeatCount = Infinity;
+    manager.update(0);
     manager.update(1.7);
     calls = [];
     manager.update(0.5);
@@ -773,6 +789,7 @@ test('EventAnimCurve', function () {
     animation.play('test');
     state.wrapMode = cc.WrapMode.PingPong;
     state.setTime(0);
+    manager.update(0);
     calls = [];
     manager.update(1);
     manager.update(2);
@@ -794,6 +811,7 @@ test('EventAnimCurve', function () {
     state.wrapMode = cc.WrapMode.LoopReverse;
     state.setTime(0);
     calls = [];
+    manager.update(0);
     manager.update(2);
     deepEqual(calls, [
         {
@@ -902,6 +920,8 @@ test('EventAnimCurve', function () {
 test('stop Animation', function () {
     var entity = new cc.Node();
     var animation = entity.addComponent(cc.Animation);
+    
+    cc.director.getScene().addChild(entity);
 
     var clip = new cc.AnimationClip();
     clip._name = 'test';
@@ -1110,6 +1130,8 @@ test('animation callback', function () {
 
     var entity = new cc.Node();
     var animation = entity.addComponent(cc.Animation);
+
+    cc.director.getScene().addChild(entity);
 
     var clip = new cc.AnimationClip();
     clip._name = 'move';

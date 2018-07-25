@@ -29,6 +29,7 @@ if (cc.sys) return;
 /**
  * System variables
  * @class sys
+ * @main
  * @static
  */
 cc.sys = {};
@@ -362,6 +363,8 @@ sys.BROWSER_TYPE_WECHAT = "wechat";
  * @default "wechatgame"
  */
 sys.BROWSER_TYPE_WECHAT_GAME = "wechatgame";
+sys.BROWSER_TYPE_WECHAT_GAME_SUB = "wechatgamesub";
+
 /**
  * BROWSER_TYPE_QQ_PLAY
  * @property {String} BROWSER_TYPE_QQ_PLAY
@@ -404,6 +407,13 @@ sys.BROWSER_TYPE_MOBILE_QQ = "mqqbrowser";
  * @default "ucbrowser"
  */
 sys.BROWSER_TYPE_UC = "ucbrowser";
+/**
+ * uc third party integration.
+ * @property {String} BROWSER_TYPE_UCBS
+ * @readOnly
+ * @default "ucbs"
+ */
+sys.BROWSER_TYPE_UCBS = "ucbs";
 /**
  *
  * @property {String} BROWSER_TYPE_360
@@ -542,6 +552,10 @@ sys.NetworkType = {
 };
 
 /**
+ * @class sys
+ */
+
+/**
  * !#en
  * Get the battery level of current device, return 1.0 if failure.
  * !#zh
@@ -627,11 +641,26 @@ else if (CC_WECHATGAME) {
     else if (env.platform === "ios") {
         sys.os = sys.OS_IOS;
     }
+    else if (env.platform === 'devtools') {
+        var system = env.system.toLowerCase();
+        if (system.indexOf('android') > -1) {
+            sys.os = sys.OS_ANDROID;
+        }
+        else if (system.indexOf('ios') > -1) {
+            sys.os = sys.OS_IOS;
+        }
+    }
 
     var version = /[\d\.]+/.exec(env.system);
     sys.osVersion = version[0];
     sys.osMainVersion = parseInt(sys.osVersion);
-    sys.browserType = sys.BROWSER_TYPE_WECHAT_GAME;
+    // wechagame subdomain
+    if (!wx.getFileSystemManager) {
+        sys.browserType = sys.BROWSER_TYPE_WECHAT_GAME_SUB;
+    }
+    else {
+        sys.browserType = sys.BROWSER_TYPE_WECHAT_GAME;
+    }
     sys.browserVersion = env.version;
 
     var w = env.windowWidth;
@@ -657,20 +686,32 @@ else if (CC_WECHATGAME) {
     };
 }
 else if (CC_QQPLAY) {
+    var env = window["BK"]["Director"]["queryDeviceInfo"]();
     sys.isMobile = true;
     sys.platform = sys.QQ_PLAY;
     sys.language = sys.LANGUAGE_UNKNOWN;
-    sys.os = sys.OS_UNKNOWN;
+    if (env.platform === "android") {
+        sys.os = sys.OS_ANDROID;
+    }
+    else if (env.platform === "ios") {
+        sys.os = sys.OS_IOS;
+    }
+    else {
+        sys.os = sys.OS_UNKNOWN;
+    }
 
-    sys.osVersion = 0;
-    sys.osMainVersion = 0;
+    var version = /[\d\.]+/.exec(env.version);
+    sys.osVersion = version[0];
+    sys.osMainVersion = parseInt(sys.osVersion.split('.')[0]);
     sys.browserType = sys.BROWSER_TYPE_QQ_PLAY;
     sys.browserVersion = 0;
 
-    var w = 960;
-    var h = 640;
-    var ratio = 1;
+    // todo Can be removed after qqplay with support (ArrayBuffer)
+    sys.noABSupport = sys.os === sys.OS_IOS && sys.osMainVersion < 10;
 
+    var w = env.screenWidth;
+    var h = env.screenHeight;
+    var ratio = env.pixelRatio || 1;
     sys.windowPixelResolution = {
         width: ratio * w,
         height: ratio * h
@@ -773,13 +814,17 @@ else {
     sys.browserType = sys.BROWSER_TYPE_UNKNOWN;
     /* Determine the browser type */
     (function(){
-        var typeReg1 = /mqqbrowser|micromessenger|qq|sogou|qzone|liebao|maxthon|ucbrowser|360 aphone|360browser|baiduboxapp|baidubrowser|maxthon|mxbrowser|miuibrowser/i;
-        var typeReg2 = /qqbrowser|chrome|safari|firefox|trident|opera|opr\/|oupeng/i;
+        var typeReg1 = /mqqbrowser|micromessenger|qq|sogou|qzone|liebao|maxthon|ucbs|360 aphone|360browser|baiduboxapp|baidubrowser|maxthon|mxbrowser|miuibrowser/i;
+        var typeReg2 = /qqbrowser|ucbrowser/i
+        var typeReg3 = /chrome|safari|firefox|trident|opera|opr\/|oupeng/i;
         var browserTypes = typeReg1.exec(ua);
         if(!browserTypes) browserTypes = typeReg2.exec(ua);
+        if(!browserTypes) browserTypes = typeReg3.exec(ua);
+        
         var browserType = browserTypes ? browserTypes[0].toLowerCase() : sys.BROWSER_TYPE_UNKNOWN;
-        if (CC_WECHATGAME)
+        if (CC_WECHATGAME) {
             browserType = sys.BROWSER_TYPE_WECHAT_GAME;
+        }
         else if (CC_QQPLAY)
             browserType = sys.BROWSER_TYPE_QQ_PLAY;
         else if (browserType === 'micromessenger')
@@ -807,7 +852,7 @@ else {
     sys.browserVersion = "";
     /* Determine the browser version number */
     (function(){
-        var versionReg1 = /(mqqbrowser|micromessenger|qq|sogou|qzone|liebao|maxthon|uc|360 aphone|360|baiduboxapp|baidu|maxthon|mxbrowser|miui)(mobile)?(browser)?\/?([\d.]+)/i;
+        var versionReg1 = /(mqqbrowser|micromessenger|qq|sogou|qzone|liebao|maxthon|uc|ucbs|360 aphone|360|baiduboxapp|baidu|maxthon|mxbrowser|miui)(mobile)?(browser)?\/?([\d.]+)/i;
         var versionReg2 = /(qqbrowser|chrome|safari|firefox|trident|opera|opr\/|oupeng)(mobile)?(browser)?\/?([\d.]+)/i;
         var tmp = ua.match(versionReg1);
         if(!tmp) tmp = ua.match(versionReg2);
@@ -928,6 +973,7 @@ else {
                 } else {
                     _supportWebGL = false;
                 }
+                break;
             case sys.BROWSER_TYPE_360:
                 _supportWebGL = false;
             }

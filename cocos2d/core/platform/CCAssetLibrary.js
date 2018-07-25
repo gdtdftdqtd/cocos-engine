@@ -113,11 +113,12 @@ var AssetLibrary = {
         });
     },
 
-    getLibUrlNoExt: function (uuid) {
+    getLibUrlNoExt: function (uuid, inRawAssetsDir) {
         if (CC_BUILD) {
             uuid = decodeUuid(uuid);
         }
-        return _libraryBase + uuid.slice(0, 2) + '/' + uuid;
+        var base = (CC_BUILD && inRawAssetsDir) ? (_rawAssetsBase + 'assets/') : _libraryBase;
+        return base + uuid.slice(0, 2) + '/' + uuid;
     },
 
     _queryAssetInfoInEditor: function (uuid, callback) {
@@ -147,6 +148,7 @@ var AssetLibrary = {
         result = result || {url: null, raw: false};
         var info = _uuidToRawAsset[uuid];
         if (info && !cc.isChildClassOf(info.type, cc.Asset)) {
+            // backward compatibility since 1.10
             result.url = _rawAssetsBase + info.url;
             result.raw = true;
         }
@@ -157,12 +159,8 @@ var AssetLibrary = {
         return result;
     },
 
-    _getAssetUrl: function (uuid) {
-        var info = _uuidToRawAsset[uuid];
-        if (info) {
-            return _rawAssetsBase + info.url;
-        }
-        return null;
+    _uuidInSettings: function (uuid) {
+        return uuid in _uuidToRawAsset;
     },
 
     /**
@@ -298,7 +296,6 @@ var AssetLibrary = {
         resources.reset();
         var rawAssets = options.rawAssets;
         if (rawAssets) {
-            var RES_DIR = 'resources/';
             for (var mountPoint in rawAssets) {
                 var assets = rawAssets[mountPoint];
                 for (var uuid in assets) {
@@ -310,22 +307,14 @@ var AssetLibrary = {
                         cc.error('Cannot get', typeId);
                         continue;
                     }
+                    // backward compatibility since 1.10
                     _uuidToRawAsset[uuid] = new RawAssetEntry(mountPoint + '/' + url, type);
                     // init resources
-                    if (mountPoint === 'assets' && url.startsWith(RES_DIR)) {
-                        if (cc.isChildClassOf(type, Asset)) {
-                            var ext = cc.path.extname(url);
-                            if (ext) {
-                                // trim base dir and extname
-                                url = url.slice(RES_DIR.length, - ext.length);
-                            }
-                            else {
-                                // trim base dir
-                                url = url.slice(RES_DIR.length);
-                            }
-                        }
-                        else {
-                            url = url.slice(RES_DIR.length);
+                    if (mountPoint === 'assets') {
+                        var ext = cc.path.extname(url);
+                        if (ext) {
+                            // trim base dir and extname
+                            url = url.slice(0, - ext.length);
                         }
                         var isSubAsset = info[2] === 1;
                         // register
@@ -339,16 +328,8 @@ var AssetLibrary = {
             PackDownloader.initPacks(options.packedAssets);
         }
 
-        // init mount paths
-
-        var mountPaths = options.mountPaths;
-        if (!mountPaths) {
-            mountPaths = {
-                assets: _rawAssetsBase + 'assets',
-                internal: _rawAssetsBase + 'internal',
-            };
-        }
-        cc.url._init(mountPaths);
+        // init cc.url
+        cc.url._init((options.mountPaths && options.mountPaths.assets) || _rawAssetsBase + 'assets');
     }
 };
 

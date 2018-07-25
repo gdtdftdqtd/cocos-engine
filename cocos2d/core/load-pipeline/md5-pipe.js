@@ -44,7 +44,7 @@ MD5Pipe.prototype.handle = function(item) {
     return item;
 };
 
-MD5Pipe.prototype.transformURL = function (url) {
+MD5Pipe.prototype.transformURL = function (url, hashPatchInFolder) {
     var index = url.indexOf('?');
     var key = url;
     if (index !== -1) {
@@ -52,20 +52,26 @@ MD5Pipe.prototype.transformURL = function (url) {
     }
     if (key.startsWith(this.libraryBase)) {
         key = key.slice(this.libraryBase.length);
-    } else if(key.startsWith(this.rawAssetsBase)) {
+    } else if (key.startsWith(this.rawAssetsBase)) {
         key = key.slice(this.rawAssetsBase.length);
     } else {
         return url;
     }
     let hashValue = this.md5AssetsMap[key];
     if (hashValue) {
-        var matched = false;
-        url  = url.replace(ExtnameRegex, function(match, p1) {
-            matched = true;
-            return '.' + hashValue + p1;
-        });
-        if (!matched) {
-            url = url + '.' + hashValue;
+        if (hashPatchInFolder) {
+            var dirname = cc.path.dirname(url);
+            var basename = cc.path.basename(url);
+            url = `${dirname}.${hashValue}/${basename}`;
+        } else {
+            var matched = false;
+            url = url.replace(ExtnameRegex, (function(match, p1) {
+                matched = true;
+                return "." + hashValue + p1;
+            }));
+            if (!matched) {
+                url = url + "." + hashValue
+            }
         }
     }
     return url;

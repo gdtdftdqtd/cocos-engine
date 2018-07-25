@@ -54,20 +54,40 @@ function getConstructor(typeOrClassName) {
 }
 
 function findComponent(node, constructor) {
-    for (var i = 0; i < node._components.length; ++i) {
-        var comp = node._components[i];
-        if (comp instanceof constructor) {
-            return comp;
+    if (constructor._sealed) {
+        for (let i = 0; i < node._components.length; ++i) {
+            let comp = node._components[i];
+            if (comp.constructor === constructor) {
+                return comp;
+            }
+        }
+    }
+    else {
+        for (let i = 0; i < node._components.length; ++i) {
+            let comp = node._components[i];
+            if (comp instanceof constructor) {
+                return comp;
+            }
         }
     }
     return null;
 }
 
 function findComponents(node, constructor, components) {
-    for (var i = 0; i < node._components.length; ++i) {
-        var comp = node._components[i];
-        if (comp instanceof constructor) {
-            components.push(comp);
+    if (constructor._sealed) {
+        for (let i = 0; i < node._components.length; ++i) {
+            let comp = node._components[i];
+            if (comp.constructor === constructor) {
+                components.push(comp);
+            }
+        }
+    }
+    else {
+        for (let i = 0; i < node._components.length; ++i) {
+            let comp = node._components[i];
+            if (comp instanceof constructor) {
+                components.push(comp);
+            }
         }
     }
 }
@@ -1104,19 +1124,23 @@ var BaseNode = cc.Class({
             // update prefab
             var newPrefabRoot = newParent && newParent._prefab && newParent._prefab.root;
             var myPrefabInfo = this._prefab;
+            var PrefabUtils = Editor.require('scene://utils/prefab');
             if (myPrefabInfo) {
                 if (newPrefabRoot) {
-                    // change prefab
-                    _Scene.PrefabUtils.linkPrefab(newPrefabRoot._prefab.asset, newPrefabRoot, this);
+                    if (myPrefabInfo.root !== newPrefabRoot) {
+                        // change prefab
+                        PrefabUtils.unlinkPrefab(this);
+                        PrefabUtils.linkPrefab(newPrefabRoot._prefab.asset, newPrefabRoot, this);
+                    }
                 }
                 else if (myPrefabInfo.root !== this) {
                     // detach from prefab
-                    _Scene.PrefabUtils.unlinkPrefab(this);
+                    PrefabUtils.unlinkPrefab(this);
                 }
             }
             else if (newPrefabRoot) {
                 // attach to prefab
-                _Scene.PrefabUtils.linkPrefab(newPrefabRoot._prefab.asset, newPrefabRoot, this);
+                PrefabUtils.linkPrefab(newPrefabRoot._prefab.asset, newPrefabRoot, this);
             }
 
             // conflict detection
@@ -1148,7 +1172,8 @@ var BaseNode = cc.Class({
         var thisPrefabInfo = this._prefab;
         if (CC_EDITOR && thisPrefabInfo) {
             if (this !== thisPrefabInfo.root) {
-                _Scene.PrefabUtils.initClonedChildOfPrefab(cloned);
+                var PrefabUtils = Editor.require('scene://utils/prefab');
+                PrefabUtils.initClonedChildOfPrefab(cloned);
             }
         }
         var syncing = thisPrefabInfo && this === thisPrefabInfo.root && thisPrefabInfo.sync;

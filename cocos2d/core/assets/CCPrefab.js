@@ -32,7 +32,7 @@
  * to specify how to optimize the instantiate operation.
  *
  * @enum Prefab.OptimizationPolicy
- * @since 1.8.0
+ * @since 1.10.0
  */
 var OptimizationPolicy = cc.Enum({
     /**
@@ -104,7 +104,7 @@ var Prefab = cc.Class({
          *
          * @property {Prefab.OptimizationPolicy} optimizationPolicy
          * @default Prefab.OptimizationPolicy.AUTO
-         * @since 1.8.0
+         * @since 1.10.0
          * @example
          * prefab.optimizationPolicy = cc.Prefab.OptimizationPolicy.MULTI_INSTANCE;
          */
@@ -189,8 +189,9 @@ var Prefab = cc.Class({
 
         // link prefab in editor
         if (CC_EDITOR || CC_TEST) {
+            var PrefabUtils = Editor.require('scene://utils/prefab');
             // This operation is not necessary, but some old prefab asset may not contain complete data.
-            _Scene.PrefabUtils.linkPrefab(this, node);
+            PrefabUtils.linkPrefab(this, node);
         }
         return node;
     }

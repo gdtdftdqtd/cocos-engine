@@ -36,7 +36,7 @@ exports.getMacros = function (platform, flags) {
     // debug macros
     res['CC_DEV'] = res['CC_EDITOR'] || res['CC_PREVIEW'] || res['CC_TEST'];
     res['CC_DEBUG'] = res['CC_DEBUG'] || res['CC_DEV'];
-    res['CC_SUPPORT_JIT'] = !res['CC_WECHATGAME'];
+    res['CC_SUPPORT_JIT'] = !(res['CC_WECHATGAME'] || res['CC_QQPLAY']);
     return res;
 };
 
@@ -58,12 +58,12 @@ exports.getUglifyOptions = function (platform, flags) {
                 sequences: false,
                 keep_infinity: true,    // reduce jsc file size
                 typeofs: false,
+                inline: 1,              // workaround mishoo/UglifyJS2#2842
             },
             output: {
                 beautify: true,         // really preserve_lines
                 indent_level: 0,        // reduce jsc file size
-            },
-            rename: false,              // workaround mishoo/UglifyJS2#2821
+            }
         };
     }
 
@@ -76,11 +76,11 @@ exports.getUglifyOptions = function (platform, flags) {
             compress: {
                 global_defs: global_defs,
                 negate_iife: false,
+                inline: 1,              // workaround mishoo/UglifyJS2#2842
             },
             output: {
                 ascii_only: true,
-            },
-            rename: false,              // workaround mishoo/UglifyJS2#2821
+            }
         };
     }
     else {
@@ -133,7 +133,6 @@ exports.getUglifyOptions = function (platform, flags) {
                 indent_level: 2,
                 ascii_only: true,
             },
-            rename: false,            // workaround mishoo/UglifyJS2#2821
         };
     }
 };

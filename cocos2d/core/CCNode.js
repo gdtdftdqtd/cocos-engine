@@ -1035,7 +1035,7 @@ var Node = cc.Class({
             for (; i < len; i++) {
                 sibling = siblings[i]._sgNode;
                 sibling._arrivalOrder = i;
-                eventManager._setDirtyForNode(sibling);
+                eventManager._setDirtyForNode(siblings[i]);
             }
             cc.renderer.childrenOrderDirty = true;
             parent._sgNode._reorderChildDirty = true;
@@ -1262,7 +1262,7 @@ var Node = cc.Class({
      * !#zh 删除之前与同类型，回调，目标或 useCapture 注册的回调。
      * @method off
      * @param {String} type - A string representing the event type being removed.
-     * @param {Function} callback - The callback to remove.
+     * @param {Function} [callback] - The callback to remove.
      * @param {Object} [target] - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
      * @param {Boolean} [useCapture=false] - Specifies whether the callback being removed was registered as a capturing callback or not.
      *                              If not specified, useCapture defaults to false. If a callback was registered twice,
@@ -1621,7 +1621,7 @@ var Node = cc.Class({
      * @method setPosition
      * @param {Vec2|Number} newPosOrX - X coordinate for position or the position (x, y) of the node in coordinates
      * @param {Number} [y] - Y coordinate for position
-     * @example {@link utils/api/engine/docs/cocos2d/core/utils/base-node/setPosition.js}
+     * @example {@link cocos2d/core/utils/base-node/setPosition.js}
      */
     setPosition (newPosOrX, y) {
         var x;
@@ -2493,9 +2493,27 @@ var Node = cc.Class({
     _removeSgNode: SgHelper.removeSgNode,
 
     onRestore: CC_EDITOR && function () {
+        // update dummy sgNode of components
+        for (var i=0; i<this._components.length; i++) {
+            var comp = this._components[i];
+            if (!comp || !comp._sgNode) {
+                continue;
+            }
+            comp._sgNode.visible = comp.enabledInHierarchy;
+        }
+
         this._updateDummySgNode();
 
         var sizeProvider = this._sizeProvider;
+        if (sizeProvider) {
+            // sync status for records used in Timeline editor
+            var sgComponent = this.getComponent(cc._SGComponent);
+            if (sgComponent && sgComponent._sgNode === sizeProvider && !(sgComponent._objFlags & Flags.IsPreloadStarted)) {
+                sgComponent._removeSgNode();
+                this._sizeProvider = sizeProvider = null;
+            }
+        }
+
         if (sizeProvider) {
             sizeProvider.setContentSize(this._contentSize);
             if (sizeProvider instanceof _ccsg.Node) {

@@ -108,13 +108,14 @@ cc.textureCache.removeTextureForKey = function (key) {
 cc.Class._fastDefine('cc.Texture2D', cc.Texture2D, []);
 cc.Texture2D.$super = cc.Asset;
 
+// polyfill static members
 [
     'WrapMode',
     'PixelFormat',
     'Filter',
     'extnames',
     'preventDeferredLoadDependents',
-    'preventPreloadNativeObject',
+    'preventPreloadNativeObject'
 ].forEach(function (key) {
     cc.Texture2D[key] = WebTexture[key];
 });
@@ -122,7 +123,18 @@ cc.Texture2D.$super = cc.Asset;
 prototype = cc.Texture2D.prototype;
 prototype._releaseTexture = prototype.releaseTexture;
 
+// polyfill prototype
 cc.js.addon(prototype, WebTexture.prototype);
+
+// polyfill inherited members
+[
+    '_setRawAsset',
+    'nativeUrl',
+    'toString'
+].forEach(function (inheritedProp) {
+    Object.defineProperty(prototype, inheritedProp, cc.js.getPropertyDescriptor(WebTexture.prototype, inheritedProp));
+});
+
 
 prototype._ctor = function () {
     cc.Asset.call(this);
@@ -185,7 +197,6 @@ cc.Class._fastDefine('cc.SpriteFrame', cc.SpriteFrame, []);
 cc.SpriteFrame.$super = cc.Asset;
 
 prototype = cc.SpriteFrame.prototype;
-prototype._setTexture = prototype.setTexture;
 
 cc.js.mixin(prototype, cc.EventTarget.prototype);
 
@@ -199,6 +210,18 @@ prototype._ctor = function (filename, rect, rotated, offset, originalSize) {
     if (filename !== undefined) {
         this.initWithTexture(filename, rect, rotated, offset, originalSize);
     }
+};
+
+prototype._getTexture = prototype.getTexture;
+prototype.getTexture = function () {
+    var tex = this._getTexture();
+    this._texture = tex;
+    return tex;
+};
+prototype.__setTexture = prototype.setTexture;
+prototype._setTexture = function (tex) {
+    this.__setTexture(tex);
+    this._texture = tex;
 };
 
 prototype.textureLoaded = function () {
@@ -319,13 +342,6 @@ prototype._checkRect = function (texture) {
     if (maxY > texture.getPixelHeight()) {
         cc.errorID(3400, texture.url);
     }
-};
-
-prototype._getTexture = prototype.getTexture;
-prototype.getTexture = function () {
-    var tex = this._getTexture();
-    this._texture = tex;
-    return tex;
 };
 
 prototype._clone = prototype.clone;

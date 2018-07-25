@@ -24,6 +24,8 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+var eventManager = require('../event-manager');
+
 var TOP     = 1 << 0;
 var MID     = 1 << 1;   // vertical center
 var BOT     = 1 << 2;
@@ -266,21 +268,24 @@ if (CC_EDITOR) {
 
 function refreshScene () {
     // check animation editor
-    if (CC_EDITOR && window._Scene && _Scene.AnimUtils) {
-        var nowPreviewing = !!_Scene.AnimUtils.curAnimState;
-        if (nowPreviewing !== animationState.previewing) {
-            animationState.previewing = nowPreviewing;
-            if (nowPreviewing) {
+    if (CC_EDITOR && !Editor.isBuilder) {
+        var AnimUtils = Editor.require('scene://utils/animation');
+        if (AnimUtils) {
+            var nowPreviewing = !!AnimUtils.Cache.animation;
+            if (nowPreviewing !== animationState.previewing) {
+                animationState.previewing = nowPreviewing;
+                if (nowPreviewing) {
+                    animationState.animatedSinceLastFrame = true;
+                    animationState.time = AnimUtils.Cache.animation.time;
+                }
+                else {
+                    animationState.animatedSinceLastFrame = false;
+                }
+            }
+            else if (nowPreviewing && animationState.time !== AnimUtils.Cache.animation.time) {
                 animationState.animatedSinceLastFrame = true;
-                animationState.time = _Scene.AnimUtils.curAnimState.time;
+                animationState.time = AnimUtils.Cache.animation.time;
             }
-            else {
-                animationState.animatedSinceLastFrame = false;
-            }
-        }
-        else if (nowPreviewing && animationState.time !== _Scene.AnimUtils.curAnimState.time) {
-            animationState.animatedSinceLastFrame = true;
-            animationState.time = _Scene.AnimUtils.curAnimState.time;
         }
     }
 
@@ -294,8 +299,11 @@ function refreshScene () {
         }
         else {
             var i, widget, iterator = widgetManager._activeWidgetsIterator;
-            if (CC_EDITOR && window._Scene && _Scene.AnimUtils && _Scene.AnimUtils.curAnimState) {
-                var editingNode = _Scene.AnimUtils.curRootNode;
+            var AnimUtils;
+            if (CC_EDITOR &&
+                (AnimUtils = Editor.require('scene://utils/animation')) &&
+                AnimUtils.Cache.animation) {
+                var editingNode = AnimUtils.Cache.rNode;
                 for (i = activeWidgets.length - 1; i >= 0; i--) {
                     widget = activeWidgets[i];
                     var node = widget.node;
@@ -445,7 +453,7 @@ var widgetManager = cc._widgetManager = module.exports = {
     init: function (director) {
         director.on(cc.Director.EVENT_BEFORE_VISIT, refreshScene);
 
-        if (CC_EDITOR) {
+        if (CC_EDITOR && cc.engine) {
             cc.engine.on('design-resolution-changed', this.onResized.bind(this));
         }
         else if (!CC_JSB) {
@@ -453,11 +461,15 @@ var widgetManager = cc._widgetManager = module.exports = {
                 window.addEventListener('resize', this.onResized.bind(this));
             }
             else {
-                cc.eventManager.addCustomListener('canvas-resize', this.onResized.bind(this));
+                eventManager.addCustomListener('canvas-resize', this.onResized.bind(this));
             }
         }
         else {
-            cc.eventManager.addListener(this.onResized.bind(this), 1);
+            eventManager.addListener(cc.EventListener.create({
+                event: cc.EventListener.CUSTOM,
+                eventName: "window-resize",
+                callback: this.onResized.bind(this)
+            }), 1);
         }
     },
     add: function (widget) {

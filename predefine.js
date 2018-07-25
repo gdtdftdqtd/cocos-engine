@@ -41,7 +41,6 @@
  *
  *     cc.log('release');
  *
- * （好棒棒）<br>
  * <br>
  * 如需判断脚本是否运行于指定平台，可以用如下表达式：
  *
@@ -133,9 +132,9 @@ defineMacro('CC_DEV', true);    // (CC_EDITOR && !CC_BUILD) || CC_PREVIEW || CC_
 defineMacro('CC_DEBUG', true);  // CC_DEV || Debug Build
 defineMacro('CC_JSB', defined('jsb'));
 defineMacro('CC_BUILD', false);
-defineMacro('CC_WECHATGAME', false);
-defineMacro('CC_QQPLAY', false);
-defineMacro('CC_SUPPORT_JIT', !CC_WECHATGAME);
+defineMacro('CC_WECHATGAME', defined('wx') && wx.getSystemInfoSync);
+defineMacro('CC_QQPLAY', defined('bk'));
+defineMacro('CC_SUPPORT_JIT', !(CC_WECHATGAME || CC_QQPLAY)); 
 
 //
 

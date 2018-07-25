@@ -38,8 +38,6 @@ var ReleasedAssetChecker = CC_DEBUG && require('./released-asset-checker');
 
 var resources = new AssetTable();
 
-var AUDIO_TYPES = ['mp3', 'ogg', 'wav', 'm4a'];
-
 function getXMLHttpRequest () {
     return window.XMLHttpRequest ? new window.XMLHttpRequest() : new ActiveXObject('MSXML2.XMLHTTP');
 }
@@ -63,7 +61,7 @@ function getResWithUrl (res) {
         result = {};
         id = res;
     }
-    isUuid = result.type ? result.type === 'uuid' : cc.AssetLibrary._getAssetUrl(id);
+    isUuid = result.type ? result.type === 'uuid' : cc.AssetLibrary._uuidInSettings(id);
     cc.AssetLibrary._getAssetInfoInRuntime(id, _info);
     result.url = !isUuid ? id : _info.url;
     if (_info.url && result.type === 'uuid' && _info.raw) {
@@ -219,6 +217,10 @@ proto.addLoadHandlers = function (extMap) {
  * load(resources: string|string[]|{uuid?: string, url?: string, type?: string}, progressCallback: (completedCount: number, totalCount: number, item: any) => void, completeCallback: Function|null): void
  */
 proto.load = function(resources, progressCallback, completeCallback) {
+    if (CC_DEV && !resources) {
+        return cc.error("[cc.loader.load] resources must be non-nil.");
+    }
+
     if (completeCallback === undefined) {
         completeCallback = progressCallback;
         progressCallback = this.onProgress || null;
@@ -637,7 +639,24 @@ proto.loadResDir = function (url, type, progressCallback, completeCallback) {
 
     var urls = [];
     var uuids = resources.getUuidArray(url, type, urls);
-    this._loadResUuids(uuids, progressCallback, completeCallback, urls);
+    this._loadResUuids(uuids, progressCallback, function (errors, assetRes, urlRes) {
+        // The spriteFrame url in spriteAtlas will be removed after build project
+        // To show users the exact structure in asset panel, we need to return the spriteFrame assets in spriteAtlas
+        let assetResLength = assetRes.length;
+        for (let i = 0; i < assetResLength; ++i) {
+            if (assetRes[i] instanceof cc.SpriteAtlas) {
+                let spriteFrames = assetRes[i].getSpriteFrames();
+                for (let k in spriteFrames) {
+                    let sf = spriteFrames[k];
+                    assetRes.push(sf);
+                    if (urlRes) {
+                        urlRes.push(`${urlRes[i]}/${sf.name}`);
+                    }
+                }
+            }
+        }
+        completeCallback && completeCallback(errors, assetRes, urlRes);
+    }, urls);
 };
 
 /**
@@ -769,13 +788,9 @@ proto.release = function (asset) {
             asset = item.content;
             if (cc.Class.isInstanceOf(asset, cc.Asset)) {
                 if (asset.nativeUrl) {
-                    this.release(asset.nativeUrl);
+                    this.release(asset.nativeUrl);  // uncache loading item of native asset
                 }
                 asset.destroy();
-            }
-            else if (AUDIO_TYPES.indexOf(item.type) !== -1) {
-                // TODO: use asset.destroy
-                cc.audioEngine.uncache(item.rawUrl || item.url);
             }
             if (CC_DEBUG && removed) {
                 this._releasedAssetChecker_DEBUG.setReleased(item, id);

@@ -94,6 +94,10 @@ cc.DebugMode = Enum({
 });
 
 /**
+ * @module cc
+ */
+
+/**
  * !#en Init Debug setting.
  * !#zh 设置调试模式。
  * @method _initDebugSetting
@@ -101,7 +105,7 @@ cc.DebugMode = Enum({
  */
 cc._initDebugSetting = function (mode) {
     // reset
-    cc.log = cc.warn = cc.error = cc._throw = cc.assert = function () { };
+    cc.log = cc.warn = cc.error = cc.assert = function () { };
 
     if (mode === cc.DebugMode.NONE)
         return;
@@ -310,7 +314,7 @@ cc._throw = CC_EDITOR ? Editor.error : function (error) {
 
 // define log methods to lookup message ID
 
-const debugInfos = CC_DEBUG && require('./DebugInfos');
+const debugInfos = require('./DebugInfos') || {};
 const ERROR_MAP_URL = 'https://github.com/cocos-creator/engine/blob/master/EngineErrorMap.md';
 
 function getTypedFormatter (type) {

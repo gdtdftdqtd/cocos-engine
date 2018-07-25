@@ -29,7 +29,6 @@
  * !#zh 精灵图集资源类。
  * @class SpriteAtlas
  * @extends Asset
- *
  */
 var SpriteAtlas = cc.Class({
     name: 'cc.SpriteAtlas',
@@ -63,7 +62,14 @@ var SpriteAtlas = cc.Class({
      * @returns {SpriteFrame}
      */
     getSpriteFrame: function (key) {
-        return this._spriteFrames[key];
+        let sf = this._spriteFrames[key];
+        if (!sf) {
+            return null;
+        } 
+        if (!sf.name) {
+            sf.name = key;
+        }
+        return sf;
     },
 
     /**
@@ -76,7 +82,7 @@ var SpriteAtlas = cc.Class({
         var spriteFrames = this._spriteFrames;
 
         for (var key in spriteFrames) {
-            frames.push(spriteFrames[key]);
+            frames.push(this.getSpriteFrame(key));
         }
 
         return frames;

@@ -262,6 +262,14 @@ var Animation = cc.Class({
                 animator.playState(state, startTime);
             }
 
+            // Animation cannot be played when the component is not enabledInHierarchy.
+            // That would cause an error for the animation lost the reference after destroying the node.
+            // If users play the animation when the component is not enabledInHierarchy,
+            // we pause the animator here so that it will automatically resume the animation when users enable the component.
+            if (!this.enabledInHierarchy) {
+                animator.pause();
+            }
+
             this.currentClip = state.clip;
         }
         return state;
@@ -552,7 +560,7 @@ var Animation = cc.Class({
      * 取消注册动画事件回调。
      * @method off
      * @param {String} type - A string representing the event type being removed.
-     * @param {Function} callback - The callback to remove.
+     * @param {Function} [callback] - The callback to remove.
      * @param {Object} [target] - The target (this object) to invoke the callback, if it's not given, only callback without target will be removed
      * @param {Boolean} [useCapture=false] - Specifies whether the callback being removed was registered as a capturing callback or not.
      *                              If not specified, useCapture defaults to false. If a callback was registered twice,

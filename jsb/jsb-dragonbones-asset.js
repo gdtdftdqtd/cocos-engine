@@ -1,4 +1,5 @@
 /****************************************************************************
+ Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
  http://www.cocos.com
@@ -23,29 +24,31 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var _noCacheRex = /\?/;
+'use strict';
 
-module.exports = {
-    //isUrlCrossOrigin: function (url) {
-    //    if (!url) {
-    //        cc.log('invalid URL');
-    //        return false;
-    //    }
-    //    var startIndex = url.indexOf('://');
-    //    if (startIndex === -1)
-    //        return false;
-    //
-    //    var endIndex = url.indexOf('/', startIndex + 3);
-    //    var urlOrigin = (endIndex === -1) ? url : url.substring(0, endIndex);
-    //    return urlOrigin !== location.origin;
-    //},
-    urlAppendTimestamp: function (url) {
-        if (cc.game.config['noCache'] && typeof url === 'string') {
-            if (_noCacheRex.test(url))
-                url += '&_t=' + (new Date() - 0);
-            else
-                url += '?_t=' + (new Date() - 0);
+var WebDragonBonesAsset = require('../extensions/dragonbones/DragonBonesAsset.js');
+
+var prototype = WebDragonBonesAsset.prototype;
+
+prototype.init = function (factory) {
+    if (CC_EDITOR) {
+        factory = factory || new dragonBones.CCFactory();
+    }
+
+    if (this._dragonBonesData) {
+        let sameNamedDragonBonesData = factory.getDragonBonesData(this._dragonBonesData.name);
+        if (!sameNamedDragonBonesData) {
+            factory.addDragonBonesData(this._dragonBonesData);
         }
-        return url;
+    }
+    else {
+        let _dragonBonesJson = JSON.parse(this.dragonBonesJson);
+        let sameNamedDragonBonesData = factory.getDragonBonesData(_dragonBonesJson.name);
+        if (sameNamedDragonBonesData) {
+            this._dragonBonesData = sameNamedDragonBonesData;
+        }
+        else {
+            this._dragonBonesData = factory.parseDragonBonesData(this._dragonBonesJson);
+        }
     }
 };

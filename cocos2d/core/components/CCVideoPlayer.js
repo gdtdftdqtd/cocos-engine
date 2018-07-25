@@ -142,7 +142,7 @@ var VideoPlayer = cc.Class({
 
         _clip: {
             default: null,
-            url: cc.RawAsset
+            type: cc.Asset
         },
         /**
          * !#en The local video full path.
@@ -155,12 +155,15 @@ var VideoPlayer = cc.Class({
                 return this._clip;
             },
             set: function (value) {
-                if (typeof value !== 'string')
-                    value = '';
+                if (typeof value === 'string') {
+                    // backward compatibility since 1.10
+                    cc.errorID(8401, 'cc.VideoPlayer', 'cc.Asset', 'Asset', 'cc.Asset', 'video');
+                    value = { nativeUrl: value };
+                }
                 this._clip = value;
                 this._updateVideoSource();
             },
-            url: cc.RawAsset
+            type: cc.Asset
         },
 
         /**
@@ -298,15 +301,17 @@ var VideoPlayer = cc.Class({
 
     _updateVideoSource: function () {
         var sgNode = this._sgNode;
+        let url = '';
         if (this.resourceType === ResourceType.REMOTE) {
-            if (cc.loader.md5Pipe) {
-                this.remoteURL = cc.loader.md5Pipe.transformURL(this.remoteURL);
-            }
-            sgNode.setURL(this.remoteURL);
+            url = this.remoteURL;
         }
-        else {
-            sgNode.setURL(this._clip || '');
+        else if (this._clip) {
+            url = this._clip.nativeUrl || '';
         }
+        if (url && cc.loader.md5Pipe) {
+            url = cc.loader.md5Pipe.transformURL(url);
+        }
+        sgNode.setURL(url);
     },
 
     _initSgNode: function () {

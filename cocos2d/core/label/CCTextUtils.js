@@ -60,7 +60,7 @@ var CustomFontLoader = {
 
         var md5Pipe = cc.loader.md5Pipe;
         if (md5Pipe) {
-            url = md5Pipe.transformURL(url);
+            url = md5Pipe.transformURL(url, true);
         }
         //these platforms support window.FontFace, but it sucks sometimes.
         var useFontFace = (cc.sys.browserType !== cc.sys.BROWSER_TYPE_BAIDU
@@ -256,7 +256,7 @@ var TextUtils = {
             checkWhile = 0;
 
             //Find the truncation point
-            while (width < maxWidth && checkWhile++ < checkCount) {
+            while (width <= maxWidth && checkWhile++ < checkCount) {
                 if (tmpText) {
                     var exec = this.label_wordRex.exec(tmpText);
                     pushNum = exec ? exec[0].length : 1;
@@ -299,7 +299,7 @@ var TextUtils = {
             }
 
             // The first line And do not wrap should not remove the space
-            if (wrappedWords.length === 0 && (sLine === '' && tmpText === '')) {
+            if (wrappedWords.length === 0) {
                 wrappedWords.push(sText);
             }
             else {
