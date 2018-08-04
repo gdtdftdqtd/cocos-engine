@@ -60,10 +60,6 @@ var CustomFontLoader = {
     loadTTF: function (url, callback) {
         var fontFamilyName = this._getFontFamily(url);
 
-        var md5Pipe = cc.loader.md5Pipe;
-        if (md5Pipe) {
-            url = md5Pipe.transformURL(url, true);
-        }
         //these platforms support window.FontFace, but it sucks sometimes.
         var useFontFace = (cc.sys.browserType !== cc.sys.BROWSER_TYPE_BAIDU
                            && cc.sys.browserType !== cc.sys.BROWSER_TYPE_BAIDU_APP
@@ -201,6 +197,9 @@ var CustomFontLoader = {
             fontFamilyName = fontHandle.substring(0, ttfIndex) + "_LABEL";
         } else {
             fontFamilyName = fontHandle.substring(slashPos + 1, ttfIndex) + "_LABEL";
+        }
+        if (fontFamilyName.indexOf(' ') !== -1) {
+            fontFamilyName = '"' + fontFamilyName + '"';
         }
         return fontFamilyName;
     }
