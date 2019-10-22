@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -50,8 +50,8 @@ PhysicsRayCastCallback.prototype.ReportFixture = function (fixture, point, norma
     }
 
     this._fixtures.push(fixture);
-    this._points.push(point);
-    this._normals.push(normal);
+    this._points.push(cc.v2(point));
+    this._normals.push(cc.v2(normal));
     this._fractions.push(fraction);
     
     if (this._type === 1) { // any

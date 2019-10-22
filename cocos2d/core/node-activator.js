@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -26,7 +26,7 @@
 
 var CompScheduler = require('./component-scheduler');
 var Flags = require('./platform/CCObject').Flags;
-var JS = require('./platform/js');
+var js = require('./platform/js');
 var callerFunctor = CC_EDITOR && require('./utils/misc').tryCatchFunctor_EDITOR;
 
 var MAX_POOL_SIZE = 4;
@@ -37,18 +37,20 @@ var IsOnLoadCalled = Flags.IsOnLoadCalled;
 var Deactivating = Flags.Deactivating;
 
 var callPreloadInTryCatch = CC_EDITOR && callerFunctor('__preload');
-var callOnLoadInTryCatch = CC_EDITOR && callerFunctor('onLoad', null,
-        'target._objFlags |= ' + IsOnLoadCalled + '; arg(target);', _onLoadInEditor);
+var callOnLoadInTryCatch = CC_EDITOR && function (c) {
+    try {
+        c.onLoad();
+    }
+    catch (e) {
+        cc._throw(e);
+    }
+    c._objFlags |= IsOnLoadCalled;
+    _onLoadInEditor(c);
+};
 var callOnDestroyInTryCatch = CC_EDITOR && callerFunctor('onDestroy');
 var callResetInTryCatch = CC_EDITOR && callerFunctor('resetInEditor');
 var callOnFocusInTryCatch = CC_EDITOR && callerFunctor('onFocusInEditor');
 var callOnLostFocusInTryCatch = CC_EDITOR && callerFunctor('onLostFocusInEditor');
-
-var callPreload = CC_SUPPORT_JIT ? 'c.__preload();' : function (c) { c.__preload(); };
-var callOnLoad = CC_SUPPORT_JIT ? ('c.onLoad();c._objFlags|=' + IsOnLoadCalled) : function (c) {
-    c.onLoad();
-    c._objFlags |= IsOnLoadCalled;
-};
 
 // for __preload: use internally, no sort
 var UnsortedInvoker = cc.Class({
@@ -68,14 +70,34 @@ var UnsortedInvoker = cc.Class({
     },
 });
 
-var invokePreload = CompScheduler.createInvokeImpl(
-    CC_EDITOR ? callPreloadInTryCatch : callPreload
-);
-var invokeOnLoad = CompScheduler.createInvokeImpl(
-    CC_EDITOR ? callOnLoadInTryCatch : callOnLoad
-);
+var invokePreload = CC_SUPPORT_JIT ?
+    CompScheduler.createInvokeImpl('c.__preload();') :
+    CompScheduler.createInvokeImpl(function (c) { c.__preload(); }, false, undefined, function (iterator) {
+        var array = iterator.array;
+        for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
+            array[iterator.i].__preload();
+        }
+    });
+var invokeOnLoad = CC_SUPPORT_JIT ?
+    CompScheduler.createInvokeImpl('c.onLoad();c._objFlags|=' + IsOnLoadCalled, false, IsOnLoadCalled) :
+    CompScheduler.createInvokeImpl(function (c) {
+            c.onLoad();
+            c._objFlags |= IsOnLoadCalled;
+        },
+        false,
+        IsOnLoadCalled,
+        function (iterator) {
+            var array = iterator.array;
+            for (iterator.i = 0; iterator.i < array.length; ++iterator.i) {
+                let comp = array[iterator.i];
+                comp.onLoad();
+                comp._objFlags |= IsOnLoadCalled;
+            }
+        }
+    );
 
-var activateTasksPool = new JS.Pool(MAX_POOL_SIZE);
+
+var activateTasksPool = new js.Pool(MAX_POOL_SIZE);
 activateTasksPool.get = function getActivateTask () {
     var task = this._get() || {
         preload: new UnsortedInvoker(invokePreload),
@@ -106,7 +128,7 @@ function _componentCorrupted (node, comp, index) {
         node._removeComponent(comp);
     }
     else {
-        JS.array.removeAt(node._components, index);
+        js.array.removeAt(node._components, index);
     }
 }
 
@@ -165,14 +187,15 @@ var NodeActivator = cc.Class({
                 --originCount;
             }
         }
+        node._childArrivalOrder = node._children.length;
         // activate children recursively
         for (let i = 0, len = node._children.length; i < len; ++i) {
             let child = node._children[i];
+            child._localZOrder = (child._localZOrder & 0xffff0000) | (i + 1);
             if (child._active) {
                 this._activateNodeRecursively(child, preloadInvoker, onLoadInvoker, onEnableInvoker);
             }
         }
-
         node._onPostActivated(true);
     },
 
@@ -247,10 +270,14 @@ var NodeActivator = cc.Class({
     },
 
     activateComp: CC_EDITOR ? function (comp, preloadInvoker, onLoadInvoker, onEnableInvoker) {
+        if (!cc.isValid(comp, true)) {
+            // destroyed before activating
+            return;
+        }
         if (cc.engine._isPlaying || comp.constructor._executeInEditMode) {
             if (!(comp._objFlags & IsPreloadStarted)) {
                 comp._objFlags |= IsPreloadStarted;
-                if (typeof comp.__preload === 'function') {
+                if (comp.__preload) {
                     if (preloadInvoker) {
                         preloadInvoker.add(comp);
                     }
@@ -283,9 +310,13 @@ var NodeActivator = cc.Class({
             cc.director._compScheduler.enableComp(comp, onEnableInvoker);
         }
     } : function (comp, preloadInvoker, onLoadInvoker, onEnableInvoker) {
+        if (!cc.isValid(comp, true)) {
+            // destroyed before activating
+            return;
+        }
         if (!(comp._objFlags & IsPreloadStarted)) {
             comp._objFlags |= IsPreloadStarted;
-            if (typeof comp.__preload === 'function') {
+            if (comp.__preload) {
                 if (preloadInvoker) {
                     preloadInvoker.add(comp);
                 }
@@ -325,6 +356,7 @@ var NodeActivator = cc.Class({
         if (comp.onDestroy && (comp._objFlags & IsOnLoadCalled)) {
             if (cc.engine._isPlaying || comp.constructor._executeInEditMode) {
                 callOnDestroyInTryCatch(comp);
+                comp._objFlags &= ~IsOnLoadCalled;  // In case call onDestroy twice in undo operation
             }
         }
     } : function (comp) {
@@ -337,7 +369,7 @@ var NodeActivator = cc.Class({
     },
 
     resetComp: CC_EDITOR && function (comp) {
-        if (typeof comp.resetInEditor === 'function') {
+        if (comp.resetInEditor) {
             callResetInTryCatch(comp);
         }
     }

@@ -131,6 +131,10 @@ cc.ReverseTime.initWithAction(): the action was already passed in.
 
 cc.Animate.initWithAnimation(): animation must be non-NULL
 
+### 1031
+
+Illegal parameter get passed in cc.tween: %s.
+
 ### 1100
 
 Expected 'data' dict, but not found. Config file: %s
@@ -174,7 +178,7 @@ loadScene: Unknown name type to load: '%s'
 
 ### 1208
 
-loadScene: Failed to load scene '%s' because '%s' is already loading
+loadScene: Failed to load scene '%s' because '%s' is already being loaded.
 
 ### 1209
 
@@ -204,6 +208,10 @@ loadScene: Can not load the scene '%s' because it was not in the build settings 
 
 Failed to preload '%s', %s
 
+### 1216
+
+Director.runSceneImmediate: scene is not valid
+
 ### 1300
 
 element type is wrong!
@@ -230,7 +238,19 @@ cc.spriteFrameCache is removed, please use cc.loader to load and cache sprite fr
 
 ### 1405
 
-The '%s' will be removed in v2.0, please use '%s' instead. 😥
+The '%s' will be removed in v2.0, please use '%s' instead.
+
+### 1406
+
+'%s.%s' is removed
+
+### 1407
+
+cc.pool is being removed from v2.0, you are getting cc.js.Pool instead.
+
+### 1408
+
+'%s' is not support in the '%s', please use '%s' instead.
 
 ### 1500
 
@@ -264,7 +284,7 @@ warning: you CANNOT change update priority in scheduled function
 
 ### 1507
 
-CCScheduler#scheduleSelector. Selector already scheduled. Updating interval from: %.4f to %.4f
+CCScheduler#scheduleSelector. Selector already scheduled. Updating interval from: %s to %s"
 
 ### 1508
 
@@ -285,6 +305,10 @@ cc.Scheduler: pause state of the scheduled task doesn't match the element pause 
 ### 1512
 
 cc.Scheduler: updateFunc parameter is deprecated in scheduleUpdate function, and will be removed in v2.0
+
+### 1513
+
+cc.Scheduler: scheduler stopped using `__instanceId` as id since v2.0, you should do scheduler.enableForTarget(target) before all scheduler API usage on target
 
 ### 1600
 
@@ -380,6 +404,7 @@ cocos2d: Could not initialize cc.AtlasNode. Invalid Texture.
 
 ### 1622
 
+<!-- DEPRECATED -->
 _ccsg.Node._requestDirtyFlag: failed to satisfy the request, key (%s) for flag have already been taken
 
 ### 1623
@@ -404,18 +429,22 @@ Not support for asynchronous creating node in SG
 
 ### 1628
 
+<!-- DEPRECATED -->
 Renderer error: Size of the cc._RendererInSG._sgNode must be zero
 
 ### 1629
 
+<!-- DEPRECATED -->
 The node '%s' has a component inherited from 'cc._RendererInSG'
 
 ### 1630
 
+<!-- DEPRECATED -->
 JSB environment is not support invoke node.runAction before the 'cc._RendererInSG' component enabled.
 
 ### 1631
 
+<!-- DEPRECATED -->
 Please use runAction in the method 'start' instead.
 
 ### 1632
@@ -433,6 +462,18 @@ addChild: The child to add must be instance of cc.Node, not %s.
 ### 1635
 
 reorderChild: this child is not in children list.
+
+### 1636
+
+Node's zIndex value can't be greater than cc.macro.MAX_ZINDEX, setting to the maximum value
+
+### 1637
+
+Node's zIndex value can't be smaller than cc.macro.MIN_ZINDEX, setting to the minimum value
+
+### 1638
+
+Private node's zIndex can't be set, it will keep cc.macro.MIN_ZINDEX as its value
 
 ### 1700
 
@@ -1023,6 +1064,14 @@ Mimpap texture only works in POT textures
 
 contentSize parameter is deprecated and ignored for cc.Texture2D initWithData function.
 
+### 3119
+
+Lazy init texture with image element failed due to image loading failure: %s
+
+### 3120
+
+Loading texture from '%s' with unsupported type: '%s'. Add '%s' into 'cc.macro.SUPPORT_TEXTURE_FORMATS' please.
+
 ### 3200
 
 <!-- DEPRECATED -->
@@ -1098,7 +1147,7 @@ Unknown editor property '%s' in class '%s'.
 
 ### 3603
 
-Use 'cc.Float' or 'cc.Integer' instead of 'cc.Number' please. 😂
+Use 'cc.Float' or 'cc.Integer' instead of 'cc.Number' please.
 
 ### 3604
 
@@ -1202,6 +1251,7 @@ Should not add %s to a node which size is already used by its other component.
 
 ### 3629
 
+<!-- DEPRECATED -->
 attribute must be type object
 
 ### 3630
@@ -1303,31 +1353,31 @@ Failed to construct a dummy instance of the "%s" class using `new` behind the sc
 ### 3653
 
 Please do not specifiy "default" attribute in decorator of "%s" property in "%s" class.  
-Default value must be initialized at their declaration: 😰
+Default value must be initialized at their declaration:
 ```
 // Before:
 @property({
   type: cc.Integer
   default: 0  // <--
 })
-value;
+myProp;
 // After:
 @property({
   type: cc.Integer
 })
-value = 0;    // <--
+myProp = 0;    // <--
 ```
 
 ### 3654
 
-Please specifiy a default value for "%s" property at its declaration: 😰
+Please specifiy a default value for "%s.%s" at its declaration:
 ```
 // Before:
 @property(...)
-value; 
+myProp;
 // After:
 @property(...)
-value = 0
+myProp = 0;
 ```
 
 ### 3655
@@ -1526,6 +1576,7 @@ _ccsg.Label._initBMFontWithString(): Impossible to create font. Please check fil
 
 ### 4002
 
+<!-- DEPRECATED -->
 _ccsg.Label._initBMFontWithString(): re-init is no longer supported
 
 ### 4003
@@ -1755,6 +1806,10 @@ Download Uuid: can not find type of raw asset[ %s ]: %s
 
 Since v1.10, for any atlas ("%s") in the "resources" directory, it is not possible to find the contained SpriteFrames via `loadRes`, `getRes` or `releaseRes`. Load the SpriteAtlas first and then use `spriteAtlas.getSpriteFrame(name)` instead please.
 
+### 4933
+
+Download Font [ %s ] failed, using Arial or system default font instead
+
 ### 5000
 
 object already destroyed
@@ -1857,12 +1912,11 @@ Invalid type of %s.%s
 
 ### 5509
 
-<!-- DEPRECATED -->
 The 'type' attribute of '%s.%s' must be child class of cc.Asset, otherwise you should use 'url: %s' instead
 
 ### 5510
 
-The 'type' attribute of '%s.%s' can not be 'Number', use 'Float' or 'Integer' instead please.
+The 'type' attribute of '%s.%s' can not be 'Number', use cc.Float or cc.Integer instead please.
 
 ### 5511
 
@@ -1976,26 +2030,32 @@ cc.ParticleBatchNode._addChildHelper(): child already added. It can't be added a
 
 ### 6008
 
+<!-- DEPRECATED -->
 _ccsg.ParticleSystem.initWithFile(): Particles: file not found
 
 ### 6009
 
+<!-- DEPRECATED -->
 _ccsg.ParticleSystem.initWithDictionary(): Invalid emitterType in config file
 
 ### 6010
 
+<!-- DEPRECATED -->
 _ccsg.ParticleSystem: error decoding or ungzipping textureImageData
 
 ### 6011
 
+<!-- DEPRECATED -->
 _ccsg.ParticleSystem: unknown image format with Data
 
 ### 6012
 
+<!-- DEPRECATED -->
 _ccsg.ParticleSystem.initWithDictionary() : error loading the texture
 
 ### 6013
 
+<!-- DEPRECATED -->
 Particle system: not enough memory
 
 ### 6014
@@ -2005,6 +2065,7 @@ Can't change blending functions when the particle is being batched
 
 ### 6015
 
+<!-- DEPRECATED -->
 _ccsg.ParticleSystem.setDisplayFrame(): QuadParticle only supports SpriteFrames with no offsets
 
 ### 6016
@@ -2063,6 +2124,18 @@ Unknown Photometric Interpretation: %s
 ### 6029
 
 Unkown error
+
+### 6030
+
+cc.ParticleSystem: error decoding or ungzipping textureImageData
+
+### 6031
+
+cc.ParticleSystem: unknown image format with Data
+
+### 6032
+
+cc.ParticleSystem.initWithDictionary() : error loading the texture
 
 ### 6100
 
@@ -2207,26 +2280,32 @@ Property 'mapLoaded' is unused now. Please write the logic to the callback 'star
 
 ### 7204
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileAt(): TMXLayer: the tiles map has been released
 
 ### 7205
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileGIDAt(): TMXLayer: the tiles map has been released
 
 ### 7206
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.setTileGID(): TMXLayer: the tiles map has been released
 
 ### 7207
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.setTileGID(): invalid gid: %s
 
 ### 7208
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileFlagsAt(): TMXLayer: the tiles map has been released
 
 ### 7209
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.removeTileAt(): TMXLayer: the tiles map has been released
 
 ### 7210
@@ -2239,10 +2318,12 @@ TMX invalid value
 
 ### 7212
 
+<!-- DEPRECATED -->
 _ccsg.TMXTiledMap.initWithTMXFile(): Map not found. Please check the filename.
 
 ### 7213
 
+<!-- DEPRECATED -->
 _ccsg.TMXTiledMap.initWithXML(): Map not found. Please check the filename.
 
 ### 7214
@@ -2284,55 +2365,92 @@ Parse %s failed.
 
 ### 7223
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.setTileGID(): pos should be non-null
 
 ### 7224
 
+<!-- DEPRECATED -->
 _ccsg.TMXTiledMap.getLayer(): layerName should be non-null or non-empty string.
 
 ### 7225
 
+<!-- DEPRECATED -->
 _ccsg.TMXTiledMap.getObjectGroup(): groupName should be non-null or non-empty string.
 
 ### 7226
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileAt(): pos should be non-null
 
 ### 7227
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileAt(): invalid position
 
 ### 7228
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileGIDAt(): pos should be non-null
 
 ### 7229
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileGIDAt(): invalid position
 
 ### 7230
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.setTileGID(): pos should be non-null
 
 ### 7231
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.setTileGID(): invalid position
 
 ### 7232
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileFlagsAt(): pos should be non-null
 
 ### 7233
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.getTileFlagsAt(): invalid position
 
 ### 7234
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.removeTileAt(): pos should be non-null
 
 ### 7235
 
+<!-- DEPRECATED -->
 _ccsg.TMXLayer.removeTileAt(): invalid position
+
+### 7236
+
+cc.TMXLayer.getTileAt(): TMXLayer: the tiles map has been released
+
+### 7237
+
+cc.TMXLayer.getTileGIDAt(): TMXLayer: the tiles map has been released
+
+### 7238
+
+cc.TMXLayer.setTileGID(): TMXLayer: the tiles map has been released
+
+### 7239
+
+cc.TMXLayer.setTileGID(): invalid gid: %s
+
+### 7240
+
+cc.TMXLayer.getTileFlagsAt(): TMXLayer: the tiles map has been released
+
+### 7241
+
+cc.TiledMap.initWithXML(): Map not found. Please check the filename.
 
 ### 7300
 
@@ -2520,15 +2638,18 @@ Missing StripByteCounts!
 
 ### 8100
 
+<!-- DEPRECATED -->
 cocos2d: ERROR: Failed to compile shader:
- %s
+%s
 
 ### 8101
 
+<!-- DEPRECATED -->
 cocos2d: ERROR: Failed to compile vertex shader
 
 ### 8102
 
+<!-- DEPRECATED -->
 cocos2d: ERROR: Failed to compile fragment shader
 
 ### 8103
@@ -2578,3 +2699,19 @@ Wrong type arguments, 'filePath' must be a String.
 ### 8401
 
 Since 1.10, `%s` accept %s instance directly, not a URL string. Please directly reference the %s object in your script, or load %s by loader first. Don't use %s's URL anymore.
+
+### 9000
+
+Stencil manager does not support level bigger than %d in this device.
+
+### 9001
+
+Stencil manager is already empty, cannot pop any mask.
+
+### 9100
+
+LabelAtlas '%s' cannot be loaded, raw texture does not exist.
+
+### 9101
+
+LabelAtlas '%s' cannot be loaded, fnt data does not exist.

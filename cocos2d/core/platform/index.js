@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -30,7 +30,6 @@ require('./CCClassDecorator');
 require('./CCEnum');
 require('./CCObject');
 require('./callbacks-invoker');
-require('./url');
 require('./deserialize');
 require('./instantiate');
 require('./instantiate-jit');
@@ -39,8 +38,5 @@ require('./CCSys');
 require('./CCMacro');
 
 if (!(CC_EDITOR && Editor.isMainProcess)) {
-    require('./CCAssetLibrary');
-    if (!CC_JSB) {
-        require('./CCVisibleRect');
-    }
+    require('./CCVisibleRect');
 }

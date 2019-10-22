@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -23,15 +23,14 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-
 function getWorldRotation (node) {
-    var rot = node.rotationX;
+    var rot = node.angle;
     var parent = node.parent;
     while(parent.parent){
-        rot += parent.rotationX;
+        rot += parent.angle;
         parent = parent.parent;
     }
-    return rot;
+    return -rot;
 }
 
 function getWorldScale (node) {
@@ -50,10 +49,10 @@ function getWorldScale (node) {
 }
 
 function convertToNodeRotation (node, rotation) {
-    rotation -= node.rotationX;
+    rotation -= -node.angle;
     var parent = node.parent;
     while(parent.parent){
-        rotation -= parent.rotationX;
+        rotation -= -parent.angle;
         parent = parent.parent;
     }
     return rotation;

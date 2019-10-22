@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,7 +24,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var eventManager = require('../event-manager');
+var Event = require('../CCNode').EventType;
 
 var TOP     = 1 << 0;
 var MID     = 1 << 1;   // vertical center
@@ -46,23 +46,19 @@ function getReadonlyNodeSize (parent) {
     if (parent instanceof cc.Scene) {
         return CC_EDITOR ? cc.engine.getDesignResolutionSize() : cc.visibleRect;
     }
-    else if (!parent._sizeProvider || (parent._sizeProvider instanceof _ccsg.Node)) {
-        return parent._contentSize;
-    }
     else {
-        return parent.getContentSize();
+        return parent._contentSize;
     }
 }
 
 function computeInverseTransForTarget (widgetNode, target, out_inverseTranslate, out_inverseScale) {
-    var scaleX = widgetNode._parent._scaleX;
-    var scaleY = widgetNode._parent._scaleY;
+    var scaleX = widgetNode._parent.scaleX;
+    var scaleY = widgetNode._parent.scaleY;
     var translateX = 0;
     var translateY = 0;
     for (var node = widgetNode._parent;;) {
-        var pos = node._position;
-        translateX += pos.x;
-        translateY += pos.y;
+        translateX += node.x;
+        translateY += node.y;
         node = node._parent;    // loop increment
         if (!node) {
             // ERROR: widgetNode should be child of target
@@ -71,8 +67,8 @@ function computeInverseTransForTarget (widgetNode, target, out_inverseTranslate,
             return;
         }
         if (node !== target) {
-            var sx = node._scaleX;
-            var sy = node._scaleY;
+            var sx = node.scaleX;
+            var sy = node.scaleY;
             translateX *= sx;
             translateY *= sy;
             scaleX *= sx;
@@ -109,7 +105,7 @@ function align (node, widget) {
     var targetAnchor = target._anchorPoint;
 
     var isRoot = !CC_EDITOR && target instanceof cc.Scene;
-    var x = node._position.x, y = node._position.y;
+    var x = node.x, y = node.y;
     var anchor = node._anchorPoint;
 
     if (widget._alignFlags & HORIZONTAL) {
@@ -135,7 +131,7 @@ function align (node, widget) {
             localRight *= inverseScale.x;
         }
 
-        var width, anchorX = anchor.x, scaleX = node._scaleX;
+        var width, anchorX = anchor.x, scaleX = node.scaleX;
         if (scaleX < 0) {
             anchorX = 1.0 - anchorX;
             scaleX = -scaleX;
@@ -192,7 +188,7 @@ function align (node, widget) {
             localTop *= inverseScale.y;
         }
 
-        var height, anchorY = anchor.y, scaleY = node._scaleY;
+        var height, anchorY = anchor.y, scaleY = node.scaleY;
         if (scaleY < 0) {
             anchorY = 1.0 - anchorY;
             scaleY = -scaleY;
@@ -232,14 +228,7 @@ function visitNode (node) {
     var widget = node._widget;
     if (widget) {
         if (CC_DEV) {
-            var target = widget._target;
-            if (target) {
-                var isParent = node !== target && node.isChildOf(target);
-                if (!isParent) {
-                    cc.errorID(6500);
-                    widget._target = null;
-                }
-            }
+            widget._validateTargetInDEV();
         }
         align(node, widget);
         if ((!CC_EDITOR || animationState.animatedSinceLastFrame) && widget.alignMode !== AlignMode.ALWAYS) {
@@ -270,21 +259,34 @@ function refreshScene () {
     // check animation editor
     if (CC_EDITOR && !Editor.isBuilder) {
         var AnimUtils = Editor.require('scene://utils/animation');
-        if (AnimUtils) {
-            var nowPreviewing = !!AnimUtils.Cache.animation;
+        var EditMode = Editor.require('scene://edit-mode');
+        if (AnimUtils && EditMode) {
+            var nowPreviewing = (EditMode.curMode().name === 'animation' && !!AnimUtils.Cache.animation);
             if (nowPreviewing !== animationState.previewing) {
                 animationState.previewing = nowPreviewing;
                 if (nowPreviewing) {
                     animationState.animatedSinceLastFrame = true;
-                    animationState.time = AnimUtils.Cache.animation.time;
+                    let component = cc.engine.getInstanceById(AnimUtils.Cache.component);
+                    if (component) {
+                        let animation = component.getAnimationState(AnimUtils.Cache.animation);
+                        if (animation) {
+                            animationState.time = animation.time;
+                        }
+                    }
                 }
                 else {
                     animationState.animatedSinceLastFrame = false;
                 }
             }
-            else if (nowPreviewing && animationState.time !== AnimUtils.Cache.animation.time) {
-                animationState.animatedSinceLastFrame = true;
-                animationState.time = AnimUtils.Cache.animation.time;
+            else if (nowPreviewing) {
+                let component = cc.engine.getInstanceById(AnimUtils.Cache.component);
+                if (component) {
+                    let animation = component.getAnimationState(AnimUtils.Cache.animation);
+                    if (animation && animationState.time !== animation.time) {
+                        animationState.animatedSinceLastFrame = true;
+                        animationState.time = AnimUtils.Cache.animation.time;
+                    }
+                }
             }
         }
     }
@@ -303,19 +305,21 @@ function refreshScene () {
             if (CC_EDITOR &&
                 (AnimUtils = Editor.require('scene://utils/animation')) &&
                 AnimUtils.Cache.animation) {
-                var editingNode = AnimUtils.Cache.rNode;
-                for (i = activeWidgets.length - 1; i >= 0; i--) {
-                    widget = activeWidgets[i];
-                    var node = widget.node;
-                    if (widget.alignMode !== AlignMode.ALWAYS &&
-                        animationState.animatedSinceLastFrame &&
-                        node.isChildOf(editingNode)
-                    ) {
-                        // widget contains in activeWidgets should aligned at least once
-                        widget.enabled = false;
-                    }
-                    else {
-                        align(node, widget);
+                var editingNode = cc.engine.getInstanceById(AnimUtils.Cache.rNode);
+                if (editingNode) {
+                    for (i = activeWidgets.length - 1; i >= 0; i--) {
+                        widget = activeWidgets[i];
+                        var node = widget.node;
+                        if (widget.alignMode !== AlignMode.ALWAYS &&
+                            animationState.animatedSinceLastFrame &&
+                            node.isChildOf(editingNode)
+                        ) {
+                            // widget contains in activeWidgets should aligned at least once
+                            widget.enabled = false;
+                        }
+                        else {
+                            align(node, widget);
+                        }
                     }
                 }
             }
@@ -337,11 +341,10 @@ function refreshScene () {
     }
 }
 
-var adjustWidgetToAllowMovingInEditor = CC_EDITOR && function (event) {
+var adjustWidgetToAllowMovingInEditor = CC_EDITOR && function (oldPos) {
     if (widgetManager.isAligning) {
         return;
     }
-    var oldPos = event.detail;
     var newPos = this.node.position;
     var delta = newPos.sub(oldPos);
 
@@ -382,13 +385,12 @@ var adjustWidgetToAllowMovingInEditor = CC_EDITOR && function (event) {
     }
 };
 
-var adjustWidgetToAllowResizingInEditor = CC_EDITOR && function (event) {
+var adjustWidgetToAllowResizingInEditor = CC_EDITOR && function (oldSize) {
     if (widgetManager.isAligning) {
         return;
     }
-    var oldSize = event.detail;
     var newSize = this.node.getContentSize();
-    var delta = cc.p(newSize.width - oldSize.width, newSize.height - oldSize.height);
+    var delta = cc.v2(newSize.width - oldSize.width, newSize.height - oldSize.height);
 
     var target = this.node._parent;
     var inverseScale = cc.Vec2.ONE;
@@ -432,7 +434,7 @@ function updateAlignment (node) {
     }
     var widget = node._widget ||
                  node.getComponent(cc.Widget);  // node._widget will be null when widget is disabled
-    if (widget) {
+    if (widget && parent) {
         align(node, widget);
     }
 }
@@ -451,41 +453,34 @@ var widgetManager = cc._widgetManager = module.exports = {
     _activeWidgetsIterator: new cc.js.array.MutableForwardIterator(activeWidgets),
 
     init: function (director) {
-        director.on(cc.Director.EVENT_BEFORE_VISIT, refreshScene);
+        director.on(cc.Director.EVENT_AFTER_UPDATE, refreshScene);
 
         if (CC_EDITOR && cc.engine) {
             cc.engine.on('design-resolution-changed', this.onResized.bind(this));
         }
-        else if (!CC_JSB) {
+        else {
             if (cc.sys.isMobile) {
                 window.addEventListener('resize', this.onResized.bind(this));
             }
             else {
-                eventManager.addCustomListener('canvas-resize', this.onResized.bind(this));
+                cc.view.on('canvas-resize', this.onResized, this);
             }
-        }
-        else {
-            eventManager.addListener(cc.EventListener.create({
-                event: cc.EventListener.CUSTOM,
-                eventName: "window-resize",
-                callback: this.onResized.bind(this)
-            }), 1);
         }
     },
     add: function (widget) {
         widget.node._widget = widget;
         this._nodesOrderDirty = true;
         if (CC_EDITOR && !cc.engine.isPlaying) {
-            widget.node.on('position-changed', adjustWidgetToAllowMovingInEditor, widget);
-            widget.node.on('size-changed', adjustWidgetToAllowResizingInEditor, widget);
+            widget.node.on(Event.POSITION_CHANGED, adjustWidgetToAllowMovingInEditor, widget);
+            widget.node.on(Event.SIZE_CHANGED, adjustWidgetToAllowResizingInEditor, widget);
         }
     },
     remove: function (widget) {
         widget.node._widget = null;
         this._activeWidgetsIterator.remove(widget);
         if (CC_EDITOR && !cc.engine.isPlaying) {
-            widget.node.off('position-changed', adjustWidgetToAllowMovingInEditor, widget);
-            widget.node.off('size-changed', adjustWidgetToAllowResizingInEditor, widget);
+            widget.node.off(Event.POSITION_CHANGED, adjustWidgetToAllowMovingInEditor, widget);
+            widget.node.off(Event.SIZE_CHANGED, adjustWidgetToAllowResizingInEditor, widget);
         }
     },
     onResized () {

@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -23,7 +23,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var JS = require('./js');
+var js = require('./js');
 var CCClass = require('./CCClass');
 
 // definitions for CCObject.Flags
@@ -39,7 +39,7 @@ var Destroying = 1 << 7;
 var Deactivating = 1 << 8;
 var LockedInEditor = 1 << 9;
 //var HideInGame = 1 << 9;
-//var HideInEditor = 1 << 10;
+var HideInHierarchy = 1 << 10;
 
 var IsOnEnableCalled = 1 << 11;
 var IsEditorOnEnableCalled = 1 << 12;
@@ -54,7 +54,7 @@ var IsAnchorLocked = 1 << 19;
 var IsSizeLocked = 1 << 20;
 var IsPositionLocked = 1 << 21;
 
-//var Hide = HideInGame | HideInEditor;
+//var Hide = HideInGame | HideInHierarchy;
 // should not clone or serialize these flags
 var PersistentMask = ~(ToDestroy | Dirty | Destroying | DontDestroy | Deactivating |
                        IsPreloadStarted | IsOnLoadStarted | IsOnLoadCalled | IsStartCalled |
@@ -92,7 +92,7 @@ CCClass.fastDefine('cc.Object', CCObject, { _name: '', _objFlags: 0 });
  * @static
  * @private
  */
-JS.value(CCObject, 'Flags', {
+js.value(CCObject, 'Flags', {
 
     Destroyed,
     //ToDestroy: ToDestroy,
@@ -115,7 +115,7 @@ JS.value(CCObject, 'Flags', {
 
     /**
      * !#en Dont destroy automatically when loading a new scene.
-     * !#zh 加载一个新场景时，不自动删除该对象
+     * !#zh 加载一个新场景时，不自动删除该对象。
      * @property DontDestroy
      * @private
      */
@@ -137,7 +137,7 @@ JS.value(CCObject, 'Flags', {
 
     /**
      * !#en The lock node, when the node is locked, cannot be clicked in the scene.
-     * !#zh 锁定节点，锁定后场景内不能点击
+     * !#zh 锁定节点，锁定后场景内不能点击。
      * 
      * @property LockedInEditor
      * @private
@@ -157,12 +157,12 @@ JS.value(CCObject, 'Flags', {
 
     // FLAGS FOR EDITOR
 
-    ///**
-    // * !#en This flag is readonly, it can only be used as an argument of scene.addEntity() or Entity.createWithFlags().
-    // * !#zh 该标记只读，它只能被用作 scene.addEntity()的一个参数。
-    // * @property {Number} HideInEditor
-    // */
-    //HideInEditor: HideInEditor,
+    /**
+     * !#en Hide the object in editor.
+     * !#zh 在编辑器中隐藏该对象。
+     * @property {Number} HideInHierarchy
+     */
+    HideInHierarchy: HideInHierarchy,
 
     ///**
     // * !#en
@@ -174,9 +174,6 @@ JS.value(CCObject, 'Flags', {
     // * @property {Number} Hide
     // */
     //Hide: Hide,
-
-    //// UUID Registered in editor
-    //RegisteredInEditor: RegisteredInEditor,
 
     // FLAGS FOR COMPONENT
 
@@ -218,10 +215,10 @@ function deferredDestroy () {
     }
 }
 
-JS.value(CCObject, '_deferredDestroy', deferredDestroy);
+js.value(CCObject, '_deferredDestroy', deferredDestroy);
 
 if (CC_EDITOR) {
-    JS.value(CCObject, '_clearDeferredDestroyTimer', function () {
+    js.value(CCObject, '_clearDeferredDestroyTimer', function () {
         if (deferredDestroyTimer !== null) {
             clearImmediate(deferredDestroyTimer);
             deferredDestroyTimer = null;
@@ -245,7 +242,7 @@ var prototype = CCObject.prototype;
  * @example
  * obj.name = "New Obj";
  */
-JS.getset(prototype, 'name',
+js.getset(prototype, 'name',
     function () {
         return this._name;
     },
@@ -278,12 +275,12 @@ JS.getset(prototype, 'name',
  * // after a frame...
  * cc.log(node.isValid);    // false, destroyed in the end of last frame
  */
-JS.get(prototype, 'isValid', function () {
+js.get(prototype, 'isValid', function () {
     return !(this._objFlags & Destroyed);
 }, true);
 
 if (CC_EDITOR || CC_TEST) {
-    JS.get(prototype, 'isRealValid', function () {
+    js.get(prototype, 'isRealValid', function () {
         return !(this._objFlags & RealDestroyed);
     });
 }
@@ -349,9 +346,15 @@ if (CC_EDITOR || CC_TEST) {
 }
 
 function compileDestruct (obj, ctor) {
+    var shouldSkipId = obj instanceof cc._BaseNode || obj instanceof cc.Component;
+    var idToSkip = shouldSkipId ? '_id' : null;
+
     var key, propsToReset = {};
     for (key in obj) {
         if (obj.hasOwnProperty(key)) {
+            if (key === idToSkip) {
+                continue;
+            }
             switch (typeof obj[key]) {
                 case 'string':
                     propsToReset[key] = '';
@@ -371,6 +374,9 @@ function compileDestruct (obj, ctor) {
             key = propList[i];
             var attrKey = key + cc.Class.Attr.DELIMETER + 'default';
             if (attrKey in attrs) {
+                if (shouldSkipId && key === '_id') {
+                    continue;
+                }
                 switch (typeof attrs[attrKey]) {
                     case 'string':
                         propsToReset[key] = '';
@@ -386,15 +392,11 @@ function compileDestruct (obj, ctor) {
             }
         }
     }
-    // compile code
-    var skipId = obj instanceof cc._BaseNode || obj instanceof cc.Component;
 
     if (CC_SUPPORT_JIT) {
+        // compile code
         var func = '';
         for (key in propsToReset) {
-            if (skipId && key === '_id') {
-                continue;
-            }
             var statement;
             if (CCClass.IDENTIFIER_RE.test(key)) {
                 statement = 'o.' + key + '=';
@@ -412,10 +414,7 @@ function compileDestruct (obj, ctor) {
     }
     else {
         return function (o) {
-            for (key in propsToReset) {
-                if (skipId && key === '_id') {
-                    continue;
-                }
+            for (var key in propsToReset) {
                 o[key] = propsToReset[key];
             }
         };
@@ -450,7 +449,7 @@ prototype._destruct = function () {
     var destruct = ctor.__destruct__;
     if (!destruct) {
         destruct = compileDestruct(this, ctor);
-        JS.value(ctor, '__destruct__', destruct, true);
+        js.value(ctor, '__destruct__', destruct, true);
     }
     destruct(this);
 };
@@ -537,12 +536,12 @@ cc.isValid = function (value, strictMode) {
 };
 
 if (CC_EDITOR || CC_TEST) {
-    JS.value(CCObject, '_willDestroy', function (obj) {
+    js.value(CCObject, '_willDestroy', function (obj) {
         return !(obj._objFlags & Destroyed) && (obj._objFlags & ToDestroy) > 0;
     });
-    JS.value(CCObject, '_cancelDestroy', function (obj) {
+    js.value(CCObject, '_cancelDestroy', function (obj) {
         obj._objFlags &= ~ToDestroy;
-        JS.array.fastRemove(objectsToDestroy, obj);
+        js.array.fastRemove(objectsToDestroy, obj);
     });
 }
 

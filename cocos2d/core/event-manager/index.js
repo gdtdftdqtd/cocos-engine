@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -25,16 +25,10 @@
  ****************************************************************************/
 
 require('./CCEvent');
+require('./CCTouch');
+require('./CCEventListener');
 
-var eventManager;
-if (CC_JSB) {
-    eventManager = cc.eventManager;
-}
-else {
-    require('./CCTouch');
-    require('./CCEventListener');
-    eventManager = require('./CCEventManager');
-}
+var eventManager = require('./CCEventManager');;
 
 module.exports = eventManager;
 

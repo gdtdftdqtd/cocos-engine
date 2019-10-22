@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -23,6 +23,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
+
+const js = require('./js');
+const Attrs = require('./attribute');
 
 // 增加预处理属性这个步骤的目的是降低 CCClass 的实现难度，将比较稳定的通用逻辑和一些需求比较灵活的属性需求分隔开。
 
@@ -65,6 +68,10 @@ function parseNotify (val, propName, notify, properties) {
             notify.call(this, oldValue);
         };
 
+        if (CC_EDITOR) {
+            val.notifyFor = newKey;
+        }
+
         var newValue = {};
         properties[newKey] = newValue;
         // 将不能用于get方法中的属性移动到newValue中
@@ -96,7 +103,7 @@ function checkUrl (val, className, propName, url) {
         if (url == null) {
             return cc.warnID(5503, className, propName);
         }
-        if (typeof url !== 'function' || !cc.isChildClassOf(url, cc.RawAsset)) {
+        if (typeof url !== 'function' || !js.isChildClassOf(url, cc.RawAsset)) {
             return cc.errorID(5504, className, propName);
         }
         if (url === cc.RawAsset) {
@@ -122,7 +129,7 @@ function checkUrl (val, className, propName, url) {
                     'sorry for the inconvenience. \uD83D\uDE30 )',
                     propName, className, propName, propName, propName, propName, propName);
         }
-        else if (cc.isChildClassOf(url, cc.Asset)) {
+        else if (js.isChildClassOf(url, cc.Asset)) {
             if (cc.RawAsset.wasRawAssetType(url)) {
                 if (!val._short) {
                     cc.warn('Please change the definition of property \'%s\' in class \'%s\'. Starting from v1.10,\n' +
@@ -156,8 +163,10 @@ function checkUrl (val, className, propName, url) {
 }
 
 function parseType (val, type, className, propName) {
+    const STATIC_CHECK = (CC_EDITOR && CC_DEV) || CC_TEST;
+
     if (Array.isArray(type)) {
-        if (CC_EDITOR) {
+        if (STATIC_CHECK && 'default' in val) {
             var isArray = require('./CCClass').isArray;   // require lazily to avoid circular require() calls
             if (!isArray(val.default)) {
                 cc.warnID(5507, className, propName);
@@ -177,25 +186,56 @@ function parseType (val, type, className, propName) {
             return cc.errorID(5508, className, propName);
         }
     }
-    if (CC_EDITOR) {
-        if (typeof type === 'function') {
-            if (cc.RawAsset.isRawAssetType(type)) {
-                cc.warnID(5509, className, propName,
-                    cc.js.getClassName(type));
+    if (typeof type === 'function') {
+        if (type === String) {
+            val.type = cc.String;
+            if (STATIC_CHECK) {
+                cc.warnID(3608, `"${className}.${propName}"`);
             }
         }
-        else if (type === 'Number') {
-            cc.warnID(5510, className, propName);
+        else if (type === Boolean) {
+            val.type = cc.Boolean;
+            if (STATIC_CHECK) {
+                cc.warnID(3609, `"${className}.${propName}"`);
+            }
         }
-        else if (type == null) {
+        else if (type === Number) {
+            val.type = cc.Float;
+            if (STATIC_CHECK) {
+                cc.warnID(3610, `"${className}.${propName}"`);
+            }
+        }
+        else if (STATIC_CHECK && cc.RawAsset.isRawAssetType(type)) {
+            cc.warnID(5509, className, propName, js.getClassName(type));
+        }
+    }
+    else if (STATIC_CHECK) {
+        switch (type) {
+        case 'Number':
+            cc.warnID(5510, className, propName);
+            break;
+        case 'String':
+            cc.warn(`The type of "${className}.${propName}" must be cc.String, not "String".`);
+            break;
+        case 'Boolean':
+            cc.warn(`The type of "${className}.${propName}" must be cc.Boolean, not "Boolean".`);
+            break;
+        case 'Float':
+            cc.warn(`The type of "${className}.${propName}" must be cc.Float, not "Float".`);
+            break;
+        case 'Integer':
+            cc.warn(`The type of "${className}.${propName}" must be cc.Integer, not "Integer".`);
+            break;
+        case null:
             cc.warnID(5511, className, propName);
+            break;
         }
     }
 }
 
 function postCheckType (val, type, className, propName) {
     if (CC_EDITOR && typeof type === 'function') {
-        if (cc.Class._isCCClass(type) && val.serializable !== false && !cc.js._getClassId(type, false)) {
+        if (cc.Class._isCCClass(type) && val.serializable !== false && !js._getClassId(type, false)) {
             cc.warnID(5512, className, propName, className, propName);
         }
     }
@@ -216,79 +256,95 @@ function getBaseClassWherePropertyDefined_DEV (propName, cls) {
 
 exports.getFullFormOfProperty = function (options, propname_dev, classname_dev) {
     var isLiteral = options && options.constructor === Object;
-    if ( !isLiteral ) {
-        if (Array.isArray(options) && options.length > 0) {
-            var type = options[0];
-            if (CC_DEV && cc.RawAsset.wasRawAssetType(type)) {
-                // deprecate `myProp: [cc.Texture2D]` since 1.10
-                cc.warn('Please change the definition of property \'%s\' in class \'%s\'. Starting from v1.10,\n' +
-                        'properties in CCClass can not be abbreviated if they are of type RawAsset.\n' +
-                        'Please use the complete form.\n' +
-                        'For example, if property is Texture2D\'s url array, the previous definition is:\n' +
-                        '    %s: [cc.Texture2D],\n' +
-                        'Now it should be changed to:\n' +
-                        '    %s: {\n' +
-                        '      type: cc.Texture2D, // use \'type:\' to define an array of Texture2D objects\n' +
-                        '      default: []\n' +
-                        '    },\n' +
-                        '(This helps us to successfully refactor all RawAssets at v2.0, ' +
-                        'sorry for the inconvenience. \uD83D\uDE30 )',
-                        propname_dev, classname_dev, propname_dev, propname_dev);
+    if (isLiteral) {
+        return null;
+    }
+    if (Array.isArray(options) && options.length > 0) {
+        let type = options[0];
+        if (CC_DEV && cc.RawAsset.wasRawAssetType(type)) {
+            // deprecate `myProp: [cc.Texture2D]` since 1.10
+            cc.warn('Please change the definition of property \'%s\' in class \'%s\'. Starting from v1.10,\n' +
+                    'properties in CCClass can not be abbreviated if they are of type RawAsset.\n' +
+                    'Please use the complete form.\n' +
+                    'For example, if property is Texture2D\'s url array, the previous definition is:\n' +
+                    '    %s: [cc.Texture2D],\n' +
+                    'If you use JS, it should be changed to:\n' +
+                    '    %s: {\n' +
+                    '      type: cc.Texture2D, // use \'type:\' to define an array of Texture2D objects\n' +
+                    '      default: []\n' +
+                    '    },\n' +
+                    'If you use TS, it should be changed to:\n' +
+                    '    %s: {\n' +
+                    '      type: cc.Texture2D, // use \'type:\' to define an array of Texture2D objects\n' +
+                    '    }\n' +
+                    '   %s: cc.Texture2D[] = [];\n'+
+                    '(This helps us to successfully refactor all RawAssets at v2.0, ' +
+                    'sorry for the inconvenience. \uD83D\uDE30 )',
+                    propname_dev, classname_dev, propname_dev, propname_dev);
+            return {
+                default: [],
+                url: options,
+                _short: true
+            };
+        }
+        return {
+            default: [],
+            type: options,
+            _short: true
+        };
+    }
+    else if (typeof options === 'function') {
+        let type = options;
+        if (!cc.RawAsset.isRawAssetType(type)) {
+            if (cc.RawAsset.wasRawAssetType(type)) {
+                // deprecate `myProp: cc.Texture2D` since 1.10
+                if (CC_DEV) {
+                    cc.warn('Please change the definition of property \'%s\' in class \'%s\'. Starting from v1.10,\n' +
+                            'properties in CCClass can not be abbreviated if they are of type RawAsset.\n' +
+                            'Please use the complete form.\n' +
+                            'For example, if the type is Texture2D, the previous definition is:\n' +
+                            '    %s: cc.Texture2D,\n' +
+                            'If you use JS, it should be changed to:\n' +
+                            '    %s: {\n' +
+                            '      type: cc.Texture2D // use \'type:\' to define Texture2D object directly\n' +
+                            '      default: null,     // object\'s default value is null\n' +
+                            '    },\n' +
+                            'If you use TS, it should be changed to:\n' +
+                            '    %s: {\n' +
+                            '      type: cc.Texture2D // use \'type:\' to define Texture2D object directly\n' +
+                            '    }\n' +
+                            '    %s: cc.Texture2D = null;\n'+
+                            '(This helps us to successfully refactor all RawAssets at v2.0, ' +
+                            'sorry for the inconvenience. \uD83D\uDE30 )',
+                            propname_dev, classname_dev, propname_dev, propname_dev);
+                }
+            }
+            else {
                 return {
-                    default: [],
-                    url: options,
+                    default: js.isChildClassOf(type, cc.ValueType) ? new type() : null,
+                    type: type,
                     _short: true
                 };
             }
-            return {
-                default: [],
-                type: options,
-                _short: true
-            };
         }
-        else if (typeof options === 'function') {
-            var type = options;
-            if (!cc.RawAsset.isRawAssetType(type)) {
-                if (cc.RawAsset.wasRawAssetType(type)) {
-                    // deprecate `myProp: cc.Texture2D` since 1.10
-                    if (CC_DEV) {
-                        cc.warn('Please change the definition of property \'%s\' in class \'%s\'. Starting from v1.10,\n' +
-                                'properties in CCClass can not be abbreviated if they are of type RawAsset.\n' +
-                                'Please use the complete form.\n' +
-                                'For example, if the type is Texture2D, the previous definition is:\n' +
-                                '    %s: cc.Texture2D,\n' +
-                                'Now it should be changed to:\n' +
-                                '    %s: {\n' +
-                                '      type: cc.Texture2D // use \'type:\' to define Texture2D object directly\n' +
-                                '      default: null,     // object\'s default value is null\n' +
-                                '    },\n' +
-                                '(This helps us to successfully refactor all RawAssets at v2.0, ' +
-                                'sorry for the inconvenience. \uD83D\uDE30 )',
-                                propname_dev, classname_dev, propname_dev, propname_dev);
-                    }
-                }
-                else {
-                    return {
-                        default: cc.isChildClassOf(type, cc.ValueType) ? new type() : null,
-                        type: type,
-                        _short: true
-                    };
-                }
-            }
-            return {
-                default: '',
-                url: type,
-                _short: true
-            };
-        }
-        else {
-            return {
-                default: options,
-                _short: true
-            };
-        }
+        return {
+            default: '',
+            url: type,
+            _short: true
+        };
     }
-    return null;
+    else if (options instanceof Attrs.PrimitiveType) {
+        return {
+            default: options.default,
+            _short: true
+        };
+    }
+    else {
+        return {
+            default: options,
+            _short: true
+        };
+    }
 };
 
 exports.preprocessAttrs = function (properties, className, cls, es6) {
@@ -321,7 +377,7 @@ exports.preprocessAttrs = function (properties, className, cls, es6) {
             }
             if (CC_DEV && !val.override && cls.__props__.indexOf(propName) !== -1) {
                 // check override
-                var baseClass = cc.js.getClassName(getBaseClassWherePropertyDefined_DEV(propName, cls));
+                var baseClass = js.getClassName(getBaseClassWherePropertyDefined_DEV(propName, cls));
                 cc.warnID(5517, className, propName, baseClass, propName);
             }
             var notify = val.notify;
@@ -354,12 +410,12 @@ if (CC_DEV) {
     exports.doValidateMethodWithProps_DEV = function (func, funcName, className, cls, base) {
         if (cls.__props__ && cls.__props__.indexOf(funcName) >= 0) {
             // find class that defines this method as a property
-            var baseClassName = cc.js.getClassName(getBaseClassWherePropertyDefined_DEV(funcName, cls));
+            var baseClassName = js.getClassName(getBaseClassWherePropertyDefined_DEV(funcName, cls));
             cc.errorID(3648, className, funcName, baseClassName);
             return false;
         }
         if (funcName === 'destroy' &&
-            cc.isChildClassOf(base, cc.Component) &&
+            js.isChildClassOf(base, cc.Component) &&
             !CALL_SUPER_DESTROY_REG_DEV.test(func)
         ) {
             cc.error(`Overwriting '${funcName}' function in '${className}' class without calling super is not allowed. Call the super function in '${funcName}' please.`);
@@ -383,7 +439,7 @@ exports.validateMethodWithProps = function (func, funcName, className, cls, base
                 // check override
                 var overrided = base.prototype[funcName];
                 if (typeof overrided === 'function') {
-                    var baseFuc = cc.js.getClassName(base) + '.' + funcName;
+                    var baseFuc = js.getClassName(base) + '.' + funcName;
                     var subFuc = className + '.' + funcName;
                     cc.warnID(3624, subFuc, baseFuc, subFuc, subFuc);
                 }

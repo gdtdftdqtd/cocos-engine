@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -23,6 +23,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+const BodyType = require('../CCPhysicsTypes').BodyType;
 
 function PhysicsAABBQueryCallback () {
     this._point = new b2.Vec2();
@@ -45,7 +46,7 @@ PhysicsAABBQueryCallback.prototype.init = function (point) {
 
 PhysicsAABBQueryCallback.prototype.ReportFixture = function (fixture) {
     var body = fixture.GetBody();
-    if (body.GetType() === b2.Body.b2_dynamicBody) {
+    if (body.GetType() === BodyType.Dynamic) {
         if (this._isPoint) {
             if (fixture.TestPoint(this._point)) {
                 this._fixtures.push(fixture);

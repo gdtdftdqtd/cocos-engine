@@ -23,12 +23,27 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var BaseObject = dragonBones.BaseObject;
+let BaseObject = dragonBones.BaseObject,
+    BaseFactory = dragonBones.BaseFactory;
 
+/**
+ * @module dragonBones
+*/
+
+/**
+ * @class CCFactory
+ * @extends BaseFactory
+*/
 var CCFactory = dragonBones.CCFactory = cc.Class({
     name: 'dragonBones.CCFactory',
-    extends: dragonBones.BaseFactory,
-
+    extends: BaseFactory,
+    /**
+     * @method getInstance
+     * @return {CCFactory}
+     * @static
+     * @example
+     * let factory = dragonBones.CCFactory.getInstance();
+    */
     statics: {
         _factory: null,
         getInstance () {
@@ -39,130 +54,133 @@ var CCFactory = dragonBones.CCFactory = cc.Class({
         }
     },
 
-    buildArmatureDisplay : function (armatureName, dragonBonesName, skinName) {
-        var armature = this.buildArmature(armatureName, dragonBonesName, skinName);
-        var armatureDisplay = armature ? armature._display : null;
-        if (armatureDisplay) {
-            armatureDisplay.advanceTimeBySelf(true);
+    ctor () {
+        let eventManager = new dragonBones.CCArmatureDisplay();
+        this._dragonBones = new dragonBones.DragonBones(eventManager);
+
+        if (!CC_NATIVERENDERER && !CC_EDITOR && cc.director._scheduler) {
+            cc.game.on(cc.game.EVENT_RESTART, this.initUpdate, this);
+            this.initUpdate();
+        }
+    },
+
+    initUpdate (dt) {
+        cc.director._scheduler.enableForTarget(this);
+        cc.director._scheduler.scheduleUpdate(this, cc.Scheduler.PRIORITY_SYSTEM, false);
+    },
+
+    update (dt) {
+        this._dragonBones.advanceTime(dt);
+    },
+
+    getDragonBonesDataByRawData (rawData) {
+        var dataParser = rawData instanceof ArrayBuffer ? BaseFactory._binaryParser : this._dataParser;
+        return dataParser.parseDragonBonesData(rawData, 1.0);
+    },
+
+    // Build new aramture with a new display.
+    buildArmatureDisplay (armatureName, dragonBonesName, skinName, textureAtlasName) {
+        let armature = this.buildArmature(armatureName, dragonBonesName, skinName, textureAtlasName);
+        return armature && armature._display;
+    },
+
+    // Build sub armature from an exist armature component.
+    // It will share dragonAsset and dragonAtlasAsset.
+    // But node can not share,or will cause render error.
+    createArmatureNode (comp, armatureName, node) {
+        node = node || new cc.Node();
+        let display = node.getComponent(dragonBones.ArmatureDisplay);
+        if (!display) {
+            display = node.addComponent(dragonBones.ArmatureDisplay);
         }
 
-        return armatureDisplay;
-    },
+        node.name = armatureName;
+        
+        display._armatureName = armatureName;
+        display._N$dragonAsset = comp.dragonAsset;
+        display._N$dragonAtlasAsset = comp.dragonAtlasAsset;
+        display._init();
 
-    parseTextureAtlasData (jsonString, texture) {
-        var atlasJsonObj = JSON.parse(jsonString);
-        return this._super(atlasJsonObj, texture);
+        return display;
     },
-
-    _generateTextureAtlasData : function (textureAtlasData, texture) {
-        if (! textureAtlasData) {
+    
+    _buildTextureAtlasData (textureAtlasData, textureAtlas) {
+        if (textureAtlasData) {
+            textureAtlasData.renderTexture = textureAtlas;
+        }
+        else {
             textureAtlasData = BaseObject.borrowObject(dragonBones.CCTextureAtlasData);
         }
-
-        textureAtlasData.texture = texture;
         return textureAtlasData;
     },
 
-    _generateArmature : function (dataPackage) {
-        var armature = BaseObject.borrowObject(dragonBones.Armature);
-        var armatureDisplayContainer = new dragonBones.CCArmatureDisplay();
+    _sortSlots () {
+        let slots = this._slots;
+        let sortedSlots = [];
+        for (let i = 0, l = slots.length; i < l; i++) {
+            let slot = slots[i];
+            let zOrder = slot._zOrder;
+            let inserted = false;
+            for (let j = sortedSlots.length - 1; j >= 0; j--) {
+                if (zOrder >= sortedSlots[j]._zOrder) {
+                    sortedSlots.splice(j+1, 0, slot);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) {
+                sortedSlots.splice(0, 0, slot);
+            }
+        }
+        this._slots = sortedSlots;
+    },
 
-        armature._armatureData = dataPackage.armature;
+    _buildArmature (dataPackage) {
+        let armature = BaseObject.borrowObject(dragonBones.Armature);
+
         armature._skinData = dataPackage.skin;
         armature._animation = BaseObject.borrowObject(dragonBones.Animation);
-        armature._display = armatureDisplayContainer;
-        armatureDisplayContainer.setCascadeOpacityEnabled(true);
-        armatureDisplayContainer.setCascadeColorEnabled(true);
-        armatureDisplayContainer._armature = armature;
         armature._animation._armature = armature;
+        armature._animation.animations = dataPackage.armature.animations;
 
-        armature.animation.animations = dataPackage.armature.animations;
+        armature._isChildArmature = false;
 
+        // fixed dragonbones sort issue
+        // armature._sortSlots = this._sortSlots;
+
+        var display = new dragonBones.CCArmatureDisplay();
+
+        armature.init(dataPackage.armature,
+            display, display, this._dragonBones
+        );
+        
         return armature;
     },
 
-    _generateSlot : function (dataPackage, slotDisplayDataSet) {
-        var slot = BaseObject.borrowObject(dragonBones.CCSlot);
-        var slotData = slotDisplayDataSet.slot;
-        var displayList = [];
-
-        slot.name = slotData.name;
-        slot._rawDisplay = new cc.Scale9Sprite();
-        slot._rawDisplay.setRenderingType(cc.Scale9Sprite.RenderingType.SIMPLE); // use simple rendering type as default
-        slot._rawDisplay.setAnchorPoint(cc.p(0,0));
-        slot._meshDisplay = slot._rawDisplay;
-
-        for (var i = 0, l = slotDisplayDataSet.displays.length; i < l; ++i) {
-            var displayData = slotDisplayDataSet.displays[i];
-            switch (displayData.type) {
-                case dragonBones.DisplayType.Image:
-                    if (!displayData.texture) {
-                        displayData.texture = this._getTextureData(dataPackage.dataName, displayData.name);
-                    }
-
-                    displayList.push(slot._rawDisplay);
-                    break;
-
-                case dragonBones.DisplayType.Mesh:
-                    if (!displayData.texture) {
-                        displayData.texture = this._getTextureData(dataPackage.dataName, displayData.name);
-                    }
-
-                    if (cc._renderType === cc.game.RENDER_TYPE_WEBGL) {
-                        slot._meshDisplay.setRenderingType(cc.Scale9Sprite.RenderingType.MESH);
-                        displayList.push(slot._meshDisplay);
-                    } else {
-                        cc.warnID(6200);
-                    }
-                    break;
-
-                case dragonBones.DisplayType.Armature:
-                    var childArmature = this.buildArmature(displayData.name, dataPackage.dataName);
-                    if (childArmature) {
-                        if (!slot.inheritAnimation) {
-                            var actions = slotData.actions.length > 0 ? slotData.actions : childArmature.armatureData.actions;
-                            if (actions.length > 0) {
-                                for (var j = 0, n = actions.length; j < n; ++j) {
-                                    childArmature._bufferAction(actions[j]);
-                                }
-                            } else {
-                                childArmature.animation.play();
-                            }
-                        }
-
-                        displayData.armature = childArmature.armatureData; //
-                    }
-
-                    displayList.push(childArmature);
-                    break;
-
-                default:
-                    displayList.push(null);
-                    break;
-            }
-        }
-
-        slot._setDisplayList(displayList);
-        slot._rawDisplay.setLocalZOrder(slotData.zOrder);
-
+    _buildSlot (dataPackage, slotData, displays) {
+        let slot = BaseObject.borrowObject(dragonBones.CCSlot);
+        let display = slot;
+        slot.init(slotData, displays, display, display);
         return slot;
     },
 
-    getTextureDisplay: function(textureName, textureAtlasName) {
-        var textureData = this._getTextureData(textureAtlasName, textureName);
-        if (textureData) {
-            if (!textureData.texture) {
-                var textureAtlasTexture = textureData.parent.texture;
-                var rect = cc.rect(textureData.region.x, textureData.region.y, textureData.region.width, textureData.region.height);
-                var offset = cc.p(0, 0);
-                var originSize = cc.size(textureData.region.width, textureData.region.height);
-                textureData.texture = new cc.SpriteFrame();
-                textureData.texture.setTexture(textureAtlasTexture, rect, textureData.rotated, offset, originSize);
+    getDragonBonesDataByUUID (uuid) {
+        for (var name in this._dragonBonesDataMap) {
+            if (name.indexOf(uuid) != -1) {
+                return this._dragonBonesDataMap[name];
             }
-
-            return new cc.Scale9Sprite(textureData.texture);
         }
-
         return null;
+    },
+
+    removeDragonBonesDataByUUID (uuid, disposeData) {
+        if (disposeData === void 0) { disposeData = true; }
+        for (var name in this._dragonBonesDataMap) {
+            if (name.indexOf(uuid) === -1) continue;
+            if (disposeData) {
+                this._dragonBones.bufferObject(this._dragonBonesDataMap[name]);
+            }
+            delete this._dragonBonesDataMap[name];
+        }
     }
 });

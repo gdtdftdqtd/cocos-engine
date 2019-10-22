@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -23,6 +23,9 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
+
+const misc = require('../utils/misc');
+const Component = require('./CCComponent');
 
 /**
  * !#en The Slider Direction
@@ -52,7 +55,7 @@ var Direction = cc.Enum({
  */
 var Slider = cc.Class({
     name: 'cc.Slider',
-    extends: require('./CCComponent'),
+    extends: Component,
 
     editor: CC_EDITOR && {
         menu: 'i18n:MAIN_MENU.component.ui/Slider',
@@ -60,7 +63,7 @@ var Slider = cc.Class({
     },
 
     ctor: function () {
-        this._offset = cc.p();
+        this._offset = cc.v2();
         this._touchHandle = false;
         this._dragging = false;
     },
@@ -110,8 +113,8 @@ var Slider = cc.Class({
         },
 
         /**
-         * !#en The slider events callback
-         * !#zh 滑动器组件事件回调函数
+         * !#en The slider slide events' callback array
+         * !#zh 滑动器组件滑动事件回调函数数组
          * @property {Component.EventHandler[]} slideEvents
          */
         slideEvents: {
@@ -157,7 +160,7 @@ var Slider = cc.Class({
     _onHandleDragStart: function (event) {
         this._dragging = true;
         this._touchHandle = true;
-        this._offset = this.handle.node.convertTouchToNodeSpaceAR(event.touch);
+        this._offset = this.handle.node.convertToNodeSpaceAR(event.touch.getLocation());
         event.stopPropagation();
     },
 
@@ -179,7 +182,7 @@ var Slider = cc.Class({
     _onTouchEnded: function (event) {
         this._dragging = false;
         this._touchHandle = false;
-        this._offset = cc.p();
+        this._offset = cc.v2();
         event.stopPropagation();
     },
 
@@ -200,12 +203,13 @@ var Slider = cc.Class({
 
     _updateProgress: function (touch) {
         if (!this.handle) { return; }
-        var localTouchPos = this.node.convertTouchToNodeSpaceAR(touch);
+        let node = this.node;
+        var localTouchPos = node.convertToNodeSpaceAR(touch.getLocation());
         if (this.direction === Direction.Horizontal) {
-            this.progress = cc.clamp01(0.5 + (localTouchPos.x - this._offset.x) / this.node.width);
+            this.progress = misc.clamp01((localTouchPos.x - this._offset.x + node.anchorX * node.width) / node.width);
         }
         else {
-            this.progress = cc.clamp01(0.5 + (localTouchPos.y - this._offset.y) / this.node.height);
+            this.progress = misc.clamp01((localTouchPos.y - this._offset.y + node.anchorY * node.height) / node.height);
         }
     },
 
@@ -213,10 +217,10 @@ var Slider = cc.Class({
         if (!this.handle) { return; }
         var handlelocalPos;
         if (this.direction === Direction.Horizontal) {
-            handlelocalPos = cc.p(-this.node.width * this.node.anchorX + this.progress * this.node.width, 0);
+            handlelocalPos = cc.v2(-this.node.width * this.node.anchorX + this.progress * this.node.width, 0);
         }
         else {
-            handlelocalPos = cc.p(0, -this.node.height * this.node.anchorY + this.progress * this.node.height);
+            handlelocalPos = cc.v2(0, -this.node.height * this.node.anchorY + this.progress * this.node.height);
         }
         var worldSpacePos = this.node.convertToWorldSpaceAR(handlelocalPos);
         this.handle.node.position = this.handle.node.parent.convertToNodeSpaceAR(worldSpacePos);
@@ -233,5 +237,5 @@ cc.Slider = module.exports = Slider;
  * 注意：此事件是从该组件所属的 Node 上面派发出来的，需要用 node.on 来监听。
  * @event slide
  * @param {Event.EventCustom} event
- * @param {Slider} event.detail - The slider component.
+ * @param {Slider} slider - The slider component.
  */

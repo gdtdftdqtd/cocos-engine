@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -29,6 +29,7 @@ var getWorldScale = require('../utils').getWorldScale;
 
 /**
  * @class PhysicsCollider
+ * @extends Collider
  */
 var PhysicsCollider = cc.Class({
     name: 'cc.PhysicsCollider',
@@ -166,6 +167,7 @@ var PhysicsCollider = cc.Class({
 
         var node = body.node;
         var scale = getWorldScale(node);
+        this._scale = scale;
 
         var shapes = scale.x === 0 && scale.y === 0 ? [] : this._createShape(scale);
 
@@ -228,13 +230,7 @@ var PhysicsCollider = cc.Class({
             var fixture = fixtures[i];
             fixture.collider = null;
 
-            if (CC_JSB) {
-                if (cc.sys.isObjectValid(fixture)) {
-                    manager._unregisterContactFixture(fixture);
-                }
-            } else {
-                manager._unregisterContactFixture(fixture);
-            }
+            manager._unregisterContactFixture(fixture);
 
             if (body) {
                 body.DestroyFixture(fixture);

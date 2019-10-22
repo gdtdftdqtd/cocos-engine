@@ -58,13 +58,6 @@ if (!Function.prototype.bind) {
     };
 }
 
-//if (!Array.prototype.includes) {
-//    // This will break test-node-serialization.js
-//    Array.prototype.includes = function (value) {
-//        return this.indexOf(value) !== -1;
-//    };
-//}
-
 var isPhantomJS = window.navigator.userAgent.indexOf('PhantomJS') !== -1;
 if (isPhantomJS) {
     QUnit.config.notrycatch = true;
@@ -119,3 +112,92 @@ if (isPhantomJS) {
 if (typeof WebGLRenderingContext === 'undefined') {
     window.WebGLRenderingContext = function () {};
 }
+
+if (!Object.assign) {
+    Object.defineProperty(Object, 'assign', {
+        enumerable: false,
+        configurable: true,
+        writable: true,
+        value: function(target) {
+            'use strict';
+            if (target === undefined || target === null) {
+                throw new TypeError('Cannot convert first argument to object');
+            }
+    
+            var to = Object(target);
+            for (var i = 1; i < arguments.length; i++) {
+                var nextSource = arguments[i];
+                if (nextSource === undefined || nextSource === null) {
+                    continue;
+                }
+                nextSource = Object(nextSource);
+        
+                var keysArray = Object.keys(Object(nextSource));
+                for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
+                    var nextKey = keysArray[nextIndex];
+                    var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+                    if (desc !== undefined && desc.enumerable) {
+                        to[nextKey] = nextSource[nextKey];
+                    }
+                }
+            }
+            return to;
+        }
+    });
+
+    if (!Object.getOwnPropertyDescriptors) {
+        Object.defineProperty(Object, 'getOwnPropertyDescriptors', {
+            enumerable: false,
+            configurable: true,
+            writable: true,
+            value: function (target) {
+                var res = {};
+                var props = Object.getOwnPropertyNames(target);
+                for (var i = 0; i < props.length; i++) {
+                    var name = props[i];
+                    res[name] = Object.getOwnPropertyDescriptor(target, name);
+                }
+                return res;
+            }
+        });
+    }
+}
+
+if (!Object.getOwnPropertyDescriptors) {
+    Object.defineProperty(Object, 'getOwnPropertyDescriptors', {
+        enumerable: false,
+        configurable: true,
+        writable: true,
+        value: function (target) {
+            var res = {};
+            var props = Object.getOwnPropertyNames(target);
+            for (var i = 0; i < props.length; i++) {
+                var name = props[i];
+                res[name] = Object.getOwnPropertyDescriptor(target, name);
+            }
+            return res;
+        }
+    });
+}
+
+if (!Object.getOwnPropertySymbols) {
+    Object.getOwnPropertySymbols = function () {
+        return [];
+    };
+}
+
+Number.parseFloat = Number.parseFloat || parseFloat;
+Number.parseInt = Number.parseInt || parseInt;
+
+Array.from = Array.from || function (obj) {
+    var array = new Array(obj.length);
+    for (var i = 0; i < obj.length; ++i) {
+        array[i] = obj[i];
+    }
+    return array;
+};
+
+Float32Array.name = 'Float32Array';
+Uint32Array.name = 'Uint32Array';
+Int32Array.name = 'Int32Array';
+Uint8Array.name = 'Uint8Array';

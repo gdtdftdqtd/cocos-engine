@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -160,13 +160,14 @@ var Joint = cc.Class({
      * 获取关节的反作用力。
      * @method getReactionForce
      * @param {Number} timeStep - The time to calculate the reaction force for.
-     * @return {Number}
+     * @return {Vec2}
      */
     getReactionForce: function (timeStep) {
+        var out = cc.v2();
         if (this._joint) {
-            return this._joint.GetReactionForce(timeStep);
+            return this._joint.GetReactionForce(timeStep, out);
         }
-        return 0;
+        return out;
     },
 
     /**
@@ -198,8 +199,6 @@ var Joint = cc.Class({
         this.body = this.getComponent(cc.RigidBody);
         
         if (this._isValid()) {
-            var world = cc.director.getPhysicsManager()._getWorld();
-            
             var def = this._createJointDef();
             if (!def) return;
 
@@ -207,10 +206,7 @@ var Joint = cc.Class({
             def.bodyB = this.connectedBody._getBody();
             def.collideConnected = this.collideConnected;
 
-            this._joint = world.CreateJoint(def);
-            if (this._joint) {
-                this._joint._joint = this;
-            }
+            cc.director.getPhysicsManager()._addJoint(this, def);
             
             this._inited = true;
         }
@@ -218,13 +214,7 @@ var Joint = cc.Class({
     __destroy: function () {
         if (!this._inited) return;
 
-        if (this._isValid()) {
-            cc.director.getPhysicsManager()._getWorld().DestroyJoint(this._joint);
-        }
-        
-        if (this._joint) {
-            this._joint._joint = null;
-        }
+        cc.director.getPhysicsManager()._removeJoint(this);
 
         this._joint = null;
         this._inited = false;

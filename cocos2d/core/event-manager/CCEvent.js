@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,7 +24,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var JS = cc.js;
+var js = cc.js;
 
 require('../event/event');
 
@@ -49,7 +49,7 @@ var EventMouse = function (eventType, bubbles) {
     this._scrollY = 0;
 };
 
-JS.extend(EventMouse, cc.Event);
+js.extend(EventMouse, cc.Event);
 var proto = EventMouse.prototype;
 
 /**
@@ -103,7 +103,7 @@ proto.setLocation = function (x, y) {
  * @return {Vec2} location
  */
 proto.getLocation = function () {
-    return {x: this._x, y: this._y};
+    return cc.v2(this._x, this._y);
 };
 
 /**
@@ -113,7 +113,7 @@ proto.getLocation = function () {
  * @return {Vec2}
  */
 proto.getLocationInView = function() {
-    return {x: this._x, y: cc.view._designResolutionSize.height - this._y};
+    return cc.v2(this._x, cc.view._designResolutionSize.height - this._y);
 };
 
 proto._setPrevCursor = function (x, y) {
@@ -128,7 +128,7 @@ proto._setPrevCursor = function (x, y) {
  * @return {Vec2}
  */
 proto.getPreviousLocation = function () {
-    return {x: this._prevX, y: this._prevY};
+    return cc.v2(this._prevX, this._prevY);
 };
 
 /**
@@ -138,7 +138,7 @@ proto.getPreviousLocation = function () {
  * @return {Vec2}
  */
 proto.getDelta = function () {
-    return {x: this._x - this._prevX, y: this._y - this._prevY};
+    return cc.v2(this._x - this._prevX, this._y - this._prevY);
 };
 
 /**
@@ -343,7 +343,7 @@ var EventTouch = function (touchArr, bubbles) {
     this.currentTouch = null;
 };
 
-JS.extend(EventTouch, cc.Event);
+js.extend(EventTouch, cc.Event);
 proto = EventTouch.prototype;
 
 /**
@@ -535,7 +535,7 @@ var EventAcceleration = function (acc, bubbles) {
     cc.Event.call(this, cc.Event.ACCELERATION, bubbles);
     this.acc = acc;
 };
-JS.extend(EventAcceleration, cc.Event);
+js.extend(EventAcceleration, cc.Event);
 
 /**
  * !#en The keyboard event
@@ -549,10 +549,24 @@ JS.extend(EventAcceleration, cc.Event);
  */
 var EventKeyboard = function (keyCode, isPressed, bubbles) {
     cc.Event.call(this, cc.Event.KEYBOARD, bubbles);
+    /**
+     * !#en
+     * The keyCode read-only property represents a system and implementation dependent numerical code identifying the unmodified value of the pressed key.
+     * This is usually the decimal ASCII (RFC 20) or Windows 1252 code corresponding to the key.
+     * If the key can't be identified, this value is 0.
+     *
+     * !#zh
+     * keyCode 是只读属性它表示一个系统和依赖于实现的数字代码，可以识别按键的未修改值。
+     * 这通常是十进制 ASCII (RFC20) 或者 Windows 1252 代码，所对应的密钥。
+     * 如果无法识别该键，则该值为 0。
+     *
+     * @property keyCode
+     * @type {Number}
+     */
     this.keyCode = keyCode;
     this.isPressed = isPressed;
 };
-JS.extend(EventKeyboard, cc.Event);
+js.extend(EventKeyboard, cc.Event);
 
 cc.Event.EventMouse = EventMouse;
 cc.Event.EventTouch = EventTouch;

@@ -46,7 +46,7 @@ largeModule('Class ES6');
         @ccclass('cc.Dog')
         class Dog extends Animal {}
 
-        strictEqual(cc.isChildClassOf(Dog, Animal), true, 'extends should be supported');
+        strictEqual(cc.js.isChildClassOf(Dog, Animal), true, 'extends should be supported');
         strictEqual(cc.js.getClassName(Dog), 'cc.Dog', 'child class name should be registered');
 
         cc.js.unregisterClass(Animal, Dog);
@@ -257,6 +257,25 @@ largeModule('Class ES6');
         strictEqual(attrs['vec2' + cc.Class.Attr.DELIMETER + 'ctor'], cc.Vec2, 'ctor is cc.Vec2');
     });
 
+    test('__values__', function () {
+        @ccclass
+        class Class {
+            @property({
+                serializable: false
+            })
+            p1 = null;
+            @property
+            p2 = null;
+            @property({
+                type: cc.Asset
+            })
+            get p3 () {}
+            set p3 (value) {}
+        }
+
+        deepEqual(Class.__values__, ['p2'], 'should not contain non-serializable properties');
+    });
+
     test('extends', function () {
         @ccclass('cc.Animal')
         class Animal {
@@ -302,8 +321,10 @@ largeModule('Class ES6');
         strictEqual(labrador.myName, 'doge', 'can inherit property with Dog.extend syntax');
 
         deepEqual(Husky.__props__, /*CCObject.__props__.concat*/(['myName', 'weight']), 'can inherit prop list');
+        deepEqual(Husky.__values__, ['myName', 'weight'], 'can inherit serializable list');
         deepEqual(Labrador.__props__, /*CCObject.__props__.concat*/(['myName', 'clever']), 'can inherit prop list with Dog.extend syntax');
         deepEqual(Dog.__props__, /*CCObject.__props__.concat*/(['myName']), 'base prop list not changed');
+        deepEqual(Dog.__values__, ['myName'], 'base serializable list not changed');
 
         strictEqual(husky instanceof Dog, true, 'can pass instanceof check');
         strictEqual(husky instanceof Animal, true, 'can pass instanceof check for deep inheritance');
@@ -396,25 +417,25 @@ largeModule('Class ES6');
 
         // constructor
 
-        strictEqual(cc.isChildClassOf(null, null) ||
-                    cc.isChildClassOf(Object, null) ||
-                    cc.isChildClassOf(null, Object),  false, 'nil');
+        strictEqual(cc.js.isChildClassOf(null, null) ||
+                    cc.js.isChildClassOf(Object, null) ||
+                    cc.js.isChildClassOf(null, Object),  false, 'nil');
 
-        //strictEqual(cc.isChildClassOf(123, Object), false, 'can ignore wrong type');
-        //strictEqual(cc.isChildClassOf(Object, 123), false, 'can ignore wrong type 2');
+        //strictEqual(cc.js.isChildClassOf(123, Object), false, 'can ignore wrong type');
+        //strictEqual(cc.js.isChildClassOf(Object, 123), false, 'can ignore wrong type 2');
 
-        strictEqual(cc.isChildClassOf(Object, Object), true, 'any obj is child of itself');
+        strictEqual(cc.js.isChildClassOf(Object, Object), true, 'any obj is child of itself');
 
         var Base = function () {};
 
-        strictEqual(cc.isChildClassOf(Base, Object) &&
-                    ! cc.isChildClassOf(Object, Base), true, 'any type is child of Object');
+        strictEqual(cc.js.isChildClassOf(Base, Object) &&
+                    ! cc.js.isChildClassOf(Object, Base), true, 'any type is child of Object');
 
         var Sub = function () {};
 
         cc.js.extend(Sub, Base);
-        strictEqual(cc.isChildClassOf(Sub, Base) &&
-                    !cc.isChildClassOf(Base, Sub), true, 'Sub is child of Base');
+        strictEqual(cc.js.isChildClassOf(Sub, Base) &&
+                    !cc.js.isChildClassOf(Base, Sub), true, 'Sub is child of Base');
 
         // cc.Class
 
@@ -449,25 +470,25 @@ largeModule('Class ES6');
             }
         });
 
-        strictEqual(cc.isChildClassOf(Husky, Husky), true, 'Husky is child of itself');
-        strictEqual(cc.isChildClassOf(Dog, Animal), true, 'Animal is parent of Dog');
-        strictEqual(cc.isChildClassOf(Husky, Animal) &&
-                    ! cc.isChildClassOf(Animal, Husky), true, 'Animal is parent of Husky');
-        strictEqual(cc.isChildClassOf(Dog, Husky), false, 'Dog is not child of Husky');
-        strictEqual(cc.isChildClassOf(Labrador, Dog), true, 'Labrador is child of Dog');
-        strictEqual(cc.isChildClassOf(Labrador, Animal), true, 'Labrador is child of Animal');
+        strictEqual(cc.js.isChildClassOf(Husky, Husky), true, 'Husky is child of itself');
+        strictEqual(cc.js.isChildClassOf(Dog, Animal), true, 'Animal is parent of Dog');
+        strictEqual(cc.js.isChildClassOf(Husky, Animal) &&
+                    ! cc.js.isChildClassOf(Animal, Husky), true, 'Animal is parent of Husky');
+        strictEqual(cc.js.isChildClassOf(Dog, Husky), false, 'Dog is not child of Husky');
+        strictEqual(cc.js.isChildClassOf(Labrador, Dog), true, 'Labrador is child of Dog');
+        strictEqual(cc.js.isChildClassOf(Labrador, Animal), true, 'Labrador is child of Animal');
 
-        strictEqual(cc.isChildClassOf(Animal, Sub), true, 'Animal is child of Sub');
-        strictEqual(cc.isChildClassOf(Animal, Base), true, 'Animal is child of Base');
-        strictEqual(cc.isChildClassOf(Dog, Base),  true, 'Dog is child of Base');
+        strictEqual(cc.js.isChildClassOf(Animal, Sub), true, 'Animal is child of Sub');
+        strictEqual(cc.js.isChildClassOf(Animal, Base), true, 'Animal is child of Base');
+        strictEqual(cc.js.isChildClassOf(Dog, Base),  true, 'Dog is child of Base');
 
         // ES6 Classes
 
         @ccclass
         class Foo extends Labrador {}
 
-        strictEqual(cc.isChildClassOf(Foo, Labrador),  true, 'Foo is child of Labrador');
-        strictEqual(cc.isChildClassOf(Foo, Labrador),  true, 'Foo is child of Dog');
+        strictEqual(cc.js.isChildClassOf(Foo, Labrador),  true, 'Foo is child of Labrador');
+        strictEqual(cc.js.isChildClassOf(Foo, Labrador),  true, 'Foo is child of Dog');
 
         cc.js.unregisterClass(Animal, Dog, Husky, Labrador);
     });
@@ -637,6 +658,7 @@ largeModule('Class ES6');
         ok(BigDog.prototype.stop !== Mixin2.prototype.stop, "should override base functions");
 
         deepEqual(BigDog.__props__, ['p3', 'p2', 'p1', 'p4'], 'should inherit properties');
+        deepEqual(BigDog.__values__, ['p3', 'p2', 'p1', 'p4'], 'should inherit serializable properties');
         strictEqual(cc.Class.attr(BigDog, 'p2').default, 'Defined by Mixin2', 'last mixin property should override previous');
         strictEqual(cc.Class.attr(BigDog, 'p1').default, 'Defined by BigDog', "should override base property");
 
@@ -808,6 +830,62 @@ largeModule('Class ES6');
         deepEqual(arrayObj.asset, [], 'checking array of asset');
     });
 
+    test('simplified properties define using cc.xxxType', function () {
+        @ccclass
+        class Type {
+            @property(cc.String)
+            string = '';
+            @property(cc.Boolean)
+            bool = false;
+            @property(cc.Float)
+            float = 0;
+            @property(cc.Integer)
+            int = 0;
+        }
+        @ccclass
+        class ArrayType {
+            @property([cc.String])
+            string = [];
+            @property([cc.Boolean])
+            bool = [];
+            @property([cc.Float])
+            float = [];
+            @property([cc.Integer])
+            int = [];
+        }
+
+        strictEqual(cc.Class.attr(Type, 'string').type, undefined, 'checking string type');
+        strictEqual(cc.Class.attr(Type, 'string').ctor, undefined, 'checking string ctor');
+        strictEqual(cc.Class.attr(Type, 'bool').type, undefined, 'checking bool type');
+        strictEqual(cc.Class.attr(Type, 'bool').ctor, undefined, 'checking bool ctor');
+        strictEqual(cc.Class.attr(Type, 'float').type, undefined, 'checking float type');
+        strictEqual(cc.Class.attr(Type, 'float').ctor, undefined, 'checking float ctor');
+        strictEqual(cc.Class.attr(Type, 'int').type, undefined, 'checking int type');
+        strictEqual(cc.Class.attr(Type, 'int').ctor, undefined, 'checking int ctor');
+
+        strictEqual(cc.Class.attr(ArrayType, 'string').type, cc.String, 'checking array of string type');
+        strictEqual(cc.Class.attr(ArrayType, 'string').ctor, undefined, 'checking array of string ctor');
+        strictEqual(cc.Class.attr(ArrayType, 'bool').type, cc.Boolean, 'checking array of bool type');
+        strictEqual(cc.Class.attr(ArrayType, 'bool').ctor, undefined, 'checking array of bool ctor');
+        strictEqual(cc.Class.attr(ArrayType, 'float').type, cc.Float, 'checking array of float type');
+        strictEqual(cc.Class.attr(ArrayType, 'float').ctor, undefined, 'checking array of float ctor');
+        strictEqual(cc.Class.attr(ArrayType, 'int').type, cc.Integer, 'checking array of int type');
+        strictEqual(cc.Class.attr(ArrayType, 'int').ctor, undefined, 'checking array of int ctor');
+
+        var obj = new Type();
+        var arrayObj = new ArrayType();
+
+        strictEqual(obj.string, '', 'checking default value of string');
+        strictEqual(obj.bool, false, 'checking default value of bool');
+        strictEqual(obj.float, 0, 'checking default value of float');
+        strictEqual(obj.int, 0, 'checking default value of int');
+
+        deepEqual(arrayObj.bool, [], 'checking array of bool');
+        deepEqual(arrayObj.string, [], 'checking array of string');
+        deepEqual(arrayObj.float, [], 'checking array of float');
+        deepEqual(arrayObj.int, [], 'checking array of int');
+    });
+
     // test('property', function () {
     //     @ccclass
     //     class Foo {
@@ -828,7 +906,7 @@ largeModule('Class ES6');
     //             return this.bar;
     //         };
     //
-    //         // @property('Integer')
+    //         // @property(cc.Integer)
     //         set bbb (value) {
     //             this.bar = value;
     //         }

@@ -2,7 +2,7 @@ largeModule('Component Scheduler', {
     setup: SetupEngine.setup,
     teardown: function () {
         cc.director._scene = new cc.Scene();
-        cc.director._runningScene = cc.director._scene._sgNode;
+        cc.director._runningScene = cc.director._scene;
         SetupEngine.teardown();
     }
 });
@@ -542,6 +542,18 @@ test('set sibling index during onDisable', function () {
         restComp.onEnable.once('rest component should be re-enabled');
         compOfChild.onLoad.once('child component should be loaded');
         compOfChild.onEnable.once('child component should be re-enabled');
+    });
+
+    test('component might be destroyed when destroy() called before node activating', function () {
+        var node = new cc.Node();
+        var comp = createDisabledComp(node, 'destroyed');
+        comp.onDestroy = new Callback().disable('onDestroy should not be called');
+        comp.destroy();
+        
+        cc.director.getScene().addChild(node);
+
+        cc.game.step();
+        strictEqual(comp.isValid, false, 'component should be destroyed');
     });
 
     // test('could deactivate parent in onLoad', function () {

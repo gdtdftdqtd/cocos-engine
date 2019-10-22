@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,14 +24,13 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var JS = require('./js');
+var js = require('./js');
 var Enum = require('./CCEnum');
-var Utils = require('./utils');
-var _isPlainEmptyObj_DEV = Utils.isPlainEmptyObj_DEV;
-var _cloneable_DEV = Utils.cloneable_DEV;
+var utils = require('./utils');
+var _isPlainEmptyObj_DEV = utils.isPlainEmptyObj_DEV;
+var _cloneable_DEV = utils.cloneable_DEV;
 var Attr = require('./attribute');
 var DELIMETER = Attr.DELIMETER;
-var getTypeChecker = Attr.getTypeChecker;
 var preprocess = require('./preprocess-class');
 require('./requiring-frame');
 
@@ -77,7 +76,7 @@ var deferredInitializer = {
                 if (typeof properties === 'function') {
                     properties = properties();
                 }
-                var name = JS.getClassName(cls);
+                var name = js.getClassName(cls);
                 if (properties) {
                     declareProperties(cls, name, properties, cls.$super, data.mixins);
                 }
@@ -105,7 +104,6 @@ function appendProp (cls, name) {
     pushUnique(cls.__props__, name);
 }
 
-var tmpArray = [];
 function defineProp (cls, className, propName, val, es6) {
     var defaultValue = val.default;
 
@@ -145,23 +143,12 @@ function defineProp (cls, className, propName, val, es6) {
     appendProp(cls, propName);
 
     // apply attributes
-    var attrs = parseAttributes(cls, val, className, propName, false);    
-    if (attrs) {
-        var onAfterProp = tmpArray;
-        for (var i = 0; i < attrs.length; i++) {
-            var attr = attrs[i];
-            Attr.attr(cls, propName, attr);
-            // register callback
-            if (attr._onAfterProp) {
-                onAfterProp.push(attr._onAfterProp);
-            }
+    parseAttributes(cls, val, className, propName, false);
+    if ((CC_EDITOR && !Editor.isBuilder) || CC_TEST) {
+        for (let i = 0; i < onAfterProps_ET.length; i++) {
+            onAfterProps_ET[i](cls, propName);
         }
-        // call callback
-        for (var c = 0; c < onAfterProp.length; c++) {
-            onAfterProp[c](cls, propName);
-        }
-        tmpArray.length = 0;
-        attrs.length = 0;
+        onAfterProps_ET.length = 0;
     }
 }
 
@@ -178,23 +165,20 @@ function defineGetSet (cls, name, propName, val, es6) {
             return;
         }
 
-        var attrs = parseAttributes(cls, val, name, propName, true);
-        for (var i = 0; i < attrs.length; i++) {
-            Attr.attr(cls, propName, attrs[i]);
+        parseAttributes(cls, val, name, propName, true);
+        if ((CC_EDITOR && !Editor.isBuilder) || CC_TEST) {
+            onAfterProps_ET.length = 0;
         }
-        attrs.length = 0;
 
-        const ForceSerializable = false;
-        if (!ForceSerializable) {
-            Attr.setClassAttr(cls, propName, 'serializable', false);
-        }
-        if (ForceSerializable || CC_DEV) {
+        Attr.setClassAttr(cls, propName, 'serializable', false);
+
+        if (CC_DEV) {
             // 不论是否 visible 都要添加到 props，否则 asset watcher 不能正常工作
             appendProp(cls, propName);
         }
 
         if (!es6) {
-            JS.get(proto, propName, getter, setterUndefined, setterUndefined);
+            js.get(proto, propName, getter, setterUndefined, setterUndefined);
         }
 
         if (CC_EDITOR || CC_DEV) {
@@ -207,7 +191,7 @@ function defineGetSet (cls, name, propName, val, es6) {
             if (CC_DEV && d && d.set) {
                 return cc.errorID(3640, name, propName);
             }
-            JS.set(proto, propName, setter, setterUndefined, setterUndefined);
+            js.set(proto, propName, setter, setterUndefined, setterUndefined);
         }
         if (CC_EDITOR || CC_DEV) {
             Attr.setClassAttr(cls, propName, 'hasSetter', true); // 方便 editor 做判断
@@ -236,7 +220,7 @@ function getDefault (defaultVal) {
 function mixinWithInherited (dest, src, filter) {
     for (var prop in src) {
         if (!dest.hasOwnProperty(prop) && (!filter || filter(prop))) {
-            Object.defineProperty(dest, prop, JS.getPropertyDescriptor(src, prop));
+            Object.defineProperty(dest, prop, js.getPropertyDescriptor(src, prop));
         }
     }
 }
@@ -290,19 +274,19 @@ function doDefine (className, baseClass, mixins, options) {
         fireClass = _createCtor(ctors, baseClass, className, options);
 
         // extend - Create a new Class that inherits from this Class
-        JS.value(fireClass, 'extend', function (options) {
+        js.value(fireClass, 'extend', function (options) {
             options.extends = this;
             return CCClass(options);
         }, true);
     }
 
-    JS.value(fireClass, '__ctors__', ctors.length > 0 ? ctors : null, true);
+    js.value(fireClass, '__ctors__', ctors.length > 0 ? ctors : null, true);
 
 
     var prototype = fireClass.prototype;
     if (baseClass) {
         if (!__es6__) {
-            JS.extend(fireClass, baseClass);        // 这里会把父类的 __props__ 复制给子类
+            js.extend(fireClass, baseClass);        // 这里会把父类的 __props__ 复制给子类
             prototype = fireClass.prototype;        // get extended prototype
         }
         fireClass.$super = baseClass;
@@ -323,10 +307,7 @@ function doDefine (className, baseClass, mixins, options) {
 
             // mixin attributes
             if (CCClass._isCCClass(mixin)) {
-                mixinWithInherited(
-                    Attr.getClassAttrs(fireClass).constructor.prototype,
-                    Attr.getClassAttrs(mixin).constructor.prototype
-                );
+                mixinWithInherited(Attr.getClassAttrs(fireClass), Attr.getClassAttrs(mixin));
             }
         }
         // restore constuctor overridden by mixin
@@ -337,16 +318,16 @@ function doDefine (className, baseClass, mixins, options) {
         prototype.__initProps__ = compileProps;
     }
 
-    JS.setClassName(className, fireClass);
+    js.setClassName(className, fireClass);
     return fireClass;
 }
 
 function define (className, baseClass, mixins, options) {
     var Component = cc.Component;
     var frame = cc._RF.peek();
-    if (frame && cc.isChildClassOf(baseClass, Component)) {
+    if (frame && js.isChildClassOf(baseClass, Component)) {
         // project component
-        if (cc.isChildClassOf(frame.cls, Component)) {
+        if (js.isChildClassOf(frame.cls, Component)) {
             cc.errorID(3615);
             return null;
         }
@@ -359,10 +340,10 @@ function define (className, baseClass, mixins, options) {
     var cls = doDefine(className, baseClass, mixins, options);
 
     if (frame) {
-        if (cc.isChildClassOf(baseClass, Component)) {
+        if (js.isChildClassOf(baseClass, Component)) {
             var uuid = frame.uuid;
             if (uuid) {
-                JS._setClassId(uuid, cls);
+                js._setClassId(uuid, cls);
                 if (CC_EDITOR) {
                     Component._addMenuItem(cls, 'i18n:MAIN_MENU.component.scripts/' + className, -1);
                     cls.prototype.__scriptUuid = Editor.Utils.UuidUtils.decompressUuid(uuid);
@@ -370,7 +351,7 @@ function define (className, baseClass, mixins, options) {
             }
             frame.cls = cls;
         }
-        else if (!cc.isChildClassOf(frame.cls, Component)) {
+        else if (!js.isChildClassOf(frame.cls, Component)) {
             frame.cls = cls;
         }
     }
@@ -393,14 +374,14 @@ function normalizeClassName_DEV (className) {
     return DefaultName;
 }
 
-function getNewValueTypeCode (value) {
-    var clsName = JS.getClassName(value);
+function getNewValueTypeCodeJit (value) {
+    var clsName = js.getClassName(value);
     var type = value.constructor;
     var res = 'new ' + clsName + '(';
     for (var i = 0; i < type.__props__.length; i++) {
         var prop = type.__props__[i];
         var propVal = value[prop];
-        if (typeof propVal === 'object') {
+        if (CC_DEV && typeof propVal === 'object') {
             cc.errorID(3641, clsName);
             return 'new ' + clsName + '()';
         }
@@ -412,23 +393,7 @@ function getNewValueTypeCode (value) {
     return res + ')';
 }
 
-function getNewValueType (value) {
-    var clsName = JS.getClassName(value);
-    var type = value.constructor;
-    var res = new type();
-    for (var i = 0; i < type.__props__.length; i++) {
-        var prop = type.__props__[i];
-        var propVal = value[prop];
-        if (typeof propVal === 'object') {
-            cc.errorID(3641, clsName);
-            return res;
-        }
-        res[prop] = propVal;
-    }
-    return res;
-}
-
-// TODO - move escapeForJS, IDENTIFIER_RE, getNewValueTypeCode to misc.js or a new source file
+// TODO - move escapeForJS, IDENTIFIER_RE, getNewValueTypeCodeJit to misc.js or a new source file
 
 // convert a normal string including newlines, quotes and unicode characters into a string literal
 // ready to use in JavaScript source
@@ -459,7 +424,7 @@ function getInitPropsJit (attrs, propList) {
             var def = attrs[attrKey];
             if (typeof def === 'object' && def) {
                 if (def instanceof cc.ValueType) {
-                    expression = getNewValueTypeCode(def);
+                    expression = getNewValueTypeCodeJit(def);
                 }
                 else if (Array.isArray(def)) {
                     expression = '[]';
@@ -505,53 +470,65 @@ function getInitPropsJit (attrs, propList) {
 }
 
 function getInitProps (attrs, propList) {
-    // functions for generated code
+    var advancedProps = [];
+    var advancedValues = [];
+    var simpleProps = [];
+    var simpleValues = [];
 
-    function func () {
-        var F = [];
-    
-        for (var i = 0; i < propList.length; i++) {
-            var prop = propList[i];
-            var attrKey = prop + DELIMETER + 'default';
-            if (attrKey in attrs) {  // getter does not have default
-                var expression;
-                var def = attrs[attrKey];
-                if (typeof def === 'object' && def) {
-                    if (def instanceof cc.ValueType) {
-                        expression = getNewValueType(def);
-                    }
-                    else if (Array.isArray(def)) {
-                        expression = [];
-                    }
-                    else {
-                        expression = {};
-                    }
+    for (var i = 0; i < propList.length; ++i) {
+        var prop = propList[i];
+        var attrKey = prop + DELIMETER + 'default';
+        if (attrKey in attrs) { // getter does not have default
+            var def = attrs[attrKey];
+            if ((typeof def === 'object' && def) || typeof def === 'function') {
+                advancedProps.push(prop);
+                advancedValues.push(def);
+            }
+            else {
+                // number, boolean, null, undefined, string
+                simpleProps.push(prop);
+                simpleValues.push(def);
+            }
+        }
+    }
+
+    return function () {
+        for (let i = 0; i < simpleProps.length; ++i) {
+            this[simpleProps[i]] = simpleValues[i];
+        }
+        for (let i = 0; i < advancedProps.length; i++) {
+            let prop = advancedProps[i];
+            var expression;
+            var def = advancedValues[i];
+            if (typeof def === 'object') {
+                if (def instanceof cc.ValueType) {
+                    expression = def.clone();
                 }
-                else if (typeof def === 'function') {
-                    var index = F.length;
-                    F.push(def);
-                    expression = F[index]();
-                    if (CC_EDITOR) {
-                        try {
-                            this[prop] = expression;
-                        }
-                        catch(err) {
-                            cc._throw(e);
-                        }
+                else if (Array.isArray(def)) {
+                    expression = [];
+                }
+                else {
+                    expression = {};
+                }
+            }
+            else {
+                // def is function
+                if (CC_EDITOR) {
+                    try {
+                        expression = def();
+                    }
+                    catch (err) {
+                        cc._throw(e);
                         continue;
                     }
                 }
                 else {
-                    // number, boolean, null, undefined, string
-                    expression = def;
+                    expression = def();
                 }
-
-                this[prop] = expression;
             }
+            this[prop] = expression;
         }
-    }
-    
-    return func;
+    };
 }
 
 // simple test variable name
@@ -590,7 +567,7 @@ var _createCtor = CC_SUPPORT_JIT ? function (ctors, baseClass, className, option
     // call user constructors
     var ctorLen = ctors.length;
     if (ctorLen > 0) {
-        var useTryCatch = ! (className && className.startsWith('cc.'));
+        var useTryCatch = CC_DEV && ! (className && className.startsWith('cc.'));
         if (useTryCatch) {
             body += 'try{\n';
         }
@@ -615,46 +592,61 @@ var _createCtor = CC_SUPPORT_JIT ? function (ctors, baseClass, className, option
     return Function(body)();
 } : function (ctors, baseClass, className, options) {
     var superCallBounded = baseClass && boundSuperCalls(baseClass, options, className);
+    var ctorLen = ctors.length;
 
-    return function CCClass () {
+    var Class;
+
+    if (ctorLen > 0) {
         if (superCallBounded) {
-            this._super=null;
-        }
-
-        this.__initProps__(CCClass);
-
-        // call user constructors
-        var ctorLen = ctors.length;
-        var cs = CCClass.__ctors__;
-        if (ctorLen > 0) {
-            var useTryCatch = ! (className && className.startsWith('cc.'));
-            if (useTryCatch) {
-                try {
-                    if (ctorLen === 1) {
-                        cs[0].apply(this, arguments);
-                    }
-                    else {
-                        for (let i = 0; i < ctorLen; i++) {
-                            cs[i].apply(this, arguments);
-                        }
-                    }
-                }
-                catch(e) {
-                    cc._throw(e);
-                }
+            if (ctorLen === 2) {
+                // User Component
+                Class = function () {
+                    this._super = null;
+                    this.__initProps__(Class);
+                    ctors[0].apply(this, arguments);
+                    ctors[1].apply(this, arguments);
+                };
             }
             else {
-                if (ctorLen === 1) {
-                    cs[0].apply(this, arguments);
-                }
-                else {
-                    for (let i = 0; i < ctorLen; i++) {
-                        cs[i].apply(this, arguments);
+                Class = function () {
+                    this._super = null;
+                    this.__initProps__(Class);
+                    for (let i = 0; i < ctors.length; ++i) {
+                        ctors[i].apply(this, arguments);
                     }
-                }
+                };
             }
         }
-    };
+        else {
+            if (ctorLen === 3) {
+                // Node
+                Class = function () {
+                    this.__initProps__(Class);
+                    ctors[0].apply(this, arguments);
+                    ctors[1].apply(this, arguments);
+                    ctors[2].apply(this, arguments);
+                };
+            }
+            else {
+                Class = function () {
+                    this.__initProps__(Class);
+                    var ctors = Class.__ctors__;
+                    for (let i = 0; i < ctors.length; ++i) {
+                        ctors[i].apply(this, arguments);
+                    }
+                };
+            }
+        }
+    }
+    else {
+        Class = function () {
+            if (superCallBounded) {
+                this._super = null;
+            }
+            this.__initProps__(Class);
+        };
+    }
+    return Class;
 };
 
 function _validateCtor_DEV (ctor, baseClass, className, options) {
@@ -751,7 +743,7 @@ function boundSuperCalls (baseClass, options, className) {
         if (typeof func !== 'function') {
             continue;
         }
-        var pd = JS.getPropertyDescriptor(baseClass.prototype, funcName);
+        var pd = js.getPropertyDescriptor(baseClass.prototype, funcName);
         if (pd) {
             var superFunc = pd.value;
             // ignore pd.get, assume that function defined by getter is just for warnings
@@ -817,6 +809,11 @@ function declareProperties (cls, className, properties, baseClass, mixins, es6) 
             }
         }
     }
+
+    var attrs = Attr.getClassAttrs(cls);
+    cls.__values__ = cls.__props__.filter(function (prop) {
+        return attrs[prop + DELIMETER + 'serializable'] !== false;
+    });
 }
 
 /**
@@ -890,7 +887,7 @@ function declareProperties (cls, className, properties, baseClass, mixins, es6) 
      properties {
          width: {
              default: 128,
-             type: 'Integer',
+             type: cc.Integer,
              tooltip: 'The width of sprite'
          },
          height: 128,
@@ -943,7 +940,7 @@ function CCClass (options) {
         }
         else {
             deferredInitializer.push({cls: cls, props: properties, mixins: mixins});
-            cls.__props__ = null;
+            cls.__props__ = cls.__values__ = null;
         }
     }
     else {
@@ -977,13 +974,13 @@ function CCClass (options) {
             continue;
         }
         // use value to redefine some super method defined as getter
-        JS.value(cls.prototype, funcName, func, true, true);
+        js.value(cls.prototype, funcName, func, true, true);
     }
 
 
     var editor = options.editor;
     if (editor) {
-        if (cc.isChildClassOf(base, cc.Component)) {
+        if (js.isChildClassOf(base, cc.Component)) {
             cc.Component._registerEditorProps(cls, editor);
         }
         else if (CC_DEV) {
@@ -1017,54 +1014,19 @@ CCClass._isCCClass = function (constructor) {
 // @private
 //
 CCClass._fastDefine = function (className, constructor, serializableFields) {
-    JS.setClassName(className, constructor);
+    js.setClassName(className, constructor);
     //constructor.__ctors__ = constructor.__ctors__ || null;
-    var props = constructor.__props__ = Object.keys(serializableFields);
-    var attrProtos = Attr.getClassAttrsProto(constructor);
+    var props = constructor.__props__ = constructor.__values__ = Object.keys(serializableFields);
+    var attrs = Attr.getClassAttrs(constructor);
     for (var i = 0; i < props.length; i++) {
         var key = props[i];
-        attrProtos[key + DELIMETER + 'visible'] = false;
-        attrProtos[key + DELIMETER + 'default'] = serializableFields[key];
+        attrs[key + DELIMETER + 'visible'] = false;
+        attrs[key + DELIMETER + 'default'] = serializableFields[key];
     }
 };
 
 CCClass.Attr = Attr;
 CCClass.attr = Attr.attr;
-
-/**
- * Checks whether subclass is child of superclass or equals to superclass
- *
- * @method isChildClassOf
- * @param {Function} subclass
- * @param {Function} superclass
- * @return {Boolean}
- */
-cc.isChildClassOf = function (subclass, superclass) {
-    if (subclass && superclass) {
-        if (typeof subclass !== 'function') {
-            return false;
-        }
-        if (typeof superclass !== 'function') {
-            if (CC_DEV) {
-                cc.warnID(3625, superclass);
-            }
-            return false;
-        }
-        if (subclass === superclass) {
-            return true;
-        }
-        for (;;) {
-            subclass = JS.getSuper(subclass);
-            if (!subclass) {
-                return false;
-            }
-            if (subclass === superclass) {
-                return true;
-            }
-        }
-    }
-    return false;
-};
 
 /*
  * Return all super classes
@@ -1075,7 +1037,7 @@ cc.isChildClassOf = function (subclass, superclass) {
 CCClass.getInheritanceChain = function (klass) {
     var chain = [];
     for (;;) {
-        klass = JS.getSuper(klass);
+        klass = js.getSuper(klass);
         if (!klass) {
             break;
         }
@@ -1084,22 +1046,6 @@ CCClass.getInheritanceChain = function (klass) {
         }
     }
     return chain;
-};
-
-/*
- * Is instance of for JSB.
- * `obj` can be native object such as cc.Texture2D or cc.SpriteFrame.
- * `klass` can be base class of native object such as cc.Asset, cc.RawAsset or cc.Object.
- * @method isInstanceOf
- * @param {Object} obj
- * @param {Function} klass
- * @returns {Boolean}
- */
-// TODO - remove at 2.0 if all assets implemented in pure js
-CCClass.isInstanceOf = CC_JSB ? function (obj, klass) {
-    return obj && cc.isChildClassOf(obj.constructor, klass);
-} : function (obj__skip_jsb_warning, klass) {
-    return obj__skip_jsb_warning instanceof klass;
 };
 
 var PrimitiveTypes = {
@@ -1111,28 +1057,29 @@ var PrimitiveTypes = {
     Boolean: 'Boolean',
     String: 'String',
 };
-var tmpAttrs = [];
-function parseAttributes (cls, attrs, className, propName, usedInGetter) {
+var onAfterProps_ET = [];
+function parseAttributes (cls, attributes, className, propName, usedInGetter) {
     var ERR_Type = CC_DEV ? 'The %s of %s must be type %s' : '';
 
-    var attrsProto = null;
-    var attrsProtoKey = '';
-    function getAttrsProto () {
-        attrsProtoKey = propName + DELIMETER;
-        return attrsProto = Attr.getClassAttrsProto(cls);
+    var attrs = null;
+    var propNamePrefix = '';
+    function initAttrs () {
+        propNamePrefix = propName + DELIMETER;
+        return attrs = Attr.getClassAttrs(cls);
     }
 
-    tmpAttrs.length = 0;
-    var result = tmpAttrs;
+    if ((CC_EDITOR && !Editor.isBuilder) || CC_TEST) {
+        onAfterProps_ET.length = 0;
+    }
 
-    var type = attrs.type;
+    var type = attributes.type;
     if (type) {
         var primitiveType = PrimitiveTypes[type];
         if (primitiveType) {
-            result.push({
-                type: type,
-                _onAfterProp: getTypeChecker(primitiveType, 'cc.' + type)
-            });
+            (attrs || initAttrs())[propNamePrefix + 'type'] = type;
+            if (((CC_EDITOR && !Editor.isBuilder) || CC_TEST) && !attributes._short) {
+                onAfterProps_ET.push(Attr.getTypeChecker_ET(primitiveType, 'cc.' + type));
+            }
         }
         else if (type === 'Object') {
             if (CC_DEV) {
@@ -1141,35 +1088,24 @@ function parseAttributes (cls, attrs, className, propName, usedInGetter) {
         }
         else {
             if (type === Attr.ScriptUuid) {
-                var attr = Attr.ObjectType(cc.ScriptAsset);
-                attr.type = 'Script';
-                result.push(attr);
+                (attrs || initAttrs())[propNamePrefix + 'type'] = 'Script';
+                attrs[propNamePrefix + 'ctor'] = cc.ScriptAsset;
             }
             else {
                 if (typeof type === 'object') {
                     if (Enum.isEnum(type)) {
-                        result.push({
-                            type: 'Enum',
-                            enumList: Enum.getList(type)
-                        });
+                        (attrs || initAttrs())[propNamePrefix + 'type'] = 'Enum';
+                        attrs[propNamePrefix + 'enumList'] = Enum.getList(type);
                     }
                     else if (CC_DEV) {
                         cc.errorID(3645, className, propName, type);
                     }
                 }
                 else if (typeof type === 'function') {
-                    if (attrs.url) {
-                        result.push({
-                            type: 'Object',
-                            ctor: type,
-                            _onAfterProp: getTypeChecker('String', 'cc.String')
-                        });
-                    }
-                    else {
-                        result.push(attrs._short ? {
-                            type: 'Object',
-                            ctor: type
-                        } : Attr.ObjectType(type));
+                    (attrs || initAttrs())[propNamePrefix + 'type'] = 'Object';
+                    attrs[propNamePrefix + 'ctor'] = type;
+                    if (((CC_EDITOR && !Editor.isBuilder) || CC_TEST) && !attributes._short) {
+                        onAfterProps_ET.push(attributes.url ? Attr.getTypeChecker_ET('String', 'cc.String') : Attr.getObjTypeChecker_ET(type));
                     }
                 }
                 else if (CC_DEV) {
@@ -1180,10 +1116,10 @@ function parseAttributes (cls, attrs, className, propName, usedInGetter) {
     }
 
     function parseSimpleAttr (attrName, expectType) {
-        if (attrName in attrs) {
-            var val = attrs[attrName];
+        if (attrName in attributes) {
+            var val = attributes[attrName];
             if (typeof val === expectType) {
-                (attrsProto || getAttrsProto())[attrsProtoKey + attrName] = val;
+                (attrs || initAttrs())[propNamePrefix + attrName] = val;
             }
             else if (CC_DEV) {
                 cc.error(ERR_Type, attrName, className, propName, expectType);
@@ -1191,70 +1127,72 @@ function parseAttributes (cls, attrs, className, propName, usedInGetter) {
         }
     }
 
-    if (attrs.editorOnly) {
+    if (attributes.editorOnly) {
         if (CC_DEV && usedInGetter) {
             cc.errorID(3613, "editorOnly", name, propName);
         }
         else {
-            (attrsProto || getAttrsProto())[attrsProtoKey + 'editorOnly'] = true;
+            (attrs || initAttrs())[propNamePrefix + 'editorOnly'] = true;
         }
     }
     //parseSimpleAttr('preventDeferredLoad', 'boolean');
     if (CC_DEV) {
         parseSimpleAttr('displayName', 'string');
         parseSimpleAttr('multiline', 'boolean');
-        if (attrs.readonly) {
-            (attrsProto || getAttrsProto())[attrsProtoKey + 'readonly'] = true;
+        if (attributes.readonly) {
+            (attrs || initAttrs())[propNamePrefix + 'readonly'] = true;
         }
         parseSimpleAttr('tooltip', 'string');
         parseSimpleAttr('slide', 'boolean');
     }
 
-    if (attrs.url) {
-        (attrsProto || getAttrsProto())[attrsProtoKey + 'saveUrlAsAsset'] = true;
+    if (attributes.url) {
+        (attrs || initAttrs())[propNamePrefix + 'saveUrlAsAsset'] = true;
     }
-    if (attrs.serializable === false) {
+    if (attributes.serializable === false) {
         if (CC_DEV && usedInGetter) {
             cc.errorID(3613, "serializable", name, propName);
         }
         else {
-            (attrsProto || getAttrsProto())[attrsProtoKey + 'serializable'] = false;
+            (attrs || initAttrs())[propNamePrefix + 'serializable'] = false;
         }
     }
     parseSimpleAttr('formerlySerializedAs', 'string');
 
     if (CC_EDITOR) {
-        if ('animatable' in attrs && !attrs.animatable) {
-            (attrsProto || getAttrsProto())[attrsProtoKey + 'animatable'] = false;
+        parseSimpleAttr('notifyFor', 'string');
+
+        if ('animatable' in attributes) {
+            (attrs || initAttrs())[propNamePrefix + 'animatable'] = !!attributes.animatable;
         }
     }
 
     if (CC_DEV) {
-        var visible = attrs.visible;
+        var visible = attributes.visible;
         if (typeof visible !== 'undefined') {
             if (!visible) {
-                (attrsProto || getAttrsProto())[attrsProtoKey + 'visible'] = false;
+                (attrs || initAttrs())[propNamePrefix + 'visible'] = false;
             }
             else if (typeof visible === 'function') {
-                (attrsProto || getAttrsProto())[attrsProtoKey + 'visible'] = visible;
+                (attrs || initAttrs())[propNamePrefix + 'visible'] = visible;
             }
         }
         else {
             var startsWithUS = (propName.charCodeAt(0) === 95);
             if (startsWithUS) {
-                (attrsProto || getAttrsProto())[attrsProtoKey + 'visible'] = false;
+                (attrs || initAttrs())[propNamePrefix + 'visible'] = false;
             }
         }
     }
 
-    var range = attrs.range;
+    var range = attributes.range;
     if (range) {
         if (Array.isArray(range)) {
             if (range.length >= 2) {
-                (attrsProto || getAttrsProto())[attrsProtoKey + 'min'] = range[0];
-                attrsProto[attrsProtoKey + 'max'] = range[1];
+                (attrs || initAttrs())[propNamePrefix + 'min'] = range[0];
+                attrs[propNamePrefix + 'max'] = range[1];
                 if (range.length > 2) {
-                    attrsProto[attrsProtoKey + 'step'] = range[2];
+                    attrs[propNamePrefix + 'step'] = range[2];
                 }
             }
             else if (CC_DEV) {
@@ -1268,8 +1206,6 @@ function parseAttributes (cls, attrs, className, propName, usedInGetter) {
     parseSimpleAttr('min', 'number');
     parseSimpleAttr('max', 'number');
     parseSimpleAttr('step', 'number');
-
-    return result;
 }
 
 cc.Class = CCClass;
@@ -1280,12 +1216,12 @@ module.exports = {
         return Array.isArray(defaultVal);
     },
     fastDefine: CCClass._fastDefine,
-    getNewValueTypeCode,
+    getNewValueTypeCode: CC_SUPPORT_JIT && getNewValueTypeCodeJit,
     IDENTIFIER_RE,
     escapeForJS,
     getDefault: getDefault
 };
 
 if (CC_TEST) {
-    JS.mixin(CCClass, module.exports);
+    js.mixin(CCClass, module.exports);
 }

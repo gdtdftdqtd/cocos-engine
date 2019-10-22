@@ -25,44 +25,83 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var Audio = require('./CCAudio');
-var AudioClip = require('../core/assets/CCAudioClip');
+const Audio = require('./CCAudio');
+const AudioClip = require('../core/assets/CCAudioClip');
+const js = cc.js;
 
-var instanceId = 0;
-var id2audio = {};
-var url2id = {};
+let _instanceId = 0;
+let _id2audio = js.createMap(true);
+let _url2id = {};
+let _audioPool = [];
 
-var getAudioFromPath = function (path) {
-    var id = instanceId++;
-    var list = url2id[path];
+let recycleAudio = function (audio) {
+    audio._finishCallback = null;
+    audio.off('ended');
+    audio.off('stop');
+    audio.src = null;
+    // In case repeatly recycle audio
+    if (!_audioPool.includes(audio)) {
+        if (_audioPool.length < 32) {
+            _audioPool.push(audio);
+        }
+        else {
+            audio.destroy();
+        }
+    }
+};
+
+let getAudioFromPath = function (path) {
+    var id = _instanceId++;
+    var list = _url2id[path];
     if (!list) {
-        list = url2id[path] = [];
+        list = _url2id[path] = [];
     }
     if (audioEngine._maxAudioInstance <= list.length) {
         var oldId = list.shift();
-        var oldAudio = id2audio[oldId];
+        var oldAudio = getAudioFromId(oldId);
+        // Stop will recycle audio automatically by event callback
         oldAudio.stop();
-        oldAudio.destroy();
     }
 
-    var audio = new Audio();
+    var audio = _audioPool.pop() || new Audio();
     var callback = function () {
-        delete id2audio[this.id];
-        var index = list.indexOf(this.id);
-        cc.js.array.fastRemoveAt(list, index);
+        var audioInList = getAudioFromId(this.id);
+        if (audioInList) {
+            delete _id2audio[this.id];
+            var index = list.indexOf(this.id);
+            cc.js.array.fastRemoveAt(list, index);
+        }
+        recycleAudio(this);
     };
-    audio.on('ended', callback);
-    audio.on('stop', callback);
-    id2audio[id] = audio;
 
+    audio.on('ended', function () {
+        if (this._finishCallback) {
+            this._finishCallback();
+        }
+        callback.call(this);
+    }, audio);
+
+    audio.on('stop', callback, audio);
     audio.id = id;
+    _id2audio[id] = audio;
     list.push(id);
 
     return audio;
 };
 
-var getAudioFromId = function (id) {
-    return id2audio[id];
+let getAudioFromId = function (id) {
+    return _id2audio[id];
+};
+
+let handleVolume  = function (volume) {
+    if (volume === undefined) {
+        // set default volume as 1
+        volume = 1;
+    }
+    else if (typeof volume === 'string') {
+        volume = Number.parseFloat(volume);
+    }
+    return volume;
 };
 
 /**
@@ -85,7 +124,7 @@ var audioEngine = {
     _maxWebAudioSize: 2097152, // 2048kb * 1024
     _maxAudioInstance: 24,
 
-    _id2audio: id2audio,
+    _id2audio: _id2audio,
 
     /**
      * !#en Play audio.
@@ -96,7 +135,7 @@ var audioEngine = {
      * @param {Number} volume - Volume size.
      * @return {Number} audioId
      * @example
-     * cc.loader.loadRes(url, cc.AudioClip, function (err, clip) {
+     * cc.assetManager.loadRes(url, cc.AudioClip, null, function (err, clip) {
      *     var audioID = cc.audioEngine.play(clip, false, 0.5);
      * });
      */
@@ -125,9 +164,7 @@ var audioEngine = {
         }
 
         audio.setLoop(loop || false);
-        if (typeof volume !== 'number') {
-            volume = 1;
-        }
+        volume = handleVolume(volume);
         audio.setVolume(volume);
         audio.play();
 
@@ -161,9 +198,9 @@ var audioEngine = {
      */
     isLoop: function (audioID) {
         var audio = getAudioFromId(audioID);
-        if (!audio || !audio.isLoop)
+        if (!audio || !audio.getLoop)
             return false;
-        return audio.isLoop();
+        return audio.getLoop();
     },
 
     /**
@@ -272,10 +309,7 @@ var audioEngine = {
         var audio = getAudioFromId(audioID);
         if (!audio)
             return;
-        audio.off('ended', audio._finishCallback);
-
         audio._finishCallback = callback;
-        audio.on('ended', audio._finishCallback);
     },
 
     /**
@@ -306,8 +340,8 @@ var audioEngine = {
      * cc.audioEngine.pauseAll();
      */
     pauseAll: function () {
-        for (var id in id2audio) {
-            var audio = id2audio[id];
+        for (var id in _id2audio) {
+            var audio = _id2audio[id];
             var state = audio.getState();
             if (state === Audio.State.PLAYING) {
                 this._pauseIDCache.push(id);
@@ -359,8 +393,8 @@ var audioEngine = {
     stop: function (audioID) {
         var audio = getAudioFromId(audioID);
         if (audio) {
+            // Stop will recycle audio automatically by event callback
             audio.stop();
-            audio.destroy();
             return true;
         }
         else {
@@ -376,11 +410,11 @@ var audioEngine = {
      * cc.audioEngine.stopAll();
      */
     stopAll: function () {
-        for (var id in id2audio) {
-            var audio = id2audio[id];
+        for (var id in _id2audio) {
+            var audio = _id2audio[id];
             if (audio) {
+                // Stop will recycle audio automatically by event callback
                 audio.stop();
-                audio.destroy();
             }
         }
     },
@@ -394,7 +428,7 @@ var audioEngine = {
      * cc.audioEngine.setMaxAudioInstance(20);
      */
     setMaxAudioInstance: function (num) {
-        return this._maxAudioInstance = num;
+        this._maxAudioInstance = num;
     },
 
     /**
@@ -431,15 +465,15 @@ var audioEngine = {
             filePath = clip.nativeUrl;
         }
 
-        var list = url2id[filePath];
+        var list = _url2id[filePath];
         if (!list) return;
         while (list.length > 0) {
             var id = list.pop();
-            var audio = id2audio[id];
+            var audio = _id2audio[id];
             if (audio) {
+                // Stop will recycle audio automatically by event callback
                 audio.stop();
-                audio.destroy();
-                delete id2audio[id];
+                delete _id2audio[id];
             }
         }
     },
@@ -453,14 +487,18 @@ var audioEngine = {
      */
     uncacheAll: function () {
         this.stopAll();
-        for (var id in id2audio) {
-            var audio = id2audio[id];
+        let audio;
+        for (let id in _id2audio) {
+            audio = _id2audio[id];
             if (audio) {
                 audio.destroy();
             }
         }
-        id2audio = {};
-        url2id = {};
+        while (audio = _audioPool.pop()) {
+            audio.destroy();
+        }
+        _id2audio = js.createMap(true);
+        _url2id = {};
     },
 
     /**
@@ -479,14 +517,14 @@ var audioEngine = {
      * @param {Function} [callback] - The callback of an audio.
      * @example
      * cc.audioEngine.preload(path);
-     * @deprecated `cc.audioEngine.preload` is deprecated, use `cc.loader.loadRes(url, cc.AudioClip)` instead please.
+     * @deprecated `cc.audioEngine.preload` is deprecated, use `cc.assetManager.loadRes(url, cc.AudioClip)` instead please.
      */
     preload: function (filePath, callback) {
         if (CC_DEBUG) {
-            cc.warn('`cc.audioEngine.preload` is deprecated, use `cc.loader.loadRes(url, cc.AudioClip)` instead please.');
+            cc.warn('`cc.audioEngine.preload` is deprecated, use `cc.assetManager.loadRes(url, cc.AudioClip)` instead please.');
         }
 
-        cc.loader.load(filePath, callback && function (error) {
+        cc.assetManager.loadRes(filePath, cc.AudioClip, null, callback && function (error) {
             if (!error) {
                 callback();
             }
@@ -509,8 +547,8 @@ var audioEngine = {
     _breakCache: null,
     _break: function () {
         this._breakCache = [];
-        for (var id in id2audio) {
-            var audio = id2audio[id];
+        for (var id in _id2audio) {
+            var audio = _id2audio[id];
             var state = audio.getState();
             if (state === Audio.State.PLAYING) {
                 this._breakCache.push(id);
@@ -553,7 +591,7 @@ var audioEngine = {
      * @param {Boolean} loop - Whether the music loop or not.
      * @return {Number} audioId
      * @example
-     * cc.loader.loadRes(url, cc.AudioClip, function (err, clip) {
+     * cc.assetManager.loadRes(url, cc.AudioClip, null, function (err, clip) {
      *     var audioID = cc.audioEngine.playMusic(clip, false);
      * });
      */
@@ -621,6 +659,7 @@ var audioEngine = {
      * cc.audioEngine.setMusicVolume(0.5);
      */
     setMusicVolume: function (volume) {
+        volume = handleVolume(volume);
         var music = this._music;
         music.volume = volume;
         this.setVolume(music.id, music.volume);
@@ -647,7 +686,7 @@ var audioEngine = {
      * @param {Boolean} loop - Whether the music loop or not.
      * @return {Number} audioId
      * @example
-     * cc.loader.loadRes(url, cc.AudioClip, function (err, clip) {
+     * cc.assetManager.loadRes(url, cc.AudioClip, null, function (err, clip) {
      *     var audioID = cc.audioEngine.playEffect(clip, false);
      * });
      */
@@ -664,10 +703,12 @@ var audioEngine = {
      * cc.audioEngine.setEffectsVolume(0.5);
      */
     setEffectsVolume: function (volume) {
+        volume = handleVolume(volume);
         var musicId = this._music.id;
         this._effect.volume = volume;
-        for (var id in id2audio) {
-            if (id === musicId) continue;
+        for (var id in _id2audio) {
+            var audio = _id2audio[id];
+            if (!audio || audio.id === musicId) continue;
             audioEngine.setVolume(id, volume);
         }
     },
@@ -708,9 +749,9 @@ var audioEngine = {
         var effect = this._effect;
         effect.pauseCache.length = 0;
 
-        for (var id in id2audio) {
-            if (id === musicId) continue;
-            var audio = id2audio[id];
+        for (var id in _id2audio) {
+            var audio = _id2audio[id];
+            if (!audio || audio.id === musicId) continue;
             var state = audio.getState();
             if (state === this.AudioState.PLAYING) {
                 effect.pauseCache.push(id);
@@ -742,7 +783,7 @@ var audioEngine = {
         var pauseIDCache = this._effect.pauseCache;
         for (var i = 0; i < pauseIDCache.length; ++i) {
             var id = pauseIDCache[i];
-            var audio = id2audio[id];
+            var audio = _id2audio[id];
             if (audio)
                 audio.resume();
         }
@@ -769,9 +810,9 @@ var audioEngine = {
      */
     stopAllEffects: function () {
         var musicId = this._music.id;
-        for (var id in id2audio) {
-            if (id === musicId) continue;
-            var audio = id2audio[id];
+        for (var id in _id2audio) {
+            var audio = _id2audio[id];
+            if (!audio || audio.id === musicId) continue;
             var state = audio.getState();
             if (state === audioEngine.AudioState.PLAYING) {
                 audio.stop();
@@ -781,8 +822,3 @@ var audioEngine = {
 };
 
 module.exports = cc.audioEngine = audioEngine;
-
-// deprecated
-var Module = require('./deprecated');
-Module.removed(audioEngine);
-Module.deprecated(audioEngine);

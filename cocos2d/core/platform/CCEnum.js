@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,7 +24,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var JS = require('./js');
+var js = require('./js');
 
 // enum
 
@@ -48,7 +48,7 @@ function Enum (obj) {
     if ('__enums__' in obj) {
         return obj;
     }
-    JS.value(obj, '__enums__', null, true);
+    js.value(obj, '__enums__', null, true);
 
     var lastIndex = -1;
     var keys = Object.keys(obj);
@@ -74,7 +74,7 @@ function Enum (obj) {
                 cc.errorID(7100, reverseKey);
                 continue;
             }
-            JS.value(obj, reverseKey, key);
+            js.value(obj, reverseKey, key);
         }
     }
     return obj;

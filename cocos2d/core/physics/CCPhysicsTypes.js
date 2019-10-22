@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -125,6 +125,8 @@ module.exports = {
     BodyType: BodyType,
     ContactType: ContactType,
     RayCastType: RayCastType,
+    
+    DrawBits: b2.DrawFlags,
 
     PTM_RATIO: 32,
     ANGLE_TO_PHYSICS_ANGLE: -Math.PI / 180,

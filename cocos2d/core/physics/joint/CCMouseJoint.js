@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -211,6 +211,7 @@ var MouseJoint = cc.Class({
         mouseRegion.on(cc.Node.EventType.TOUCH_START, this.onTouchBegan, this);
         mouseRegion.on(cc.Node.EventType.TOUCH_MOVE, this.onTouchMove, this);
         mouseRegion.on(cc.Node.EventType.TOUCH_END, this.onTouchEnd, this);
+        mouseRegion.on(cc.Node.EventType.TOUCH_CANCEL, this.onTouchEnd, this);
     },
 
     onEnable: function () {
@@ -224,7 +225,7 @@ var MouseJoint = cc.Class({
         var target = this._pressPoint = event.touch.getLocation();
         
         if (cc.Camera && cc.Camera.main) {
-            target = cc.Camera.main.getCameraToWorldPoint(target);
+            target = cc.Camera.main.getScreenToWorldPoint(target);
         }
 
         var collider = manager.testPoint( target );
@@ -264,8 +265,9 @@ var MouseJoint = cc.Class({
             return;
         }
 
-        if (cc.Camera && cc.Camera.main) {
-            this.target = cc.Camera.main.getCameraToWorldPoint(this._pressPoint);
+        var camera = cc.Camera.findCamera(this.node);
+        if (camera) {
+            this.target = camera.getScreenToWorldPoint(this._pressPoint);
         }
         else {
             this.target = this._pressPoint;

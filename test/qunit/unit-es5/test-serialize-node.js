@@ -22,43 +22,36 @@ if (TestEditorExtends) {
     var compareKeys = [
         '_localZOrder',
         '_globalZOrder',
-        '_rotationX',
-        '_rotationY',
-        '_scaleX',
-        '_scaleY',
+        '_scale',
         '_position',
         '_skewX',
         '_skewY',
         '_anchorPoint',
         '_contentSize',
-        'tag',
         '_name',
         '_opacity',
         '_color',
         '_active',
-        '_cascadeOpacityEnabled',
         '__type__'
     ];
 
     function createNodeData(nodeName) {
+        var trs = new Float32Array(10);
+        for (var i = 0; i < trs.length; i++) {
+            trs[i] = getRandomDouble();
+        }
         return {
             '_localZOrder' : getRandomInt(),
             '_globalZOrder' : getRandomInt(),
-            '_rotationX' : getRandomDouble(),
-            '_rotationY' : getRandomDouble(),
-            '_scaleX' : 1.5,
-            '_scaleY' : 1.5,
-            '_position' : cc.p(getRandomDouble(), getRandomDouble()),
+            '_trs' : trs,
             '_skewX' : getRandomDouble(),
             '_skewY' : getRandomDouble(),
             '_active' : getRandomBool(),
-            '_anchorPoint' : cc.p(getRandomDouble(), getRandomDouble()),
+            '_anchorPoint' : cc.v2(getRandomDouble(), getRandomDouble()),
             '_contentSize' : cc.size(getRandomDouble(), getRandomDouble()),
-            'tag' : getRandomInt(),
             '_name' : nodeName,
             '_opacity' : getSpecRandomInt(0, 256),
             '_color' : cc.color(getSpecRandomInt(0, 256), getSpecRandomInt(0, 256), getSpecRandomInt(0, 256), getSpecRandomInt(0, 256)),
-            '_cascadeOpacityEnabled' : getRandomBool(),
             '__type__' : 'cc.Node'
         };
     }
@@ -68,21 +61,17 @@ if (TestEditorExtends) {
 
         ret._localZOrder = getRandomInt();
         ret._globalZOrder = getRandomInt();
-        ret._rotationX = getRandomDouble();
-        ret._rotationY = getRandomDouble();
-        ret._scaleX = 1.5;
-        ret._scaleY = 1.5;
-        ret._position = cc.p(getRandomDouble(), getRandomDouble());
+        ret.quat = cc.quat(getRandomDouble(), getRandomDouble(), getRandomDouble(), 1);
+        ret.scale = cc.v3(getRandomDouble(), getRandomDouble(), getRandomDouble())
+        ret.position = cc.v3(getRandomDouble(), getRandomDouble(), getRandomDouble());
         ret._skewX = getRandomDouble();
         ret._skewY = getRandomDouble();
         ret._active = getRandomBool();
-        ret._anchorPoint = cc.p(getRandomDouble(), getRandomDouble());
+        ret._anchorPoint = cc.v2(getRandomDouble(), getRandomDouble());
         ret._contentSize = cc.size(getRandomDouble(), getRandomDouble());
-        ret.tag = getRandomInt();
         ret._name = nodeName;
         ret._opacity = getSpecRandomInt(0, 256);
         ret._color = cc.color(getSpecRandomInt(0, 256), getSpecRandomInt(0, 256), getSpecRandomInt(0, 256), getSpecRandomInt(0, 256));
-        ret._cascadeOpacityEnabled = getRandomBool();
         ret.__type__ = 'cc.Node';
 
         return ret;

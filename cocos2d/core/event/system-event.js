@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -26,13 +26,7 @@
 
 var EventTarget = require('../event/event-target');
 var eventManager = require('../event-manager');
-var inputManger;
-if (CC_JSB) {
-    inputManger = cc.inputManager;
-}
-else {
-    inputManger = require('../platform/CCInputManager');
-}
+var inputManger = require('../platform/CCInputManager');;
 
 /**
  * !#en The event type supported by SystemEvent
@@ -70,15 +64,21 @@ var EventType = cc.Enum({
 });
 
 /**
- * !#en The System event, it currently supports the key events and accelerometer events
- * !#zh 系统事件，它目前支持按键事件和重力感应事件
+ * !#en
+ * The System event, it currently supports keyboard events and accelerometer events.<br>
+ * You can get the SystemEvent instance with cc.systemEvent.<br>
+ * !#zh
+ * 系统事件，它目前支持按键事件和重力感应事件。<br>
+ * 你可以通过 cc.systemEvent 获取到 SystemEvent 的实例。<br>
  * @class SystemEvent
  * @extends EventTarget
+ * @example
+ * cc.systemEvent.on(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
+ * cc.systemEvent.off(cc.SystemEvent.EventType.DEVICEMOTION, this.onDeviceMotionEvent, this);
  */
 
 var keyboardListener = null;
 var accelerationListener = null;
-var keyboardListenerAddFrame = 0;
 var SystemEvent = cc.Class({
     name: 'SystemEvent',
     extends: EventTarget,
@@ -94,6 +94,9 @@ var SystemEvent = cc.Class({
      * @param {Boolean} isEnable
      */
     setAccelerometerEnabled: function (isEnable) {
+        if (CC_EDITOR) {
+            return;
+        }
         inputManger.setAccelerometerEnabled(isEnable);
     },
 
@@ -104,11 +107,17 @@ var SystemEvent = cc.Class({
      * @param {Number} interval
      */
     setAccelerometerInterval: function(interval) {
+        if (CC_EDITOR) {
+            return;
+        }
         inputManger.setAccelerometerInterval(interval);
     },
 
-    on: function (type, callback, target, useCapture) {
-        this._super(type, callback, target, useCapture);
+    on: function (type, callback, target, once) {
+        if (CC_EDITOR) {
+            return;
+        }
+        this._super(type, callback, target, once);
 
         // Keyboard
         if (type === EventType.KEY_DOWN || type === EventType.KEY_UP) {
@@ -117,28 +126,16 @@ var SystemEvent = cc.Class({
                     event: cc.EventListener.KEYBOARD,
                     onKeyPressed: function (keyCode, event) {
                         event.type = EventType.KEY_DOWN;
-                        if (CC_JSB) {
-                            event.keyCode = keyCode;
-                            event.isPressed = true;
-                        }
                         cc.systemEvent.dispatchEvent(event);
                     },
                     onKeyReleased: function (keyCode, event) {
                         event.type = EventType.KEY_UP;
-                        if (CC_JSB) {
-                            event.keyCode = keyCode;
-                            event.isPressed = false;
-                        }
                         cc.systemEvent.dispatchEvent(event);
                     }
                 });
             }
-            if (!eventManager.hasEventListener(cc._EventListenerKeyboard.LISTENER_ID)) {
-                var currentFrame = cc.director.getTotalFrames();
-                if (currentFrame !== keyboardListenerAddFrame) {
-                    eventManager.addListener(keyboardListener, 1);
-                    keyboardListenerAddFrame = currentFrame;
-                }
+            if (!eventManager.hasEventListener(cc.EventListener.ListenerID.KEYBOARD)) {
+                eventManager.addListener(keyboardListener, 1);
             }
         }
 
@@ -149,22 +146,22 @@ var SystemEvent = cc.Class({
                     event: cc.EventListener.ACCELERATION,
                     callback: function (acc, event) {
                         event.type = EventType.DEVICEMOTION;
-                        if (CC_JSB) {
-                            event.acc = acc;
-                        }
                         cc.systemEvent.dispatchEvent(event);
                     }
                 });
             }
-            if (!eventManager.hasEventListener(cc._EventListenerAcceleration.LISTENER_ID)) {
+            if (!eventManager.hasEventListener(cc.EventListener.ListenerID.ACCELERATION)) {
                 eventManager.addListener(accelerationListener, 1);
             }
         }
     },
 
 
-    off: function (type, callback, target, useCapture) {
-        this._super(type, callback, target, useCapture);
+    off: function (type, callback, target) {
+        if (CC_EDITOR) {
+            return;
+        }
+        this._super(type, callback, target);
 
         // Keyboard
         if (keyboardListener && (type === EventType.KEY_DOWN || type === EventType.KEY_UP)) {
@@ -184,8 +181,7 @@ var SystemEvent = cc.Class({
 });
 
 cc.SystemEvent = module.exports = SystemEvent;
-if (!CC_EDITOR) {
-/** 
+/**
  * @module cc
  */
 
@@ -194,6 +190,5 @@ if (!CC_EDITOR) {
  * !#zh 系统事件单例，方便全局使用
  * @property systemEvent
  * @type {SystemEvent}
- */    
-    cc.systemEvent = new cc.SystemEvent();
-}
+ */
+cc.systemEvent = new cc.SystemEvent();

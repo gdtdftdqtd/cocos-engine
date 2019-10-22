@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -95,8 +95,8 @@ cc.path = /** @lends cc.path# */{
     basename: function (pathStr, extname) {
         var index = pathStr.indexOf("?");
         if (index > 0) pathStr = pathStr.substring(0, index);
-        var reg = /(\/|\\\\)([^(\/|\\\\)]+)$/g;
-        var result = reg.exec(pathStr.replace(/(\/|\\\\)$/, ""));
+        var reg = /(\/|\\)([^\/\\]+)$/g;
+        var result = reg.exec(pathStr.replace(/(\/|\\)$/, ""));
         if (!result) return null;
         var baseName = result[2];
         if (extname && pathStr.substring(pathStr.length - extname.length).toLowerCase() === extname.toLowerCase())

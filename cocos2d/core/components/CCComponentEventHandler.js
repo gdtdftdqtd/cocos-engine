@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -35,19 +35,29 @@
  * 并可通过 emit 方法调用目标函数。
  * @class Component.EventHandler
  * @example
+ * // Let's say we have a MainMenu component on newTarget
+ * // file: MainMenu.js
+ * cc.Class({
+ *   extends: cc.Component,
+ *   // sender: the node MainMenu.js belongs to
+ *   // eventType: CustomEventData
+ *   onClick (sender, eventType) {
+ *     cc.log('click');
+ *   }
+ * })
  * // Create new EventHandler
  * var eventHandler = new cc.Component.EventHandler();
  * eventHandler.target = newTarget;
  * eventHandler.component = "MainMenu";
- * eventHandler.handler = "OnClick";
+ * eventHandler.handler = "onClick";
  * eventHandler.customEventData = "my data";
  */
 cc.Component.EventHandler = cc.Class({
     name: 'cc.ClickEvent',
     properties: {
         /**
-         * !#en Event target
-         * !#zh 目标节点
+         * !#en the node that contains target callback, such as the node example script belongs to
+         * !#zh 事件响应函数所在节点 ，比如例子中脚本归属的节点本身
          * @property target
          * @type {Node}
          * @default null
@@ -57,18 +67,28 @@ cc.Component.EventHandler = cc.Class({
             type: cc.Node,
         },
         /**
-         * !#en Component name
-         * !#zh 目标组件名
+         * !#en name of the component(script) that contains target callback, such as the name 'MainMenu' of script in example
+         * !#zh 事件响应函数所在组件名（脚本名）, 比如例子中的脚本名 'MainMenu'
          * @property component
          * @type {String}
          * @default ''
          */
-        component: {
-            default: '',
+        // only for deserializing old project component field
+        component: '',
+        _componentId: '',
+        _componentName: {
+            get () {
+                this._genCompIdIfNeeded();
+
+                return this._compId2Name(this._componentId);
+            },
+            set (value) {
+                this._componentId = this._compName2Id(value);
+            },
         },
         /**
-         * !#en Event handler
-         * !#zh 响应事件函数名
+         * !#en Event handler, such as function's name 'onClick' in example
+         * !#zh 响应事件函数名，比如例子中的 'onClick'
          * @property handler
          * @type {String}
          * @default ''
@@ -78,8 +98,8 @@ cc.Component.EventHandler = cc.Class({
         },
 
         /**
-         * !#en Custom Event Data
-         * !#zh 自定义事件数据
+         * !#en Custom Event Data, such as 'eventType' in example
+         * !#zh 自定义事件数据，比如例子中的 eventType
          * @property customEventData
          * @default ''
          * @type {String}
@@ -98,14 +118,14 @@ cc.Component.EventHandler = cc.Class({
          */
         emitEvents: function(events) {
             'use strict';
-            var args, i, l;
+            let args;
             if (arguments.length > 0) {
                 args = new Array(arguments.length - 1);
-                for (i = 0, l = args.length; i < l; i++) {
+                for (let i = 0, l = args.length; i < l; i++) {
                     args[i] = arguments[i+1];
                 }
             }
-            for (i = 0, l = events.length; i < l; i++) {
+            for (let i = 0, l = events.length; i < l; i++) {
                 var event = events[i];
                 if (!(event instanceof cc.Component.EventHandler)) continue;
 
@@ -131,7 +151,10 @@ cc.Component.EventHandler = cc.Class({
         var target = this.target;
         if (!cc.isValid(target)) return;
 
-        var comp = target.getComponent(this.component);
+        this._genCompIdIfNeeded();
+        var compType = cc.js._getClassById(this._componentId);
+        
+        var comp = target.getComponent(compType);
         if (!cc.isValid(comp)) return;
 
         var handler = comp[this.handler];
@@ -143,5 +166,23 @@ cc.Component.EventHandler = cc.Class({
         }
 
         handler.apply(comp, params);
-    }
+    },
+
+    _compName2Id (compName) {
+        let comp = cc.js.getClassByName(compName);
+        return cc.js._getClassId(comp);
+    },
+
+    _compId2Name (compId) {
+        let comp = cc.js._getClassById(compId);
+        return cc.js.getClassName(comp);
+    },
+
+    // to be deprecated in the future
+    _genCompIdIfNeeded () {
+        if (!this._componentId) {
+            this._componentName = this.component;
+            this.component = '';
+        }
+    },
 });

@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -30,7 +30,7 @@
  * @extends Asset
  *
  */
-var TiledMapAsset = cc.Class({
+let TiledMapAsset = cc.Class({
     name: 'cc.TiledMapAsset',
     extends: cc.Asset,
 
@@ -50,6 +50,19 @@ var TiledMapAsset = cc.Class({
          */
         textureNames: [cc.String],
 
+        /**
+         * @property {Texture2D[]} imageLayerTextures
+         */
+        imageLayerTextures: {
+            default: [],
+            type: [cc.Texture2D]
+        },
+
+        /**
+         * @property {String[]} imageLayerTextureNames
+         */
+        imageLayerTextureNames: [cc.String],
+
         tsxFiles: [cc.TextAsset],
         tsxFileNames: [cc.String],
     },
@@ -59,8 +72,8 @@ var TiledMapAsset = cc.Class({
     },
 
     createNode: CC_EDITOR && function (callback) {
-        var node = new cc.Node(this.name);
-        var tiledMap = node.addComponent(cc.TiledMap);
+        let node = new cc.Node(this.name);
+        let tiledMap = node.addComponent(cc.TiledMap);
         tiledMap.tmxAsset = this;
 
         return callback(null, node);

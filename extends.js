@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -32,15 +32,13 @@ if (CC_EDITOR && Editor.isMainProcess) {
     require('./cocos2d/tilemap/CCTiledMapAsset');
 }
 else {
-    require('./cocos2d/particle/CCParticleSystem');
-    require('./cocos2d/tilemap/CCTiledMap');
-    require('./cocos2d/motion-streak/CCMotionStreak');
+    require('./cocos2d/particle');
+    require('./cocos2d/tilemap');
+    require('./cocos2d/videoplayer/CCVideoPlayer');
+    require('./cocos2d/webview/CCWebView');
     require('./cocos2d/core/components/CCStudioComponent');
     require('./extensions/ccpool/CCNodePool');
-    require('./extensions/ccpool/CCPool');
-    if (!CC_JSB) {
-        require('./cocos2d/actions');
-    }
+    require('./cocos2d/actions');
 }
 
 require('./extensions/spine');

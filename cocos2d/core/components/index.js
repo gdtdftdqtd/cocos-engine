@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -25,12 +25,28 @@
  ****************************************************************************/
 
 require('./CCComponent');
-require('./CCRendererInSG');
-require('./CCRendererUnderSG');
 require('./CCComponentEventHandler');
 require('./missing-script');
 
-module.exports = [
+// In case subContextView modules are excluded
+let WXSubContextView = require('./WXSubContextView');
+let SwanSubContextView = require('./SwanSubContextView');
+
+if (!WXSubContextView) {
+    WXSubContextView = cc.Class({
+        name: 'cc.WXSubContextView',
+        extends: cc.Component,
+    });
+}
+
+if (!SwanSubContextView) {
+    SwanSubContextView = cc.Class({
+        name: 'cc.SwanSubContextView',
+        extends: cc.Component,
+    });
+}
+
+var components = [
     require('./CCSprite'),
     require('./CCWidget'),
     require('./CCCanvas'),
@@ -46,14 +62,17 @@ module.exports = [
     require('./CCPageView'),
     require('./CCSlider'),
     require('./CCLayout'),
-    require('./CCEditBox'),
-    require('./CCVideoPlayer'),
-    require('./CCWebView'),
-    require('./CCSpriteDistortion'),
+    require('./editbox/CCEditBox'),
     require('./CCLabelOutline'),
+    require('./CCLabelShadow'),
     require('./CCRichText'),
     require('./CCToggleContainer'),
     require('./CCToggleGroup'),
     require('./CCToggle'),
     require('./CCBlockInputEvents'),
+    require('./CCMotionStreak'),
+    WXSubContextView,
+    SwanSubContextView,
 ];
+
+module.exports = components;

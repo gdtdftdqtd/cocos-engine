@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -25,18 +25,5 @@
  ****************************************************************************/
 
 'use strict';
-
-var GraphicsNode;
-if (!CC_JSB) {
-    GraphicsNode = _ccsg.GraphicsNode = require('./graphics-node');
-}
-else {
-    GraphicsNode = _ccsg.GraphicsNode = cc.GraphicsNode;
-}
-
-if (GraphicsNode) {
-    var misc = require('../utils/misc');
-    misc.propertyDefine(GraphicsNode, ['lineWidth', 'lineCap', 'lineJoin', 'miterLimit', 'strokeColor', 'fillColor'], {});
-}
 
 require('./graphics');

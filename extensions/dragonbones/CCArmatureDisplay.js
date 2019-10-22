@@ -1,18 +1,18 @@
 /****************************************************************************
- Copyright (c) 2016 Chukong Technologies Inc.
- Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+ Copyright (c) 2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos2d-x.org
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
+ of this software and associated engine source code (the "Software"), a limited,
+ worldwide, royalty-free, non-assignable, revocable and non-exclusive license
+ to use Cocos Creator solely to develop games on your target platforms. You shall
+ not use Cocos Creator software for developing other software or tools that's
+ used for developing games. You are not granted to publish, distribute,
+ sublicense, and/or sell copies of Cocos Creator.
 
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
+ The software or tools in this License Agreement are licensed, not sold.
+ Xiamen Yaji Software Co., Ltd. reserves all rights not expressly granted to you.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,104 +22,104 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  ****************************************************************************/
-
-var EventTarget = require('../../cocos2d/core/event/event-target');
-require('../../cocos2d/shape-nodes/CCDrawNode');
+let EventTarget = require('../../cocos2d/core/event/event-target');
 
 dragonBones.CCArmatureDisplay = cc.Class({
     name: 'dragonBones.CCArmatureDisplay',
-    extends: _ccsg.Node,
-    mixins: [EventTarget],
+
+    properties: {
+        // adapt old api
+        node: {
+            get () {
+                return this;
+            }
+        },
+    },
 
     ctor () {
+        this._eventTarget = new EventTarget();
+    },
+
+    setEventTarget (eventTarget) {
+        this._eventTarget = eventTarget;
+    },
+
+    getRootDisplay () {
+        var parentSlot = this._armature._parent;
+        if (!parentSlot) {
+            return this;
+        }
+        
+        var slot;
+        while (parentSlot)
+        {
+            slot = parentSlot;
+            parentSlot = parentSlot._armature._parent;
+        }
+        return slot._armature.getDisplay();
+    },
+
+    convertToRootSpace (pos) {
+        var slot = this._armature._parent;
+        if (!slot)
+        {
+            return pos;
+        }
+        slot.updateWorldMatrix();
+
+        let worldMatrix = slot._worldMatrix;
+        let worldMatrixm = worldMatrix.m;
+        let newPos = cc.v2(0,0);
+        newPos.x = pos.x * worldMatrixm[0] + pos.y * worldMatrixm[4] + worldMatrixm[12];
+        newPos.y = pos.x * worldMatrixm[1] + pos.y * worldMatrixm[5] + worldMatrixm[13];
+        return newPos;
+    },
+
+    convertToWorldSpace (point) {
+        var newPos = this.convertToRootSpace(point);
+        var ccNode = this.getRootNode();
+        var finalPos = ccNode.convertToWorldSpace(newPos);
+        return finalPos;
+    },
+
+    getRootNode () {
+        var rootDisplay = this.getRootDisplay();
+        return rootDisplay && rootDisplay._ccNode;
+    },
+
+    ////////////////////////////////////
+    // dragonbones api
+    dbInit (armature) {
+        this._armature = armature;
+    },
+
+    dbClear () {
         this._armature = null;
-        this._debugDrawer = null;
     },
 
-    _onClear : function () {
-        this._armature = null;
+    dbUpdate () {
+        
     },
 
-    _dispatchEvent : function (eventObject) {
-        this.emit(eventObject.type, eventObject);
+    advanceTimeBySelf  (on) {
+        this.shouldAdvanced = !!on;
     },
 
-    _debugDraw : function () {
-        if (!this._armature) {
-            return;
-        }
-
-        if (!this._debugDrawer) {
-            this._debugDrawer = new cc.DrawNode();
-            this.addChild(this._debugDrawer);
-            this._debugDrawer.setDrawColor(cc.color(255, 0, 0, 255));
-            this._debugDrawer.setLineWidth(1);
-        }
-
-        this._debugDrawer.clear();
-        var bones = this._armature.getBones();
-        for (var i = 0, l = bones.length; i < l; ++i) {
-            var bone = bones[i];
-            var boneLength = Math.max(bone.length, 5);
-            var startX = bone.globalTransformMatrix.tx;
-            var startY = -bone.globalTransformMatrix.ty;
-            var endX = startX + bone.globalTransformMatrix.a * boneLength;
-            var endY = startY - bone.globalTransformMatrix.b * boneLength;
-
-            this._debugDrawer.drawSegment(cc.p(startX, startY), cc.p(endX, endY));
-        }
+    hasDBEventListener (type) {
+        return this._eventTarget.hasEventListener(type);
     },
 
-    update : function (passedTime) {
-        if (this._armature) {
-            this._armature.advanceTime(passedTime);
-        }
+    addDBEventListener (type, listener, target) {
+        this._eventTarget.on(type, listener, target);
     },
 
-    advanceTimeBySelf : function (on) {
-        if (on) {
-            this.scheduleUpdate();
-        } else {
-            this.unscheduleUpdate();
-        }
+    removeDBEventListener (type, listener, target) {
+        this._eventTarget.off(type, listener, target);
     },
 
-    hasEvent : function(type) {
-        return this.hasEventListener(type, false);
-    },
-
-    addEvent : function(type, listener, target) {
-        this.on(type, listener, target);
-    },
-
-    removeEvent : function(type, listener, target) {
-        this.off(type, listener, target);
-    },
-
-    dispose : function() {
-        if (this._armature) {
-            this.advanceTimeBySelf(false);
-            this._armature.dispose();
-            this._armature = null;
-        }
-    },
-
-    armature : function() {
-        return this._armature;
-    },
-
-    animation : function () {
-        return this._armature.animation;
-    },
-
-    setDebugBones : function (debug) {
-        dragonBones.DragonBones.debugDraw = debug;
-        if (debug) {
-            this.armature().advanceTime(0);
-        } else {
-            if (this._debugDrawer) {
-                this._debugDrawer.clear();
-            }
-        }
+    dispatchDBEvent  (type, eventObject) {
+        this._eventTarget.emit(type, eventObject);
     }
+    ////////////////////////////////////
+
 });

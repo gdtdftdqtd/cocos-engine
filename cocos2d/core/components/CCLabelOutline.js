@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -25,7 +25,7 @@
  ****************************************************************************/
 
 /**
- * !#en Outline effect used to change the display, only used for TTF font
+ * !#en Outline effect used to change the display, only for system fonts or TTF fonts
  * !#zh 描边效果组件,用于字体描边,只能用于系统字体
  * @class LabelOutline
  * @extends Component
@@ -33,44 +33,43 @@
  *  // Create a new node and add label components.
  *  var node = new cc.Node("New Label");
  *  var label = node.addComponent(cc.Label);
+ *  label.string = "hello world";
  *  var outline = node.addComponent(cc.LabelOutline);
  *  node.parent = this.node;
  */
 
-var LabelOutline = cc.Class({
-    name: 'cc.LabelOutline', extends: require('./CCComponent'),
+let LabelOutline = cc.Class({
+    name: 'cc.LabelOutline',
+    extends: require('./CCComponent'),
     editor: CC_EDITOR && {
         menu: 'i18n:MAIN_MENU.component.renderers/LabelOutline',
         executeInEditMode: true,
         requireComponent: cc.Label,
     },
 
-    ctor: function() {
-        this._labelSGNode = null;
-    },
-
     properties: {
+        _color: cc.Color.WHITE,
+        _width: 1,
+
         /**
-         * !#en Change the outline color
+         * !#en outline color
          * !#zh 改变描边的颜色
          * @property color
          * @type {Color}
          * @example
-         * outline.color = new cc.Color(0.5, 0.3, 0.7, 1.0);;
+         * outline.color = cc.Color.BLACK;
          */
-        _color: cc.color(255,255,255,255),
-        _width: 1,
         color: {
-            get: function() {
+            tooltip: CC_DEV && 'i18n:COMPONENT.outline.color',
+            get: function () {
                 return this._color;
             },
-            set:function(value) {
-                this._color = cc.color(value);
-                if(this._labelSGNode) {
-                    this._labelSGNode.setOutlineColor(cc.color(this._color));
-                }
+            set: function (value) {
+                this._color = value;
+                this._updateRenderData();
             }
         },
+
         /**
          * !#en Change the outline width
          * !#zh 改变描边的宽度
@@ -80,38 +79,32 @@ var LabelOutline = cc.Class({
          * outline.width = 3;
          */
         width: {
-            get: function() {
+            tooltip: CC_DEV && 'i18n:COMPONENT.outline.width',
+            get: function () {
                 return this._width;
             },
-            set: function(value) {
+            set: function (value) {
                 this._width = value;
-                if(this._labelSGNode) {
-                    this._labelSGNode.setOutlineWidth(value);
-                    this._labelSGNode.setMargin(value);
-                }
-            }
-        },
-    },
-
-    onEnable: function () {
-        var label = this.node.getComponent('cc.Label');
-        var sgNode = this._labelSGNode = label && label._sgNode;
-        if(this._labelSGNode) {
-            sgNode.setOutlined(true);
-            sgNode.setOutlineColor(cc.color(this._color));
-            sgNode.setOutlineWidth(this._width);
-            sgNode.setMargin(this._width);
+                this._updateRenderData();
+            },
+            range: [0, 512],
         }
     },
 
-    onDisable: function () {
-        if(this._labelSGNode) {
-            this._labelSGNode.setOutlined(false);
-            this._labelSGNode.setMargin(0);
-        }
-
-        this._labelSGNode = null;
+    onEnable () {
+        this._updateRenderData();
     },
+
+    onDisable () {
+        this._updateRenderData();
+    },
+
+    _updateRenderData () {
+        let label = this.node.getComponent(cc.Label);
+        if (label) {
+            label._lazyUpdateRenderData();
+        }
+    }
 
 });
 

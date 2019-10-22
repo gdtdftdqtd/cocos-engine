@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -49,7 +49,7 @@ const BlockInputEvents = cc.Class({
     editor: {
         menu: 'i18n:MAIN_MENU.component.ui/Block Input Events',
         inspector: 'packages://inspector/inspectors/comps/block-input-events.js',
-        help: 'i18n:COMPONENT.help_url.block-input-events',
+        help: 'i18n:COMPONENT.help_url.block_input_events',
     },
 
     onEnable () {

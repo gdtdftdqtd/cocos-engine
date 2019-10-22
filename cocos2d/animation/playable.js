@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -23,7 +23,8 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var JS = cc.js;
+var js = cc.js;
+const debug = require('../core/CCDebug');
 
 /**
  * @class Playable
@@ -45,7 +46,7 @@ var prototype = Playable.prototype;
  * @default false
  * @readOnly
  */
-JS.get(prototype, 'isPlaying', function () {
+js.get(prototype, 'isPlaying', function () {
     return this._isPlaying;
 }, true);
 
@@ -57,7 +58,7 @@ JS.get(prototype, 'isPlaying', function () {
  * @default false
  * @readOnly
  */
-JS.get(prototype, 'isPaused', function () {
+js.get(prototype, 'isPaused', function () {
     return this._isPaused;
 }, true);
 
@@ -105,7 +106,7 @@ prototype.play = function () {
             this.onResume();
         }
         else {
-            this.onError(cc._getError(3912));
+            this.onError(debug.getError(3912));
         }
     }
     else {

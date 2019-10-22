@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,7 +24,8 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-const Audio = CC_JSB ? cc.Audio : require('../../audio/CCAudio');
+const misc = require('../utils/misc');
+const Component = require('./CCComponent');
 const AudioClip = require('../assets/CCAudioClip');
 
 /**
@@ -35,7 +36,7 @@ const AudioClip = require('../assets/CCAudioClip');
  */
 var AudioSource = cc.Class({
     name: 'cc.AudioSource',
-    extends: require('./CCComponent'),
+    extends: Component,
 
     editor: CC_EDITOR && {
         menu: 'i18n:MAIN_MENU.component.others/AudioSource',
@@ -43,7 +44,9 @@ var AudioSource = cc.Class({
     },
 
     ctor: function () {
-        this.audio = new Audio();
+        // We can't require Audio here because jsb Audio is implemented outside the engine,
+        // it can only take effect rely on overwriting cc.Audio
+        this.audio = new cc.Audio();
     },
 
     properties: {
@@ -95,7 +98,7 @@ var AudioSource = cc.Class({
                     // backward compatibility since 1.10
                     cc.warnID(8401, 'cc.AudioSource', 'cc.AudioClip', 'AudioClip', 'cc.AudioClip', 'audio');
                     let self = this;
-                    AudioClip._loadByUrl(value, function (err, clip) {
+                    AudioClip._loadByUrl(value, {isNative: true}, null, function (err, clip) {
                         if (clip) {
                             self.clip = clip;
                         }
@@ -129,7 +132,7 @@ var AudioSource = cc.Class({
                 return this._volume;
             },
             set: function (value) {
-                value = cc.clamp01(value);
+                value = misc.clamp01(value);
                 this._volume = value;
                 if (!this._mute) {
                     this.audio.setVolume(value);
@@ -205,10 +208,11 @@ var AudioSource = cc.Class({
     },
 
     _pausedCallback: function () {
-        var audio = this.audio;
-        if (audio.paused) return;
-        this.audio.pause();
-        this._pausedFlag = true;
+        var state = this.audio.getState();
+        if (state === cc.Audio.State.PLAYING) {
+            this.audio.pause();
+            this._pausedFlag = true;
+        }
     },
 
     _restoreCallback: function () {
@@ -304,6 +308,7 @@ var AudioSource = cc.Class({
      * !#en Get current time
      * !#zh 获取当前的播放时间
      * @method getCurrentTime
+     * @return {Number}
      */
     getCurrentTime: function () {
         return this.audio.getCurrentTime();
@@ -314,6 +319,7 @@ var AudioSource = cc.Class({
      * !#zh 设置当前的播放时间
      * @method setCurrentTime
      * @param {Number} time
+     * @return {Number}
      */
     setCurrentTime: function (time) {
         this.audio.setCurrentTime(time);
@@ -324,6 +330,7 @@ var AudioSource = cc.Class({
      * !#en Get audio duration
      * !#zh 获取当前音频的长度
      * @method getDuration
+     * @return {Number}
      */
     getDuration: function () {
         return this.audio.getDuration();

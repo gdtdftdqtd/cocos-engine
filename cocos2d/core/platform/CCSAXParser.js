@@ -25,24 +25,23 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+var js = require('../platform/js');
+
 /**
  * A SAX Parser
  * @class saxParser
  */
-cc.SAXParser = cc._Class.extend(/** @lends cc.saxParser# */{
-    /**
-     * Constructor of cc.SAXParser
-     */
-    ctor: function () {
-        if (window.DOMParser) {
-            this._isSupportDOMParser = true;
-            this._parser = new DOMParser();
-        } else {
-            this._isSupportDOMParser = false;
-            this._parser = null;
-        }
-    },
-
+cc.SAXParser = function () {
+    if (!(CC_EDITOR && Editor.isMainProcess) && window.DOMParser) {
+        this._isSupportDOMParser = true;
+        this._parser = new DOMParser();
+    } else {
+        this._isSupportDOMParser = false;
+        this._parser = null;
+    }
+};
+cc.SAXParser.prototype = {
+    constructor: cc.SAXParser,
     /**
      * @method parse
      * @param {String} xmlTxt
@@ -65,8 +64,7 @@ cc.SAXParser = cc._Class.extend(/** @lends cc.saxParser# */{
         }
         return xmlDoc;
     }
-
-});
+};
 
 /**
  *
@@ -74,8 +72,11 @@ cc.SAXParser = cc._Class.extend(/** @lends cc.saxParser# */{
  * @class plistParser
  * @extends SAXParser
  */
-cc.PlistParser = cc.SAXParser.extend(/** @lends cc.plistParser# */{
-
+cc.PlistParser = function () {
+    cc.SAXParser.call(this);
+};
+js.extend(cc.PlistParser, cc.SAXParser);
+js.mixin(cc.PlistParser.prototype, {
     /**
      * parse a xml string as plist object.
      * @param {String} xmlTxt - plist xml contents
@@ -163,3 +164,8 @@ cc.saxParser = new cc.SAXParser();
  * A Plist Parser
  */
 cc.plistParser = new cc.PlistParser();
+
+module.exports = {
+    saxParser: cc.saxParser,
+    plistParser: cc.plistParser
+}

@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -82,7 +82,17 @@ var LineJoin = cc.Enum({
     MITER: 2
 });
 
+
+// PointFlags
+var PointFlags =  cc.Enum({
+    PT_CORNER: 0x01,
+    PT_LEFT: 0x02,
+    PT_BEVEL: 0x04,
+    PT_INNERBEVEL: 0x08,
+});
+
 module.exports = {
     LineCap:    LineCap,
-    LineJoin:   LineJoin
+    LineJoin:   LineJoin,
+    PointFlags: PointFlags
 };

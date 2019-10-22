@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -23,15 +23,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-
-if (!CC_JSB) {
-    window.b2 = require('../../../external/box2d/box2d');
-    if (CC_QQPLAY) {
-        // can only define global variable in this way
-        b2 = window.b2;
-    }
-}
-
+require('./box2d-adapter');
 require('./CCPhysicsManager');
 require('./CCRigidBody');
 require('./CCPhysicsContact');
@@ -52,10 +44,6 @@ require('./joint/CCWeldJoint');
 require('./joint/CCWheelJoint');
 require('./joint/CCRopeJoint');
 
-if (!CC_JSB) {
-    require('./platform/CCPhysicsDebugDraw');
-    require('./platform/CCPhysicsUtils');
-    require('./platform/CCPhysicsContactListner');
-    require('./platform/CCPhysicsAABBQueryCallback');
-    require('./platform/CCPhysicsRayCastCallback');
-}
+require('./platform/CCPhysicsContactListner');
+require('./platform/CCPhysicsAABBQueryCallback');
+require('./platform/CCPhysicsRayCastCallback');

@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,6 +24,8 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+const Font = require('./CCFont');
+
 /**
  * @module cc
  */
@@ -36,10 +38,38 @@
  */
 var TTFFont = cc.Class({
     name: 'cc.TTFFont',
-    extends: cc.Font,
-    statics: {
-        preventPreloadNativeObject: true,
+    extends: Font,
+
+    properties: {
+        _fontFamily: null,
+        _nativeAsset: {
+            type: cc.String,
+            get () {
+                return this._fontFamily;
+            },
+            set (value) {
+                this._fontFamily = value || 'Arial';
+            },
+            override: true
+        },
+
+        _nativeDep: {
+            get () {
+                return { uuid: this._uuid, _native: this._native,  ext: cc.path.extname(this._native), isNative: true };
+            },
+            override: true
+        }
     },
+
+    statics: {
+        _parseDepsFromJson () {
+            return [];
+        },
+
+        _parseNativeDepFromJson (json) {
+            return { _native: json._native,  ext: cc.path.extname(json._native), isNative: true };
+        }
+    }
 });
 
 cc.TTFFont = module.exports = TTFFont;

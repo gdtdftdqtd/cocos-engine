@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2013-2016 Chukong Technologies Inc.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -118,11 +118,11 @@ exports.test = function (callback) {
     try {
         qunit = require('gulp-qunit');
     } catch (e) {
-        console.error('Please run "npm install gulp-qunit" before running "gulp test".');
+        console.error('Please run "npm install gulp-qunit@2.0.1 -g" before running "gulp test".');
         throw e;
     }
     return Gulp.src('bin/qunit-runner.html')
-        .pipe(qunit({ timeout: 5 }))
+        .pipe(qunit({ timeout: 10 }))
         .on('end', callback);
 };
 

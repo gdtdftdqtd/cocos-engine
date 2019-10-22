@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,7 +24,7 @@
  ****************************************************************************/
 
 
-var JS = cc.js;
+var js = cc.js;
 var Playable = require('./playable');
 
 var Types = require('./types');
@@ -51,7 +51,6 @@ var WrapModeMask = Types.WrapModeMask;
  */
 function AnimationState (clip, name) {
     Playable.call(this);
-    cc.EventTarget.call(this);
     
     // Mark whether the current frame is played.
     // When set new time to animation state, we should ensure the frame at the specified time being played at next update.
@@ -71,6 +70,7 @@ function AnimationState (clip, name) {
     /**
      * @property animator
      * @type {AnimationAnimator}
+     * @private
      */
     this.animator = null;
 
@@ -154,8 +154,9 @@ function AnimationState (clip, name) {
      */
     this.time = 0;
 
-
-    this._emit = this.emit;
+    // Animation as event target
+    this._target = null;
+    this._lastframeEventOn = false;
     this.emit = function () {
         var args = new Array(arguments.length);
         for (var i = 0, l = args.length; i < l; i++) {
@@ -164,16 +165,57 @@ function AnimationState (clip, name) {
         cc.director.getAnimationManager().pushDelayEvent(this, '_emit', args);
     };
 }
-JS.extend(AnimationState, Playable);
+js.extend(AnimationState, Playable);
 
 var proto = AnimationState.prototype;
 
-cc.js.mixin(proto, cc.EventTarget.prototype);
+proto._emit = function (type, state) {
+    if (this._target && this._target.isValid) {
+        this._target.emit(type, type, state);
+    }
+};
 
-proto._setListeners = function (target) {
-    this._capturingListeners = target ? target._capturingListeners : null;
-    this._bubblingListeners = target ? target._bubblingListeners : null;
-    this._hasListenerCache = target ? target._hasListenerCache : null;
+proto.on = function (type, callback, target) {
+    if (this._target && this._target.isValid) {
+        if (type === 'lastframe') {
+            this._lastframeEventOn = true;
+        }
+        return this._target.on(type, callback, target);
+    }
+    else {
+        return null;
+    }
+};
+
+proto.once = function (type, callback, target) {
+    if (this._target && this._target.isValid) {
+        if (type === 'lastframe') {
+            this._lastframeEventOn = true;
+        }
+        let self = this;
+        return this._target.once(type, function (event) {
+            callback.call(target, event);
+            self._lastframeEventOn = false;
+        });
+    }
+    else {
+        return null;
+    }
+};
+
+proto.off = function (type, callback, target) {
+    if (this._target && this._target.isValid) {
+        if (type === 'lastframe') {
+            if (!this._target.hasEventListener(type)) {
+                this._lastframeEventOn = false;
+            }
+        }
+        this._target.off(type, callback, target);
+    }
+};
+
+proto._setEventTarget = function (target) {
+    this._target = target;
 };
 
 proto.onPlay = function () {
@@ -229,8 +271,7 @@ function process () {
     // sample
     var info = this.sample();
 
-    var cache = this._hasListenerCache;
-    if (cache && cache['lastframe']) {
+    if (this._lastframeEventOn) {
         var lastInfo;
         if (!this._lastWrappedInfo) {
             lastInfo = this._lastWrappedInfo = new WrappedInfo(info);
@@ -272,8 +313,7 @@ function simpleProcess () {
         curve.sample(time, ratio, this);
     }
 
-    var cache = this._hasListenerCache;
-    if (cache && cache['lastframe']) {
+    if (this._lastframeEventOn) {
         if (this._lastIterations === undefined) {
             this._lastIterations = ratio;
         }
@@ -403,7 +443,7 @@ proto.sample = function () {
  * @type {AnimationClip}
  * @final
  */
-JS.get(proto, 'clip', function () {
+js.get(proto, 'clip', function () {
     return this._clip;
 });
 
@@ -414,13 +454,13 @@ JS.get(proto, 'clip', function () {
  * @type {String}
  * @readOnly
  */
-JS.get(proto, 'name', function () {
+js.get(proto, 'name', function () {
     return this._name;
 });
 
-JS.obsolete(proto, 'AnimationState.length', 'duration');
+js.obsolete(proto, 'AnimationState.length', 'duration');
 
-JS.getset(proto, 'curveLoaded',
+js.getset(proto, 'curveLoaded',
     function () {
         return this.curves.length > 0;
     },
@@ -430,7 +470,7 @@ JS.getset(proto, 'curveLoaded',
 );
 
 
-JS.getset(proto, 'wrapMode',
+js.getset(proto, 'wrapMode',
     function () {
         return this._wrapMode;
     },
@@ -452,7 +492,7 @@ JS.getset(proto, 'wrapMode',
     }
 );
 
-JS.getset(proto, 'repeatCount',
+js.getset(proto, 'repeatCount',
     function () {
         return this._repeatCount;
     },
@@ -470,7 +510,7 @@ JS.getset(proto, 'repeatCount',
     }
 );
 
-JS.getset(proto, 'delay', 
+js.getset(proto, 'delay', 
     function () {
         return this._delay;
     },

@@ -25,16 +25,16 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var EventTarget = require('../core/event/event-target');
-var sys = require('../core/platform/CCSys');
-var LoadMode = require('../core/assets/CCAudioClip').LoadMode;
+const EventTarget = require('../core/event/event-target');
+const sys = require('../core/platform/CCSys');
+const LoadMode = require('../core/assets/CCAudioClip').LoadMode;
 
-var touchBinded = false;
-var touchPlayList = [
+let touchBinded = false;
+let touchPlayList = [
     //{ instance: Audio, offset: 0, audio: audio }
 ];
 
-var Audio = function (src) {
+let Audio = function (src) {
     EventTarget.call(this);
 
     this._src = src;
@@ -48,6 +48,7 @@ var Audio = function (src) {
     this._state = Audio.State.INITIALZING;
 
     this._onended = function () {
+        this._state = Audio.State.STOPPED;
         this.emit('ended');
     }.bind(this);
 };
@@ -77,14 +78,18 @@ Audio.State = {
     /**
      * @property {Number} PAUSED
      */
-    PAUSED: 2
+    PAUSED: 2,
+    /**
+     * @property {Number} STOPPED
+     */
+    STOPPED: 3,
 };
 
 (function (proto) {
 
     proto._bindEnded = function (callback) {
         callback = callback || this._onended;
-        var elem = this._element;
+        let elem = this._element;
         if (this._src && (elem instanceof HTMLAudioElement)) {
             elem.addEventListener('ended', callback);
         } else {
@@ -93,8 +98,8 @@ Audio.State = {
     };
 
     proto._unbindEnded = function () {
-        var elem = this._element;
-        if (this._src && (elem instanceof HTMLAudioElement)) {
+        let elem = this._element;
+        if (elem instanceof HTMLAudioElement) {
             elem.removeEventListener('ended', this._onended);
         } else if (elem) {
             elem.onended = null;
@@ -108,7 +113,23 @@ Audio.State = {
     // };
 
     proto._onLoaded = function () {
-        var elem = this._src._nativeAsset;
+        this._createElement();
+        
+        this.setVolume(this._volume);
+        this.setLoop(this._loop);
+        if (this._nextTime !== 0) {
+            this.setCurrentTime(this._nextTime);
+        }
+        if (this.getState() === Audio.State.PLAYING) {
+            this.play();
+        }
+        else {
+            this._state = Audio.State.INITIALZING;
+        }
+    };
+
+    proto._createElement = function () {
+        let elem = this._src._nativeAsset;
         if (elem instanceof HTMLAudioElement) {
             // Reuse dom audio element
             if (!this._element) {
@@ -118,18 +139,6 @@ Audio.State = {
         }
         else {
             this._element = new WebAudioElement(elem, this);
-        }
-
-        this.setVolume(this._volume);
-        this.setLoop(this._loop);
-        if (this._nextTime !== 0) {
-            this.setCurrentTime(this._nextTime);
-        }
-        if (this._state === Audio.State.PLAYING) {
-            this.play();
-        }
-        else {
-            this._state = Audio.State.INITIALZING;
         }
     };
 
@@ -144,19 +153,22 @@ Audio.State = {
         this._bindEnded();
         this._element.play();
 
-        if (!CC_QQPLAY && !CC_WECHATGAME) {
-            if (this._src && this._src.loadMode === LoadMode.DOM_AUDIO &&
-                this._element.paused) {
-                touchPlayList.push({instance: this, offset: 0, audio: this._element});
-            }
+        this._touchToPlay();
+    };
+
+    proto._touchToPlay = function () {
+        if (this._src && this._src.loadMode === LoadMode.DOM_AUDIO &&
+            this._element.paused) {
+            touchPlayList.push({ instance: this, offset: 0, audio: this._element });
         }
 
         if (touchBinded) return;
         touchBinded = true;
 
+        let touchEventName = ('ontouchend' in window) ? 'touchend' : 'mousedown';
         // Listen to the touchstart body event and play the audio when necessary.
-        cc.game.canvas.addEventListener('touchstart', function () {
-            var item;
+        cc.game.canvas.addEventListener(touchEventName, function () {
+            let item;
             while (item = touchPlayList.pop()) {
                 item.audio.play(item.offset);
             }
@@ -164,21 +176,18 @@ Audio.State = {
     };
 
     proto.destroy = function () {
-        if (CC_WECHATGAME) {
-            this._element && this._element.destroy();
-        }
         this._element = null;
     };
 
     proto.pause = function () {
-        if (!this._element) return;
+        if (!this._element || this.getState() !== Audio.State.PLAYING) return;
         this._unbindEnded();
         this._element.pause();
         this._state = Audio.State.PAUSED;
     };
 
     proto.resume = function () {
-        if (!this._element || this._state === Audio.State.PLAYING) return;
+        if (!this._element || this.getState() !== Audio.State.PAUSED) return;
         this._bindEnded();
         this._element.play();
         this._state = Audio.State.PLAYING;
@@ -186,12 +195,12 @@ Audio.State = {
 
     proto.stop = function () {
         if (!this._element) return;
+        this._element.pause();
         try {
             this._element.currentTime = 0;
         } catch (error) {}
-        this._element.pause();
         // remove touchPlayList
-        for (var i=0; i<touchPlayList.length; i++) {
+        for (let i = 0; i < touchPlayList.length; i++) {
             if (touchPlayList[i].instance === this) {
                 touchPlayList.splice(i, 1);
                 break;
@@ -199,7 +208,7 @@ Audio.State = {
         }
         this._unbindEnded();
         this.emit('stop');
-        this._state = Audio.State.PAUSED;
+        this._state = Audio.State.STOPPED;
     };
 
     proto.setLoop = function (loop) {
@@ -231,19 +240,20 @@ Audio.State = {
             return;
         }
 
+        // setCurrentTime would fire 'ended' event
+        // so we need to change the callback to rebind ended callback after setCurrentTime
         this._unbindEnded();
-        if (!(CC_QQPLAY || CC_WECHATGAME)) {
-            this._bindEnded(function () {
-                this._bindEnded();
-            }.bind(this));
-        }
+        this._bindEnded(function () {
+            this._bindEnded();
+        }.bind(this));
+
         try {
             this._element.currentTime = num;
         }
         catch (err) {
-            var _element = this._element;
+            let _element = this._element;
             if (_element.addEventListener) {
-                var func = function () {
+                let func = function () {
                     _element.removeEventListener('loadedmetadata', func);
                     _element.currentTime = num;
                 };
@@ -251,6 +261,7 @@ Audio.State = {
             }
         }
     };
+
     proto.getCurrentTime = function () {
         return this._element ? this._element.currentTime : 0;
     };
@@ -260,71 +271,107 @@ Audio.State = {
     };
 
     proto.getState = function () {
-        if (!CC_WECHATGAME) {
-            var elem = this._element;
-            if (elem && Audio.State.PLAYING === this._state && elem.paused) {
-                this._state = Audio.State.PAUSED;
-            }
-        }
+        // HACK: in some browser, audio may not fire 'ended' event
+        // so we need to force updating the Audio state
+        this._forceUpdatingState();
+        
         return this._state;
     };
 
-    proto.__defineGetter__('src', function () {
-        return this._src;
-    });
-    proto.__defineSetter__('src', function (clip) {
-        this._unbindEnded();
-        if (clip) {
-            this._src = clip;
-            if (clip.loaded) {
-                this._onLoaded();
+    proto._forceUpdatingState = function () {
+        let elem = this._element;
+        if (elem) {
+            if (Audio.State.PLAYING === this._state && elem.paused) {
+                this._state = Audio.State.STOPPED;
             }
-            else {
-                var self = this;
-                clip.once('load', function () {
-                    if (clip === self._src) {
-                        self._onLoaded();
-                    }
-                });
+            else if (Audio.State.STOPPED === this._state && !elem.paused) {
+                this._state = Audio.State.PLAYING;
             }
         }
-        else {
-            this._src = null;
-            if (this._element instanceof HTMLAudioElement) {
-                this._element.src = '';
+    };
+
+    Object.defineProperty(proto, 'src', {
+        get: function () {
+            return this._src;
+        },
+        set: function (clip) {
+            this._unbindEnded();
+            if (clip) {
+                this._src = clip;
+                if (clip.loaded) {
+                    this._onLoaded();
+                }
+                else {
+                    let self = this;
+                    clip.once('load', function () {
+                        if (clip === self._src) {
+                            self._onLoaded();
+                        }
+                    });
+                    cc.assetManager.loadNativeFile(clip,
+                        function (err, audioNativeAsset) {
+                            if (err) {
+                                cc.error(err);
+                                return;
+                            }
+                            if (!clip.loaded) {
+                                clip._nativeAsset = audioNativeAsset;
+                            }
+                        });
+                }
             }
             else {
-                this._element = null;
+                this._src = null;
+                if (this._element instanceof HTMLAudioElement) {
+                    this._element.src = '';
+                }
+                else {
+                    this._element = null;
+                }
+                this._state = Audio.State.INITIALZING;
             }
-            this._state = Audio.State.INITIALZING;
-        }
-        return clip;
+            return clip;
+        },
+        enumerable: true,
+        configurable: true
     });
 
-    proto.__defineGetter__('paused', function () {
-        return this._element ? this._element.paused : true;
+    Object.defineProperty(proto, 'paused', {
+        get: function () {
+            return this._element ? this._element.paused : true;
+        },
+        enumerable: true,
+        configurable: true
     });
 
     // setFinishCallback
 
 })(Audio.prototype);
 
+
+// TIME_CONSTANT is used as an argument of setTargetAtTime interface
+// TIME_CONSTANT need to be a positive number on Edge and Baidu browser
+// TIME_CONSTANT need to be 0 by default, or may fail to set volume at the very beginning of playing audio
+let TIME_CONSTANT;
+if (cc.sys.browserType === cc.sys.BROWSER_TYPE_EDGE || 
+    cc.sys.browserType === cc.sys.BROWSER_TYPE_BAIDU ||
+    cc.sys.browserType === cc.sys.BROWSER_TYPE_UC) {
+    TIME_CONSTANT = 0.01;
+}
+else {
+    TIME_CONSTANT = 0;
+}
+
 // Encapsulated WebAudio interface
-var WebAudioElement = function (buffer, audio) {
+let WebAudioElement = function (buffer, audio) {
     this._audio = audio;
     this._context = sys.__audioSupport.context;
     this._buffer = buffer;
 
     this._gainObj = this._context['createGain']();
-    this._volume = 1;
-    // https://www.chromestatus.com/features/5287995770929152
-    if (this._gainObj['gain'].setTargetAtTime) {
-        this._gainObj['gain'].setTargetAtTime(this._volume, this._context.currentTime, 0.01);
-    } else {
-        this._gainObj['gain'].value = 1;
-    }
-    this._gainObj['connect'](this._context['destination']);
+    this.volume = 1;
 
+    this._gainObj['connect'](this._context['destination']);
     this._loop = false;
     // The time stamp on the audio time axis when the recording begins to play.
     this._startTime = -1;
@@ -333,7 +380,7 @@ var WebAudioElement = function (buffer, audio) {
     // Record the time has been played
     this.playedLength = 0;
 
-    this._currextTimer = null;
+    this._currentTimer = null;
 
     this._endCallback = function () {
         if (this.onended) {
@@ -351,7 +398,7 @@ var WebAudioElement = function (buffer, audio) {
             this.playedLength = 0;
         }
 
-        var audio = this._context["createBufferSource"]();
+        let audio = this._context["createBufferSource"]();
         audio.buffer = this._buffer;
         audio["connect"](this._gainObj);
         audio.loop = this._loop;
@@ -361,10 +408,10 @@ var WebAudioElement = function (buffer, audio) {
         if (offset) {
             this._startTime -= offset;
         }
-        var duration = this._buffer.duration;
+        let duration = this._buffer.duration;
 
-        var startTime = offset;
-        var endTime;
+        let startTime = offset;
+        let endTime;
         if (this._loop) {
             if (audio.start)
                 audio.start(0, startTime);
@@ -376,7 +423,7 @@ var WebAudioElement = function (buffer, audio) {
             endTime = duration - offset;
             if (audio.start)
                 audio.start(0, startTime, endTime);
-            else if (audio["notoGrainOn"])
+            else if (audio["noteGrainOn"])
                 audio["noteGrainOn"](0, startTime, endTime);
             else
                 audio["noteOn"](0, startTime, endTime);
@@ -389,10 +436,10 @@ var WebAudioElement = function (buffer, audio) {
         // If the current audio context time stamp is 0 and audio context state is suspended
         // There may be a need to touch events before you can actually start playing audio
         if ((!audio.context.state || audio.context.state === "suspended") && this._context.currentTime === 0) {
-            var self = this;
-            clearTimeout(this._currextTimer);
-            this._currextTimer = setTimeout(function () {
-                if (!(CC_QQPLAY || CC_WECHATGAME) && self._context.currentTime === 0) {
+            let self = this;
+            clearTimeout(this._currentTimer);
+            this._currentTimer = setTimeout(function () {
+                if (self._context.currentTime === 0) {
                     touchPlayList.push({
                         instance: self._audio,
                         offset: offset,
@@ -404,84 +451,114 @@ var WebAudioElement = function (buffer, audio) {
     };
 
     proto.pause = function () {
-        clearTimeout(this._currextTimer);
+        clearTimeout(this._currentTimer);
         if (this.paused) return;
         // Record the time the current has been played
         this.playedLength = this._context.currentTime - this._startTime;
         // If more than the duration of the audio, Need to take the remainder
         this.playedLength %= this._buffer.duration;
-        var audio = this._currentSource;
+        let audio = this._currentSource;
         this._currentSource = null;
         this._startTime = -1;
         if (audio)
             audio.stop(0);
     };
 
-    proto.__defineGetter__('paused', function () {
-        // If the current audio is a loop, paused is false
-        if (this._currentSource && this._currentSource.loop)
-            return false;
+    Object.defineProperty(proto, 'paused', {
+        get: function () {
+            // If the current audio is a loop, paused is false
+            if (this._currentSource && this._currentSource.loop)
+                return false;
 
-        // startTime default is -1
-        if (this._startTime === -1)
-            return true;
+            // startTime default is -1
+            if (this._startTime === -1)
+                return true;
 
-        // Current time -  Start playing time > Audio duration
-        return this._context.currentTime - this._startTime > this._buffer.duration;
+            // Current time -  Start playing time > Audio duration
+            return this._context.currentTime - this._startTime > this._buffer.duration;
+        },
+        enumerable: true,
+        configurable: true
     });
 
-    proto.__defineGetter__('loop', function () { return this._loop; });
-    proto.__defineSetter__('loop', function (bool) {
-        if (this._currentSource)
-            this._currentSource.loop = bool;
+    Object.defineProperty(proto, 'loop', {
+        get: function () {
+            return this._loop;
+        },
+        set: function (bool) {
+            if (this._currentSource)
+                this._currentSource.loop = bool;
 
-        return this._loop = bool;
+            return this._loop = bool;
+        },
+        enumerable: true,
+        configurable: true
     });
 
-    proto.__defineGetter__('volume', function () {
-        return this._volume;
-    });
-    proto.__defineSetter__('volume', function (num) {
-        this._volume = num;
-        if (this._gainObj['gain'].setTargetAtTime) {
-            this._gainObj['gain'].setTargetAtTime(this._volume, this._context.currentTime, 0.01);
-        } else {
-            this._volume['gain'].value = num;
-        }
-        if (sys.os === sys.OS_IOS && !this.paused && this._currentSource) {
-            // IOS must be stop webAudio
-            this._currentSource.onended = null;
-            this.pause();
-            this.play();
-        }
-        return num;
+    Object.defineProperty(proto, 'volume', {
+        get: function () {
+            return this._volume;
+        },
+        set: function (num) {
+            this._volume = num;
+            // https://www.chromestatus.com/features/5287995770929152
+            if (this._gainObj.gain.setTargetAtTime) {
+                try {
+                    this._gainObj.gain.setTargetAtTime(num, this._context.currentTime, TIME_CONSTANT);
+                }
+                catch (e) {
+                    // Some other unknown browsers may crash if TIME_CONSTANT is 0
+                    this._gainObj.gain.setTargetAtTime(num, this._context.currentTime, 0.01);
+                }
+            }
+            else {
+                this._gainObj.gain.value = num;
+            }
+
+            if (sys.os === sys.OS_IOS && !this.paused && this._currentSource) {
+                // IOS must be stop webAudio
+                this._currentSource.onended = null;
+                this.pause();
+                this.play();
+            }
+        },
+        enumerable: true,
+        configurable: true
     });
 
-    proto.__defineGetter__('currentTime', function () {
-        if (this.paused) {
+    Object.defineProperty(proto, 'currentTime', {
+        get: function () {
+            if (this.paused) {
+                return this.playedLength;
+            }
+            // Record the time the current has been played
+            this.playedLength = this._context.currentTime - this._startTime;
+            // If more than the duration of the audio, Need to take the remainder
+            this.playedLength %= this._buffer.duration;
             return this.playedLength;
-        }
-        // Record the time the current has been played
-        this.playedLength = this._context.currentTime - this._startTime;
-        // If more than the duration of the audio, Need to take the remainder
-        this.playedLength %= this._buffer.duration;
-        return this.playedLength;
-    });
-    proto.__defineSetter__('currentTime', function (num) {
-        if (!this.paused) {
-            this.pause();
-            this.playedLength = num;
-            this.play();
-        } else {
-            this.playedLength = num;
-        }
-        return num;
+        },
+        set: function (num) {
+            if (!this.paused) {
+                this.pause();
+                this.playedLength = num;
+                this.play();
+            } else {
+                this.playedLength = num;
+            }
+            return num;
+        },
+        enumerable: true,
+        configurable: true
     });
 
-    proto.__defineGetter__('duration', function () {
-        return this._buffer.duration;
+    Object.defineProperty(proto, 'duration', {
+        get: function () {
+            return this._buffer.duration;
+        },
+        enumerable: true,
+        configurable: true
     });
 
 })(WebAudioElement.prototype);
 
-module.exports = cc.Audio =  Audio;
+module.exports = cc.Audio = Audio;

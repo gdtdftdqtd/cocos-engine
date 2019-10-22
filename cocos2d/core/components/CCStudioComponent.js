@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -55,7 +55,7 @@ var StudioComponent = cc.Class({
     extends: cc.Component,
 
     editor: CC_EDITOR && {
-        inspector: 'unpack://engine/extensions/cocostudio/editor/studio-component.js'
+        inspector: 'unpack://engine-dev/extensions/cocostudio/editor/studio-component.js'
     },
 
     properties: CC_EDITOR && {
@@ -244,7 +244,7 @@ var StudioComponent = cc.Class({
         sliderProgress: {
             default: 0.5,
             readonly: true,
-            type: 'Float',
+            type: cc.Float,
             range: [0, 1, 0.1]
         },
 
@@ -315,4 +315,17 @@ StudioComponent.PlaceHolder = cc.Class({
 });
 
 cc.StudioComponent = module.exports = StudioComponent;
+
+
+var StudioWidget = cc.Class({
+    name: 'cc.StudioWidget',
+    extends: cc.Widget,
+    editor: CC_EDITOR && {
+        inspector: 'packages://inspector/inspectors/comps/ccwidget.js',
+    },
+    _validateTargetInDEV () {}
+});
+
+cc.StudioWidget = module.exports = StudioWidget;
+
 

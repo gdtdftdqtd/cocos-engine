@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,7 +24,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-const RawAsset = require('./CCRawAsset');
+var RawAsset = require('./CCRawAsset');
 
 /**
  * !#en
@@ -61,6 +61,7 @@ cc.Asset = cc.Class({
          * @type {Boolean}
          */
         this.loaded = true;
+        this._nativeUrl = '';
     },
 
     properties: {
@@ -75,29 +76,25 @@ cc.Asset = cc.Class({
          */
         nativeUrl: {
             get: function () {
-                if (this._native) {
-                    var name = this._native;
-                    if (name.charCodeAt(0) === 47) {    // '/'
-                        // remove library tag
-                        // not imported in library, just created on-the-fly
-                        return name.slice(1);
-                    }
-                    if (cc.AssetLibrary) {
-                        var base = cc.AssetLibrary.getLibUrlNoExt(this._uuid, true);
+                if (!this._nativeUrl) {
+                    if (this._native) {
+                        var name = this._native;
+                        if (name.charCodeAt(0) === 47) {    // '/'
+                            // remove library tag
+                            // not imported in library, just created on-the-fly
+                            return name.slice(1);
+                        }
                         if (name.charCodeAt(0) === 46) {  // '.'
-                            // imported in dir where json exist
-                            return base + name;
+                                // imported in dir where json exist
+                            this._nativeUrl = cc.assetManager.utils.getUrlWithUuid(this._uuid, {ext: name, isNative: true });
                         }
                         else {
                             // imported in an independent dir
-                            return base + '/' + name;
+                            this._nativeUrl = cc.assetManager.utils.getUrlWithUuid(this._uuid, {name, ext: cc.path.extname(name), isNative: true});
                         }
                     }
-                    else {
-                        cc.errorID(6400);
-                    }
                 }
-                return '';
+                return this._nativeUrl;
             },
             visible: false
         },
@@ -119,9 +116,26 @@ cc.Asset = cc.Class({
          * @private
          */
         _nativeAsset: {
-            get () {},
-            set (obj) {}
+            get () {
+                return this._$nativeAsset;
+            },
+            set (obj) {
+                this._$nativeAsset = obj;
+            }
         },
+
+        /**
+         * get native dependency likes image or audio, can use 'cc.assetManager.load' to load directly
+         * @property {Object} _nativeDep
+         * @private
+         */
+        _nativeDep: {
+            get () {
+                if (this._native) {
+                    return {isNative: true, uuid: this._uuid, ext: this._native};
+                }
+            }
+        }
     },
 
     statics: {
@@ -156,7 +170,31 @@ cc.Asset = cc.Class({
          * @default false
          * @static
          */
-        preventPreloadNativeObject: false
+        preventPreloadNativeObject: false,
+
+        /**
+         * get dependencies from serialized data
+         * @param {Object} json 
+         * @static
+         * @private
+         */
+        _parseDepsFromJson (json) {
+            var depends = [];
+            parseDependRecursively(json, depends);
+            return depends;
+        },
+
+        /**
+         * get native dependency from serialized data
+         * @param {Object} json 
+         * @static
+         * @private
+         */
+        _parseNativeDepFromJson (json) {
+            if (json._native) return {isNative: true, ext: json._native};
+            return null;
+        }
+
     },
 
     /**
@@ -217,5 +255,23 @@ cc.Asset = cc.Class({
         }
     }
 });
+
+function parseDependRecursively (data, out) {
+    if (!data || typeof data !== 'object' || data.__id__) return;
+    var uuid = data.__uuid__;
+    if (Array.isArray(data)) {
+        for (let i = 0, l = data.length; i < l; i++) {
+            parseDependRecursively(data[i], out);
+        }
+    }
+    else if (uuid) { 
+        out.push(cc.assetManager.utils.decodeUuid(uuid));
+    }
+    else {
+        for (var prop in data) {
+            parseDependRecursively(data[prop], out);
+        }
+    }
+}
 
 module.exports = cc.Asset;

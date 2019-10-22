@@ -1,7 +1,7 @@
 /****************************************************************************
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -106,14 +106,15 @@
  * @property {Boolean} CC_TEST - Running in the engine's unit test.
  */
 /**
- * @property {Boolean} CC_WECHATGAME - Running in the Wechat's mini game.
- */
-/**
- * @property {Boolean} CC_QQPLAY - Running in the bricks.
+ * @property {Boolean} CC_RUNTIME - Running in runtime environments.
  */
 
 // window may be undefined when first load engine from editor
 var _global = typeof window === 'undefined' ? global : window;
+
+/*
+ * @param defaultValue - The default value is only used in the editor or preview.
+ */
 function defineMacro (name, defaultValue) {
     // if "global_defs" not preprocessed by uglify, just declare them globally,
     // this may happened in release version's preview page.
@@ -121,22 +122,67 @@ function defineMacro (name, defaultValue) {
         _global[name] = defaultValue;
     }
 }
+
+function defineDeprecatedMacroGetter (name, defaultValue) {
+    if (typeof _global[name] === 'undefined') {
+        Object.defineProperty(_global, name, {
+            get: function () {
+                let recommandedUsage;
+                if (name === 'CC_WECHATGAMESUB') {
+                    recommandedUsage = 'cc.sys.platform === cc.sys.WECHAT_GAME_SUB';
+                }
+                else if (name === 'CC_WECHATGAME') {
+                    recommandedUsage = 'cc.sys.platform === cc.sys.WECHAT_GAME';                    
+                }
+                else if (name === 'CC_QQPLAY') {
+                    recommandedUsage = 'cc.sys.platform === cc.sys.QQ_PLAY';
+                }
+                cc.warnID(1400, name, recommandedUsage);
+                return defaultValue;
+            }
+        });
+    }
+}
+
 function defined (name) {
     return typeof _global[name] === 'object';
 }
 
+// ensure CC_BUILD is defined
+// should not use window.CC_BUILD because we need get global_defs defined in uglify
+defineMacro('CC_BUILD', false);
+
+// These default values can only be defined after building
+// If you need to modify them
+// please modify the `global_defs` in the option returned by `gulp/util/utils.js: getUglifyOptions`.
+if (CC_BUILD) {
+    _global.CC_BUILD = CC_BUILD;
+    _global.CC_DEV = CC_DEV;
+    _global.CC_DEBUG = CC_DEBUG;
+    _global.CC_JSB = CC_JSB;
+    _global.CC_NATIVERENDERER = CC_NATIVERENDERER;
+    _global.CC_SUPPORT_JIT = CC_SUPPORT_JIT;
+}
+else {
+    defineMacro('CC_DEV', true);    // (CC_EDITOR && !CC_BUILD) || CC_PREVIEW || CC_TEST
+    defineMacro('CC_DEBUG', true);  // CC_DEV || Debug Build
+    defineMacro('CC_JSB', defined('jsb'));
+    defineMacro('CC_NATIVERENDERER', defined('jsb'));
+    defineMacro('CC_SUPPORT_JIT', true);
+}
+// defined in the runtime
 defineMacro('CC_TEST', defined('tap') || defined('QUnit'));
 defineMacro('CC_EDITOR', defined('Editor') && defined('process') && ('electron' in process.versions));
 defineMacro('CC_PREVIEW', !CC_EDITOR);
-defineMacro('CC_DEV', true);    // (CC_EDITOR && !CC_BUILD) || CC_PREVIEW || CC_TEST
-defineMacro('CC_DEBUG', true);  // CC_DEV || Debug Build
-defineMacro('CC_JSB', defined('jsb'));
-defineMacro('CC_BUILD', false);
-defineMacro('CC_WECHATGAME', defined('wx') && wx.getSystemInfoSync);
-defineMacro('CC_QQPLAY', defined('bk'));
-defineMacro('CC_SUPPORT_JIT', !(CC_WECHATGAME || CC_QQPLAY)); 
-
-//
+defineMacro('CC_RUNTIME', 'function' === typeof loadRuntime);
+defineMacro('CC_JSB', defined('jsb') && !CC_RUNTIME);
+// deprecated 
+const WECHATGAMESUB = !!(defined('wx') && wx.getSharedCanvas);
+const WECHATGAME = !!(defined('wx') && (wx.getSystemInfoSync || wx.getSharedCanvas));
+const QQPLAY = defined('bk');
+defineDeprecatedMacroGetter('CC_WECHATGAMESUB', WECHATGAMESUB);
+defineDeprecatedMacroGetter('CC_WECHATGAME', WECHATGAME);
+defineDeprecatedMacroGetter('CC_QQPLAY', QQPLAY);
 
 if (CC_DEV) {
     /**
@@ -156,5 +202,5 @@ if (CC_DEV) {
  * If you post a bug to forum, please attach this flag.
  * @property {String} ENGINE_VERSION
  */
-const engineVersion = '1.8.1';
+const engineVersion = '2.0.0 alpha';
 _global['CocosEngine'] = cc.ENGINE_VERSION = engineVersion;

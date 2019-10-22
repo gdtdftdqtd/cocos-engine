@@ -2,7 +2,7 @@
  Copyright (c) 2013-2016 Chukong Technologies Inc.
  Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com/
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated engine source code (the "Software"), a limited,
@@ -24,20 +24,27 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-var LineCap      = require('./types').LineCap;
-var LineJoin     = require('./types').LineJoin;
+const RenderComponent = require('../components/CCRenderComponent');
+const Material = require('../assets/material/CCMaterial');
 
+const Types = require('./types');
+const LineCap = Types.LineCap;
+const LineJoin = Types.LineJoin;
 
 /**
  * @class Graphics
- * @extends _RendererUnderSG
+ * @extends RenderComponent
  */
-var Graphics = cc.Class({
+let Graphics = cc.Class({
     name: 'cc.Graphics',
-    extends: cc._RendererUnderSG,
+    extends: RenderComponent,
 
     editor: CC_EDITOR && {
         menu: 'i18n:MAIN_MENU.component.renderers/Graphics',
+    },
+
+    ctor () {
+        this._impl = new Graphics._Impl(this);
     },
 
     properties: {
@@ -47,7 +54,7 @@ var Graphics = cc.Class({
         _lineCap: LineCap.BUTT,
         _fillColor: cc.Color.WHITE,
         _miterLimit: 10,
-
+        
         /**
          * !#en
          * Current line width.
@@ -57,11 +64,12 @@ var Graphics = cc.Class({
          * @default 1
          */
         lineWidth: {
-            get: function () {
+            get () {
                 return this._lineWidth;
             },
-            set: function (value) {
-                this._sgNode.lineWidth = this._lineWidth = value;
+            set (value) {
+                this._lineWidth = value;
+                this._impl.lineWidth = value;
             }
         },
 
@@ -74,11 +82,12 @@ var Graphics = cc.Class({
          * @default LineJoin.MITER
          */
         lineJoin: {
-            get: function () {
+            get () {
                 return this._lineJoin;
             },
-            set: function (value) {
-                this._sgNode.lineJoin = this._lineJoin = value;
+            set (value) {
+                this._lineJoin = value;
+                this._impl.lineJoin = value;
             },
             type: LineJoin
         },
@@ -92,11 +101,12 @@ var Graphics = cc.Class({
          * @default LineCap.BUTT
          */
         lineCap: {
-            get: function () {
+            get () {
                 return this._lineCap;
             },
-            set: function (value) {
-                this._sgNode.lineCap = this._lineCap = value;
+            set (value) {
+                this._lineCap = value;
+                this._impl.lineCap = value;
             },
             type: LineCap
         },
@@ -110,11 +120,11 @@ var Graphics = cc.Class({
          * @default Color.BLACK
          */
         strokeColor: {
-            get: function () {
+            get () {
                 return this._strokeColor;
             },
-            set: function (value) {
-                this._sgNode.strokeColor = this._strokeColor = value;
+            set (value) {
+                this._impl.strokeColor = this._strokeColor = cc.color(value);
             }
         },
 
@@ -127,11 +137,11 @@ var Graphics = cc.Class({
          * @default Color.WHITE
          */
         fillColor: {
-            get: function () {
+            get () {
                 return this._fillColor;
             },
-            set: function (value) {
-                this._sgNode.fillColor = this._fillColor = value;
+            set (value) {
+                this._impl.fillColor = this._fillColor = cc.color(value);
             }
         },
 
@@ -144,11 +154,12 @@ var Graphics = cc.Class({
          * @default 10
          */
         miterLimit: {
-            get: function () {
+            get () {
                 return this._miterLimit;
             },
-            set: function (value) {
-                this._sgNode.miterLimit = this._miterLimit = value;
+            set (value) {
+                this._miterLimit = value;
+                this._impl.miterLimit = value;
             }
         }
     },
@@ -158,29 +169,40 @@ var Graphics = cc.Class({
         LineCap: LineCap
     },
 
-    _createSgNode: function () {
-        if (CC_JSB && !_ccsg.GraphicsNode) {
-            var sgNode = new _ccsg.Node();
-            var func = function () {};
-            ['moveTo', 'lineTo', 'bezierCurveTo', 'quadraticCurveTo', 'arc', 'ellipse', 'circle', 'rect', 'roundRect', 'fillRect', 'clear', 'close', 'stroke', 'fill'].forEach(function (funcName) {
-                sgNode[funcName] = func;
-            });
-            return sgNode;
+    onRestore () {
+        if (!this._impl) {
+            this._impl = new Graphics._Impl(this);
         }
-
-        return new _ccsg.GraphicsNode();
     },
 
-    _initSgNode: function () {
-        var sgNode = this._sgNode;
-        sgNode.lineWidth = this._lineWidth;
-        sgNode.lineJoin = this._lineJoin;
-        sgNode.lineCap = this._lineCap;
-        sgNode.strokeColor = this._strokeColor;
-        sgNode.fillColor = this._fillColor;
-        sgNode.miterLimit = this._miterLimit;
+    onEnable () {
+        this._super();
+        this._activateMaterial();
+    },
 
-        sgNode.setContentSize(this.node.getContentSize(true));
+    onDestroy () {
+        this.clear(true);
+        this._super();
+        this._impl = null;
+    },
+
+    _activateMaterial () {
+        // Ignore material in canvas
+        if (cc.game.renderType === cc.game.RENDER_TYPE_CANVAS) {
+            this.disableRender();
+            return;
+        }
+        
+        let material = this.sharedMaterials[0];
+        if (!material) {
+            material = Material.getInstantiatedBuiltinMaterial('2d-base', this);
+        }
+        else {
+            material = Material.getInstantiatedMaterial(material, this);
+        }
+        
+        material.define('CC_USE_MODEL', true);
+        this.setMaterial(0, material);
     },
 
     /**
@@ -190,8 +212,12 @@ var Graphics = cc.Class({
      * @param {Number} [x] The x axis of the coordinate for the end point.
      * @param {Number} [y] The y axis of the coordinate for the end point.
      */
-    moveTo: function (x, y) {
-        this._sgNode.moveTo(x, y);
+    moveTo (x, y) {
+        if (CC_DEBUG && x instanceof cc.Vec2) {
+            cc.warn('[moveTo] : Can not pass Vec2 as [x, y] value, please check it.');
+            return;
+        }
+        this._impl.moveTo(x, y);
     },
 
     /**
@@ -201,8 +227,12 @@ var Graphics = cc.Class({
      * @param {Number} [x] The x axis of the coordinate for the end point.
      * @param {Number} [y] The y axis of the coordinate for the end point.
      */
-    lineTo: function (x, y) {
-        this._sgNode.lineTo(x, y);
+    lineTo (x, y) {
+        if (CC_DEBUG && x instanceof cc.Vec2) {
+            cc.warn('[moveTo] : Can not pass Vec2 as [x, y] value, please check it.');
+            return;
+        }
+        this._impl.lineTo(x, y);
     },
 
     /**
@@ -216,8 +246,8 @@ var Graphics = cc.Class({
      * @param {Number} [x] The x axis of the coordinate for the end point.
      * @param {Number} [y] The y axis of the coordinate for the end point.
      */
-    bezierCurveTo: function (c1x, c1y, c2x, c2y, x, y) {
-        this._sgNode.bezierCurveTo(c1x, c1y, c2x, c2y, x, y);
+    bezierCurveTo (c1x, c1y, c2x, c2y, x, y) {
+        this._impl.bezierCurveTo(c1x, c1y, c2x, c2y, x, y);
     },
 
     /**
@@ -229,8 +259,8 @@ var Graphics = cc.Class({
      * @param {Number} [x] The x axis of the coordinate for the end point.
      * @param {Number} [y] The y axis of the coordinate for the end point.
      */
-    quadraticCurveTo: function (cx, cy, x, y) {
-        this._sgNode.quadraticCurveTo(cx, cy, x, y);
+    quadraticCurveTo (cx, cy, x, y) {
+        this._impl.quadraticCurveTo(cx, cy, x, y);
     },
 
     /**
@@ -244,9 +274,8 @@ var Graphics = cc.Class({
      * @param {Number} [endAngle] The angle at which the arc ends, measured clockwise from the positive x axis and expressed in radians.
      * @param {Boolean} [counterclockwise] An optional Boolean which, if true, causes the arc to be drawn counter-clockwise between the two angles. By default it is drawn clockwise.
      */
-    arc: function (cx, cy, r, startAngle, endAngle, counterclockwise) {
-        counterclockwise = counterclockwise || false;
-        this._sgNode.arc(cx, cy, r, startAngle, endAngle, counterclockwise);
+    arc (cx, cy, r, startAngle, endAngle, counterclockwise) {
+        this._impl.arc(cx, cy, r, startAngle, endAngle, counterclockwise);
     },
 
     /**
@@ -258,8 +287,8 @@ var Graphics = cc.Class({
      * @param {Number} [rx] The ellipse's x-axis radius.
      * @param {Number} [ry] The ellipse's y-axis radius.
      */
-    ellipse: function (cx, cy, rx, ry) {
-        this._sgNode.ellipse(cx, cy, rx, ry);
+    ellipse (cx, cy, rx, ry) {
+        this._impl.ellipse(cx, cy, rx, ry);
     },
 
     /**
@@ -270,8 +299,8 @@ var Graphics = cc.Class({
      * @param {Number} [cy] The y axis of the coordinate for the center point.
      * @param {Number} [r] The circle's radius.
      */
-    circle: function (cx, cy, r) {
-        this._sgNode.circle(cx, cy, r);
+    circle (cx, cy, r) {
+        this._impl.circle(cx, cy, r);
     },
 
     /**
@@ -283,8 +312,8 @@ var Graphics = cc.Class({
      * @param {Number} [w] The rectangle's width.
      * @param {Number} [h] The rectangle's height.
      */
-    rect: function (x, y, w, h) {
-        this._sgNode.rect(x, y, w, h);
+    rect (x, y, w, h) {
+        this._impl.rect(x, y, w, h);
     },
 
     /**
@@ -297,8 +326,8 @@ var Graphics = cc.Class({
      * @param {Number} [h] The rectangle's height.
      * @param {Number} [r] The radius of the rectangle.
      */
-    roundRect: function (x, y, w, h, r) {
-        this._sgNode.roundRect(x, y, w, h, r);
+    roundRect (x, y, w, h, r) {
+        this._impl.roundRect(x, y, w, h, r);
     },
 
     /**
@@ -310,8 +339,9 @@ var Graphics = cc.Class({
      * @param {Number} [w] The rectangle's width.
      * @param {Number} [h] The rectangle's height.
      */
-    fillRect: function (x, y, w, h) {
-        this._sgNode.fillRect(x, y, w, h);
+    fillRect (x, y, w, h) {
+        this.rect(x, y, w, h);
+        this.fill();
     },
 
     /**
@@ -320,8 +350,9 @@ var Graphics = cc.Class({
      * @method clear
      * @param {Boolean} [clean] Whether to clean the graphics inner cache.
      */
-    clear: function (clean) {
-        this._sgNode.clear(!!clean);
+    clear (clean) {
+        this._impl.clear(clean);
+        this._assembler.clear(clean);
     },
 
     /**
@@ -329,8 +360,8 @@ var Graphics = cc.Class({
      * !#zh 将笔点返回到当前路径起始点的。它尝试从当前点到起始点绘制一条直线。
      * @method close
      */
-    close: function () {
-        this._sgNode.close();
+    close () {
+        this._impl.close();
     },
 
     /**
@@ -338,8 +369,11 @@ var Graphics = cc.Class({
      * !#zh 根据当前的画线样式，绘制当前或已经存在的路径。
      * @method stroke
      */
-    stroke: function () {
-        this._sgNode.stroke();
+    stroke () {
+        if (!this._assembler) {
+            this._resetAssembler();
+        }
+        this._assembler.stroke(this);
     },
 
     /**
@@ -347,9 +381,14 @@ var Graphics = cc.Class({
      * !#zh 根据当前的画线样式，填充当前或已经存在的路径。
      * @method fill
      */
-    fill: function () {
-        this._sgNode.fill();
+    fill () {
+        if (!this._assembler) {
+            this._resetAssembler();
+        }
+        this._assembler.fill(this);
     }
 });
 
 cc.Graphics = module.exports = Graphics;
+cc.Graphics.Types = Types;
+cc.Graphics.Helper = require('./helper');
